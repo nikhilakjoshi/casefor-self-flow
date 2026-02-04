@@ -1,0 +1,301 @@
+[
+  {
+    "category": "foundation",
+    "description": "Install dependencies (prisma, ai-sdk, pinecone, react-dropzone, mammoth, zod)",
+    "steps": [
+      "Run: pnpm add prisma @prisma/client",
+      "Run: pnpm add ai @ai-sdk/google",
+      "Run: pnpm add @pinecone-database/pinecone",
+      "Run: pnpm add react-dropzone",
+      "Run: pnpm add mammoth",
+      "Run: pnpm add zod"
+    ],
+    "passes": true
+  },
+  {
+    "category": "foundation",
+    "description": "Prisma setup with Case/ResumeUpload/EB1AAnalysis models",
+    "steps": [
+      "Run: npx prisma init",
+      "Add CaseStatus enum: SCREENING, ACTIVE, CLOSED",
+      "Add Case model: id, status, createdAt, updatedAt",
+      "Add ResumeUpload model: id, caseId (FK), fileName, fileSize, pineconeVectorIds[], createdAt",
+      "Add EB1AAnalysis model: id, caseId (FK), criteria (Json), strongCount, weakCount, createdAt",
+      "Run: npx prisma generate",
+      "Run: npx prisma db push"
+    ],
+    "passes": true
+  },
+  {
+    "category": "foundation",
+    "description": "Create lib/db.ts (Prisma client singleton)",
+    "steps": [
+      "Create lib/db.ts",
+      "Implement globalThis pattern for dev hot-reload",
+      "Export db instance"
+    ],
+    "passes": true
+  },
+  {
+    "category": "file-upload",
+    "description": "Create /app/onboard/page.tsx (basic layout)",
+    "steps": [
+      "Create app/onboard/ directory",
+      "Create page.tsx with basic layout structure",
+      "Add heading and container for dropzone",
+      "Mark as client component"
+    ],
+    "passes": true
+  },
+  {
+    "category": "file-upload",
+    "description": "Create dropzone.tsx component (react-dropzone, 10MB limit, PDF/DOCX/TXT)",
+    "steps": [
+      "Create app/onboard/_components/dropzone.tsx",
+      "Implement useDropzone hook",
+      "Configure accept: PDF, DOCX, TXT mime types",
+      "Set maxSize: 10MB (10 * 1024 * 1024)",
+      "Add drag-over visual feedback",
+      "Display file name when selected"
+    ],
+    "passes": false
+  },
+  {
+    "category": "file-upload",
+    "description": "Create file validation utils (size check, type check)",
+    "steps": [
+      "Add validateFileSize function (10MB max)",
+      "Add validateFileType function (PDF/DOCX/TXT)",
+      "Return descriptive error messages",
+      "Export from dropzone or separate utils file"
+    ],
+    "passes": false
+  },
+  {
+    "category": "file-upload",
+    "description": "Wire dropzone to page with state (file selected, error states)",
+    "steps": [
+      "Add useState for selectedFile",
+      "Add useState for error",
+      "Pass callbacks to dropzone component",
+      "Show error message when validation fails",
+      "Show Analyze button when file selected"
+    ],
+    "passes": false
+  },
+  {
+    "category": "text-extraction",
+    "description": "Create lib/file-parser.ts (mammoth for DOCX, direct read for TXT)",
+    "steps": [
+      "Create lib/file-parser.ts",
+      "Implement parseDocx using mammoth.extractRawText",
+      "Implement parseTxt with UTF-8 read",
+      "Add parseFile dispatcher based on file type",
+      "Return extracted text string"
+    ],
+    "passes": false
+  },
+  {
+    "category": "text-extraction",
+    "description": "Create lib/chunker.ts (500 char chunks, 50 overlap)",
+    "steps": [
+      "Create lib/chunker.ts",
+      "Implement chunkText function",
+      "Set chunk size: 500 characters",
+      "Set overlap: 50 characters",
+      "Return array of chunk strings"
+    ],
+    "passes": false
+  },
+  {
+    "category": "text-extraction",
+    "description": "Add extraction error handling (empty/corrupted files)",
+    "steps": [
+      "Check for empty extraction result",
+      "Check for very short content (<100 chars)",
+      "Throw descriptive errors for corrupted files",
+      "Wrap mammoth calls in try-catch"
+    ],
+    "passes": false
+  },
+  {
+    "category": "vector-storage",
+    "description": "Create lib/pinecone.ts (client init, index connection)",
+    "steps": [
+      "Create lib/pinecone.ts",
+      "Initialize Pinecone client with API key from env",
+      "Connect to index: caseforai-index",
+      "Export index reference"
+    ],
+    "passes": false
+  },
+  {
+    "category": "vector-storage",
+    "description": "Create lib/embeddings.ts (Google text-embedding-004)",
+    "steps": [
+      "Create lib/embeddings.ts",
+      "Use @ai-sdk/google for embeddings",
+      "Configure model: text-embedding-004",
+      "Implement embedText function for single text",
+      "Implement embedTexts function for batch"
+    ],
+    "passes": false
+  },
+  {
+    "category": "vector-storage",
+    "description": "Create upsert function (chunks -> vectors with caseId metadata)",
+    "steps": [
+      "Add upsertChunks function to pinecone.ts",
+      "Generate embeddings for all chunks",
+      "Create vectors with unique IDs",
+      "Include caseId in vector metadata",
+      "Include chunk text in metadata",
+      "Return array of vector IDs"
+    ],
+    "passes": false
+  },
+  {
+    "category": "vector-storage",
+    "description": "Add retry logic for Pinecone failures (3 retries)",
+    "steps": [
+      "Wrap upsert in retry loop",
+      "Max retries: 3",
+      "Add exponential backoff between retries",
+      "Throw after all retries exhausted"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ai-evaluation",
+    "description": "Create lib/eb1a-criteria.ts (10 criteria definitions)",
+    "steps": [
+      "Create lib/eb1a-criteria.ts",
+      "Define EB1A_CRITERIA array with all 10 criteria",
+      "Each criterion: id, name, description",
+      "Include: awards, membership, published material, judging, contributions, authorship, exhibitions, leading role, high salary, commercial success"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ai-evaluation",
+    "description": "Create lib/eb1a-agent.ts (Vercel AI SDK generateObject setup)",
+    "steps": [
+      "Create lib/eb1a-agent.ts",
+      "Import google provider from @ai-sdk/google",
+      "Import generateObject from ai",
+      "Configure model: gemini-1.5-pro or gemini-2.0-flash",
+      "Set up base evaluation function shell"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ai-evaluation",
+    "description": "Define Zod schema for AI output (strength, reason, evidence[])",
+    "steps": [
+      "Define CriterionResult schema: strength (Strong|Weak|None), reason (string), evidence (string[])",
+      "Define EB1AEvaluation schema: array of criterion results",
+      "Export schemas and inferred types"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ai-evaluation",
+    "description": "Implement attorney system prompt + evaluation logic",
+    "steps": [
+      "Write system prompt as immigration attorney persona",
+      "Include instructions for each criterion evaluation",
+      "Require evidence quotes from resume",
+      "Call generateObject with schema and prompt",
+      "Return typed evaluation result"
+    ],
+    "passes": false
+  },
+  {
+    "category": "server-action",
+    "description": "Create /app/onboard/actions.ts (processResume server action shell)",
+    "steps": [
+      "Create app/onboard/actions.ts",
+      "Add 'use server' directive",
+      "Define processResume(formData: FormData) function",
+      "Extract file from formData",
+      "Return placeholder response for now"
+    ],
+    "passes": false
+  },
+  {
+    "category": "server-action",
+    "description": "Wire full pipeline: upload -> extract -> embed -> analyze -> store",
+    "steps": [
+      "Create Case record in DB",
+      "Extract text (use file-parser for DOCX/TXT, pass PDF to LLM)",
+      "Chunk text using chunker.ts",
+      "Generate embeddings and upsert to Pinecone",
+      "Create ResumeUpload record with vector IDs",
+      "Run AI evaluation",
+      "Create EB1AAnalysis record",
+      "Return analysis results to client"
+    ],
+    "passes": false
+  },
+  {
+    "category": "results-display",
+    "description": "Create criterion-card.tsx (name, badge, reason, evidence)",
+    "steps": [
+      "Create app/onboard/_components/criterion-card.tsx",
+      "Accept props: criterionName, strength, reason, evidence[]",
+      "Display criterion name as heading",
+      "Show Badge with strength value",
+      "Display reason text",
+      "List evidence quotes"
+    ],
+    "passes": false
+  },
+  {
+    "category": "results-display",
+    "description": "Create results-modal.tsx (Dialog with summary + criteria list)",
+    "steps": [
+      "Create app/onboard/_components/results-modal.tsx",
+      "Use shadcn Dialog component",
+      "Show summary: X Strong, Y Weak criteria",
+      "Note: USCIS requires 3+ criteria",
+      "Map over criteria and render CriterionCard for each",
+      "Add close button"
+    ],
+    "passes": false
+  },
+  {
+    "category": "results-display",
+    "description": "Add Badge component styling (Strong=green, Weak=yellow, None=gray)",
+    "steps": [
+      "Use shadcn Badge component",
+      "Add variant or className for Strong (green/success)",
+      "Add variant or className for Weak (yellow/warning)",
+      "Add variant or className for None (gray/secondary)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "results-display",
+    "description": "Wire modal to page with state transitions",
+    "steps": [
+      "Add useState for isModalOpen",
+      "Add useState for analysisResult",
+      "Call processResume action on Analyze click",
+      "Update state with results",
+      "Open modal when analysis complete"
+    ],
+    "passes": false
+  },
+  {
+    "category": "polish",
+    "description": "Add loading/error states (spinner, error messages, retry button)",
+    "steps": [
+      "Add isLoading state",
+      "Show spinner during processing",
+      "Display 'Analyzing...' text",
+      "Show error message on failure (red text)",
+      "Add retry button that resets state"
+    ],
+    "passes": false
+  }
+]
