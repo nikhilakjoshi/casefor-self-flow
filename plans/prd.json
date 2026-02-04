@@ -105,7 +105,7 @@
       "Set overlap: 50 characters",
       "Return array of chunk strings"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "text-extraction",

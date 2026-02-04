@@ -63,3 +63,14 @@
 ### Notes for Next Dev
 - PDF files not parsed here; PRD specifies passing PDF to LLM
 - Next priority: lib/chunker.ts (500 char chunks, 50 overlap)
+
+## 2026-02-04: Text Chunker
+
+### Completed
+- Created `lib/chunker.ts` for splitting text into overlapping chunks
+- `chunkText(text, chunkSize?, overlap?)` - configurable with defaults 500/50
+- Handles edge cases: empty text returns [], validates chunkSize > 0, overlap < chunkSize
+- Uses sliding window approach with step = chunkSize - overlap
+
+### Notes for Next Dev
+- Next priority: vector-storage category (lib/pinecone.ts, lib/embeddings.ts)
