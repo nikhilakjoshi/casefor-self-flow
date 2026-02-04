@@ -248,7 +248,7 @@
       "Display reason text",
       "List evidence quotes"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "results-display",
@@ -272,7 +272,7 @@
       "Add variant or className for Weak (yellow/warning)",
       "Add variant or className for None (gray/secondary)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "results-display",

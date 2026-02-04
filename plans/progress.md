@@ -148,3 +148,17 @@
 - PDF extraction not implemented (returns error) - needs LLM-based extraction
 - Prisma model for EB1AAnalysis uses lowercase `eB1AAnalysis` in db client
 - Next priority: results-display components (criterion-card, results-modal, Badge styling)
+
+## 2026-02-04: Criterion Card + Badge Styling
+
+### Completed
+- Added shadcn Badge component via `npx shadcn@latest add badge`
+- Created `app/onboard/_components/criterion-card.tsx`
+- Props: criterionName, strength (Strong|Weak|None), reason, evidence[]
+- `getStrengthStyles()` helper for Badge colors: green/yellow/gray
+- Evidence quotes displayed with left border styling
+- Dark mode support for all color variants
+
+### Notes for Next Dev
+- Strength type exported for use in other components
+- Next priority: results-modal.tsx (Dialog with summary + criteria list)
