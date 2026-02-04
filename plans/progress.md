@@ -196,3 +196,16 @@
 - Type cast `result.evaluation.criteria as CriterionResultData[]` needed for Zod schema output
 - Strength type imported from criterion-card.tsx
 - Next priority: Pinecone retry logic OR polish (loading spinner, retry button)
+
+## 2026-02-04: Pinecone Retry Logic
+
+### Completed
+- Added `withRetry<T>()` generic helper fn to lib/pinecone.ts
+- Recursive impl: tries fn, on error waits backoff then retries with doubled backoff
+- MAX_RETRIES=3, INITIAL_BACKOFF_MS=1000 (1s -> 2s -> 4s)
+- Wrapped `index.upsert()` call in withRetry
+- Throws original error after all retries exhausted
+
+### Notes for Next Dev
+- Retry logic only covers upsert, not embedding generation (embedTexts call)
+- Next priority: polish category (loading spinner, error messages, retry button)

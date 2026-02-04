@@ -163,7 +163,7 @@
       "Add exponential backoff between retries",
       "Throw after all retries exhausted"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ai-evaluation",

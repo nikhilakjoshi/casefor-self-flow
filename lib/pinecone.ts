@@ -5,6 +5,28 @@ const globalForPinecone = globalThis as unknown as {
   pinecone: Pinecone | undefined
 }
 
+const MAX_RETRIES = 3
+const INITIAL_BACKOFF_MS = 1000
+
+/**
+ * Retry wrapper with exponential backoff
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries = MAX_RETRIES,
+  backoff = INITIAL_BACKOFF_MS
+): Promise<T> {
+  try {
+    return await fn()
+  } catch (error) {
+    if (retries <= 0) {
+      throw error
+    }
+    await new Promise((resolve) => setTimeout(resolve, backoff))
+    return withRetry(fn, retries - 1, backoff * 2)
+  }
+}
+
 function getPineconeClient(): Pinecone {
   if (!process.env.PINECONE_API_KEY) {
     throw new Error('PINECONE_API_KEY environment variable is not set')
@@ -60,7 +82,7 @@ export async function upsertChunks(
     },
   }))
 
-  await index.upsert({ records: vectors })
+  await withRetry(() => index.upsert({ records: vectors }))
 
   return { vectorIds: vectors.map((v) => v.id) }
 }
