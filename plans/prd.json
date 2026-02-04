@@ -186,7 +186,7 @@
       "Configure model: gemini-1.5-pro or gemini-2.0-flash",
       "Set up base evaluation function shell"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ai-evaluation",
@@ -196,7 +196,7 @@
       "Define EB1AEvaluation schema: array of criterion results",
       "Export schemas and inferred types"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ai-evaluation",
@@ -208,7 +208,7 @@
       "Call generateObject with schema and prompt",
       "Return typed evaluation result"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "server-action",

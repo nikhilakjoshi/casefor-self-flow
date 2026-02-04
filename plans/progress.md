@@ -113,3 +113,19 @@
 ### Notes for Next Dev
 - USCIS requires meeting 3+ criteria for EB-1A eligibility
 - Next priority: lib/eb1a-agent.ts (Vercel AI SDK generateObject setup)
+
+## 2026-02-04: EB1A Agent + Zod Schema + Attorney Prompt
+
+### Completed
+- Created `lib/eb1a-agent.ts` with full AI evaluation pipeline
+- `CriterionResultSchema`: criterionId, strength (Strong|Weak|None), reason, evidence[]
+- `EB1AEvaluationSchema`: array of criterion results
+- `evaluateResume(resumeText)` - calls generateObject with attorney system prompt
+- `countCriteriaStrengths(evaluation)` - helper to count strong/weak/none
+- Uses gemini-2.0-flash model via @ai-sdk/google
+- System prompt: immigration attorney persona, requires evidence quotes, conservative evaluation
+
+### Notes for Next Dev
+- Schema uses Zod v4 syntax (project uses zod@4.3.6)
+- Model configured as gemini-2.0-flash (faster than 1.5-pro, good for structured output)
+- Next priority: server action shell (app/onboard/actions.ts) or Pinecone retry logic
