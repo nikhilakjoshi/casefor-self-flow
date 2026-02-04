@@ -220,7 +220,7 @@
       "Extract file from formData",
       "Return placeholder response for now"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "server-action",
@@ -235,7 +235,7 @@
       "Create EB1AAnalysis record",
       "Return analysis results to client"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "results-display",

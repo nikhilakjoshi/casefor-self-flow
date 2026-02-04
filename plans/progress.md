@@ -129,3 +129,22 @@
 - Schema uses Zod v4 syntax (project uses zod@4.3.6)
 - Model configured as gemini-2.0-flash (faster than 1.5-pro, good for structured output)
 - Next priority: server action shell (app/onboard/actions.ts) or Pinecone retry logic
+
+## 2026-02-04: Server Action + Full Pipeline
+
+### Completed
+- Created `app/onboard/actions.ts` with `processResume` server action
+- Full pipeline: file -> parse -> chunk -> embed -> upsert -> evaluate -> store
+- Creates Case record in SCREENING status
+- Parses DOCX/TXT via file-parser (PDF returns error - LLM extraction not yet implemented)
+- Chunks text via chunker.ts
+- Upserts to Pinecone with caseId metadata
+- Creates ResumeUpload record with vector IDs
+- Runs AI evaluation via eb1a-agent
+- Creates EB1AAnalysis record with criteria JSON, strongCount, weakCount
+- Returns typed ProcessResumeResult with evaluation data
+
+### Notes for Next Dev
+- PDF extraction not implemented (returns error) - needs LLM-based extraction
+- Prisma model for EB1AAnalysis uses lowercase `eB1AAnalysis` in db client
+- Next priority: results-display components (criterion-card, results-modal, Badge styling)
