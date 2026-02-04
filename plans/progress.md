@@ -101,3 +101,15 @@
 ### Notes for Next Dev
 - Pinecone SDK v5+ requires `{ records: [...] }` format for upsert
 - Next priority: retry logic for Pinecone failures (3 retries, exponential backoff)
+
+## 2026-02-04: EB1A Criteria Definitions
+
+### Completed
+- Created `lib/eb1a-criteria.ts` with all 10 EB-1A criteria
+- `EB1ACriterion` interface: id, name, description
+- `EB1A_CRITERIA` array with: awards, membership, published_material, judging, original_contributions, scholarly_articles, exhibitions, leading_role, high_salary, commercial_success
+- Exported `EB1ACriterionId` type for type-safe criterion references
+
+### Notes for Next Dev
+- USCIS requires meeting 3+ criteria for EB-1A eligibility
+- Next priority: lib/eb1a-agent.ts (Vercel AI SDK generateObject setup)

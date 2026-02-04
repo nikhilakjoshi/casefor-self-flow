@@ -174,7 +174,7 @@
       "Each criterion: id, name, description",
       "Include: awards, membership, published material, judging, contributions, authorship, exhibitions, leading role, high salary, commercial success"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ai-evaluation",
