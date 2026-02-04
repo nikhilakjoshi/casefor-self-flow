@@ -152,7 +152,7 @@
       "Include chunk text in metadata",
       "Return array of vector IDs"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "vector-storage",

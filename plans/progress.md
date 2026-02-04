@@ -88,3 +88,16 @@
 - Requires PINECONE_API_KEY and PINECONE_INDEX in .env
 - Index name configurable via env (not hardcoded)
 - Next priority: upsert function (chunks -> vectors with caseId metadata)
+
+## 2026-02-04: Upsert Chunks Function
+
+### Completed
+- Added `upsertChunks(chunks, caseId)` to `lib/pinecone.ts`
+- Generates embeddings for all chunks via embedTexts
+- Creates vectors with IDs: `{caseId}-{index}-{timestamp}`
+- Metadata includes: caseId, text (chunk content), chunkIndex
+- Returns `{ vectorIds: string[] }` for storing in ResumeUpload record
+
+### Notes for Next Dev
+- Pinecone SDK v5+ requires `{ records: [...] }` format for upsert
+- Next priority: retry logic for Pinecone failures (3 retries, exponential backoff)
