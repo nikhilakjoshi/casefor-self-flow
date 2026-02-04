@@ -93,7 +93,7 @@
       "Add parseFile dispatcher based on file type",
       "Return extracted text string"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "text-extraction",
@@ -116,7 +116,7 @@
       "Throw descriptive errors for corrupted files",
       "Wrap mammoth calls in try-catch"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "vector-storage",

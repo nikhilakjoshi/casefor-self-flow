@@ -48,3 +48,18 @@
 ### Notes for Next Dev
 - Validation utils exported from dropzone.tsx for potential reuse
 - Next priority: text-extraction category (lib/file-parser.ts)
+
+## 2026-02-04: File Parser (Text Extraction)
+
+### Completed
+- Created `lib/file-parser.ts` with mammoth for DOCX, TextDecoder for TXT
+- `parseDocx(buffer)` - uses mammoth.extractRawText with ArrayBuffer
+- `parseTxt(buffer)` - uses TextDecoder UTF-8
+- `parseFile(file)` - dispatcher based on file extension
+- Custom `FileParseError` class for descriptive errors
+- Empty file detection and short content validation (<100 chars)
+- PDF case throws error - intended for LLM extraction per PRD
+
+### Notes for Next Dev
+- PDF files not parsed here; PRD specifies passing PDF to LLM
+- Next priority: lib/chunker.ts (500 char chunks, 50 overlap)
