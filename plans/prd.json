@@ -296,6 +296,6 @@
       "Show error message on failure (red text)",
       "Add retry button that resets state"
     ],
-    "passes": false
+    "passes": true
   }
 ]

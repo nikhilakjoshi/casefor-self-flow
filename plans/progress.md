@@ -209,3 +209,16 @@
 ### Notes for Next Dev
 - Retry logic only covers upsert, not embedding generation (embedTexts call)
 - Next priority: polish category (loading spinner, error messages, retry button)
+
+## 2026-02-04: Polish (Loading/Error States)
+
+### Completed
+- Added animated SVG spinner to Analyze button during loading
+- Spinner uses `animate-spin` Tailwind class
+- Added `handleRetry()` function to reset error and analysisResult states
+- Error display now includes "Try again" button inline
+- Error section styled with red background for visibility
+
+### Notes for Next Dev
+- All PRD items complete
+- PDF extraction still not implemented (out of scope for initial PRD)
