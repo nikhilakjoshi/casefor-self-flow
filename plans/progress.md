@@ -74,3 +74,17 @@
 
 ### Notes for Next Dev
 - Next priority: vector-storage category (lib/pinecone.ts, lib/embeddings.ts)
+
+## 2026-02-04: Vector Storage (Pinecone + Embeddings)
+
+### Completed
+- Created `lib/pinecone.ts` with Pinecone client singleton (globalThis pattern)
+- `getIndex()` function connects to index from PINECONE_INDEX env var
+- Created `lib/embeddings.ts` with Google text-embedding-004
+- `embedText(text)` - single text embedding
+- `embedTexts(texts)` - batch embedding via ai sdk embedMany
+
+### Notes for Next Dev
+- Requires PINECONE_API_KEY and PINECONE_INDEX in .env
+- Index name configurable via env (not hardcoded)
+- Next priority: upsert function (chunks -> vectors with caseId metadata)

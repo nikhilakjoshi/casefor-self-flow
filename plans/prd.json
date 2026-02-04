@@ -127,7 +127,7 @@
       "Connect to index: caseforai-index",
       "Export index reference"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "vector-storage",
@@ -139,7 +139,7 @@
       "Implement embedText function for single text",
       "Implement embedTexts function for batch"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "vector-storage",
