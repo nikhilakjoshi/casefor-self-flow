@@ -179,3 +179,20 @@
 - CriterionResultData interface mirrors eb1a-agent CriterionResult type
 - getCriterionName helper looks up criterion name from EB1A_CRITERIA
 - Next priority: Wire modal to page with state transitions (onboard/page.tsx)
+
+## 2026-02-04: Wire Modal to Page
+
+### Completed
+- Wired ResultsModal to onboard/page.tsx with full state management
+- Added isLoading state for button disabled/loading text
+- Added isModalOpen state to control modal visibility
+- Added analysisResult state to store evaluation data
+- handleAnalyze() creates FormData, calls processResume server action
+- On success: sets analysisResult and opens modal
+- On failure: displays error message
+- Button shows "Analyzing..." when loading, disabled during processing
+
+### Notes for Next Dev
+- Type cast `result.evaluation.criteria as CriterionResultData[]` needed for Zod schema output
+- Strength type imported from criterion-card.tsx
+- Next priority: Pinecone retry logic OR polish (loading spinner, retry button)
