@@ -58,7 +58,7 @@
       "Add drag-over visual feedback",
       "Display file name when selected"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "file-upload",
@@ -69,7 +69,7 @@
       "Return descriptive error messages",
       "Export from dropzone or separate utils file"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "file-upload",
@@ -81,7 +81,7 @@
       "Show error message when validation fails",
       "Show Analyze button when file selected"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "text-extraction",

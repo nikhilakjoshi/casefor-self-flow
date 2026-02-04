@@ -1,10 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { Dropzone } from "./_components/dropzone";
 
 export default function OnboardPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const handleFileSelect = (file: File) => {
+    setError(null);
+    setSelectedFile(file);
+  };
+
+  const handleError = (errorMsg: string) => {
+    setError(errorMsg);
+    setSelectedFile(null);
+  };
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-4 dark:bg-black">
@@ -19,12 +30,11 @@ export default function OnboardPage() {
         </div>
 
         <div className="rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
-          {/* Dropzone component will be added here */}
-          <div className="flex min-h-[200px] items-center justify-center rounded-md border-2 border-dashed border-zinc-300 dark:border-zinc-700">
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Dropzone placeholder - drag and drop your resume here
-            </p>
-          </div>
+          <Dropzone
+            onFileSelect={handleFileSelect}
+            onError={handleError}
+            selectedFile={selectedFile}
+          />
 
           {error && (
             <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>
@@ -32,12 +42,9 @@ export default function OnboardPage() {
 
           {selectedFile && (
             <div className="mt-4">
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Selected: {selectedFile.name}
-              </p>
               <button
                 type="button"
-                className="mt-4 w-full rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                className="w-full rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
               >
                 Analyze Resume
               </button>

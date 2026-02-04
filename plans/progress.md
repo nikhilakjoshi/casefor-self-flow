@@ -32,3 +32,19 @@
 - Lint warnings for unused setters are expected - will be used when dropzone component is wired
 - Run `npm run db:generate` if you get PrismaClient import errors after fresh clone
 - Next priority: dropzone.tsx component (react-dropzone, 10MB limit, PDF/DOCX/TXT)
+
+## 2026-02-04: Dropzone Component
+
+### Completed
+- Created `app/onboard/_components/dropzone.tsx` with react-dropzone
+- Configured accept: PDF, DOCX, TXT mime types
+- Set maxSize: 10MB (10 * 1024 * 1024)
+- Added drag-over visual feedback (border/bg color change)
+- Displays file name when selected, with "drop new file to replace" hint
+- Created `validateFileSize` and `validateFileType` utility functions (exported)
+- Wired dropzone to page.tsx with callbacks (onFileSelect, onError)
+- Error state clears file; file select clears error
+
+### Notes for Next Dev
+- Validation utils exported from dropzone.tsx for potential reuse
+- Next priority: text-extraction category (lib/file-parser.ts)
