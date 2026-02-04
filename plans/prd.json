@@ -261,7 +261,7 @@
       "Map over criteria and render CriterionCard for each",
       "Add close button"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "results-display",

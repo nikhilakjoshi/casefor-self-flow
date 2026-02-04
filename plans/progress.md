@@ -162,3 +162,20 @@
 ### Notes for Next Dev
 - Strength type exported for use in other components
 - Next priority: results-modal.tsx (Dialog with summary + criteria list)
+
+## 2026-02-04: Results Modal
+
+### Completed
+- Added shadcn Dialog component via `npx shadcn@latest add dialog`
+- Created `app/onboard/_components/results-modal.tsx`
+- Props: open, onOpenChange, criteria[], strongCount, weakCount
+- Summary section shows Strong/Weak/None counts with color coding
+- USCIS threshold check (3+ strong) with dynamic feedback message
+- Maps over criteria and renders CriterionCard for each
+- Close button using DialogClose
+- Max height 85vh with overflow scroll for long results
+
+### Notes for Next Dev
+- CriterionResultData interface mirrors eb1a-agent CriterionResult type
+- getCriterionName helper looks up criterion name from EB1A_CRITERIA
+- Next priority: Wire modal to page with state transitions (onboard/page.tsx)
