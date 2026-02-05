@@ -1,301 +1,234 @@
 [
   {
-    "category": "foundation",
-    "description": "Install dependencies (prisma, ai-sdk, pinecone, react-dropzone, mammoth, zod)",
+    "category": "data",
+    "description": "Prisma schema changes: add enums (ChatPhase, TemplateType, DocumentType, DocumentSource, DocumentStatus), extend CaseStatus w/ EVIDENCE, add models (ApplicationType, CriteriaMapping, Template, Document), modify Case (criteriaThreshold, applicationTypeId), modify ChatMessage (phase). Run db:generate + db:push. Deps: none.",
     "steps": [
-      "Run: pnpm add prisma @prisma/client",
-      "Run: pnpm add ai @ai-sdk/google",
-      "Run: pnpm add @pinecone-database/pinecone",
-      "Run: pnpm add react-dropzone",
-      "Run: pnpm add mammoth",
-      "Run: pnpm add zod"
+      "Open prisma/schema.prisma and add enum ChatPhase { ANALYSIS EVIDENCE }",
+      "Add enum TemplateType { PERSONAL_STATEMENT RECOMMENDATION_LETTER PETITION USCIS_FORM OTHER }",
+      "Add enum DocumentType { MARKDOWN DOCX PDF }",
+      "Add enum DocumentSource { SYSTEM_GENERATED USER_UPLOADED }",
+      "Add enum DocumentStatus { DRAFT FINAL }",
+      "Add EVIDENCE to existing CaseStatus enum",
+      "Add ApplicationType model: id (cuid), code (String @unique), name (String), defaultThreshold (Int @default(3)), active (Boolean @default(true)), createdAt, updatedAt, relations to criteria/templates/cases",
+      "Add CriteriaMapping model: id (cuid), applicationTypeId, criterionKey, name, description, displayOrder (Int @default(0)), active (Boolean @default(true)), relation to ApplicationType, relation to Document[], @@unique([applicationTypeId, criterionKey])",
+      "Add Template model: id (cuid), name, type (TemplateType), applicationTypeId, content (String), version (Int @default(1)), active (Boolean @default(true)), createdAt, updatedAt, relation to ApplicationType, relation to Document[]",
+      "Add Document model: id (cuid), caseId, name, type (DocumentType), source (DocumentSource), s3Key (String?), s3Url (String?), criterionId (String?), templateId (String?), content (String?), status (DocumentStatus @default(DRAFT)), createdAt, updatedAt, relations to Case (onDelete: Cascade), CriteriaMapping?, Template?, @@index([caseId])",
+      "Modify Case model: add criteriaThreshold Int @default(3), applicationTypeId String?, relation to ApplicationType, relation to Document[]",
+      "Modify ChatMessage model: add phase ChatPhase @default(ANALYSIS)",
+      "Run pnpm db:generate && pnpm db:push"
     ],
     "passes": true
   },
   {
-    "category": "foundation",
-    "description": "Prisma setup with Case/ResumeUpload/EB1AAnalysis models",
+    "category": "data",
+    "description": "Seed script: prisma/seed.ts upserts EB-1A ApplicationType, 10 CriteriaMappings (from lib/eb1a-criteria.ts data), 4 Templates. Backfills existing cases w/ applicationTypeId. Add prisma.seed config to package.json. Deps: task 1.",
     "steps": [
-      "Run: npx prisma init",
-      "Add CaseStatus enum: SCREENING, ACTIVE, CLOSED",
-      "Add Case model: id, status, createdAt, updatedAt",
-      "Add ResumeUpload model: id, caseId (FK), fileName, fileSize, pineconeVectorIds[], createdAt",
-      "Add EB1AAnalysis model: id, caseId (FK), criteria (Json), strongCount, weakCount, createdAt",
-      "Run: npx prisma generate",
-      "Run: npx prisma db push"
+      "Create prisma/seed.ts with imports for @prisma/client",
+      "Upsert ApplicationType for EB-1A: code='EB1A', name='EB-1A Extraordinary Ability', defaultThreshold=3",
+      "Upsert 10 CriteriaMapping rows matching lib/eb1a-criteria.ts: awards, membership, published_material, judging, original_contributions, scholarly_articles, exhibitions, leading_role, high_salary, commercial_success. Set displayOrder 0-9, criterionKey matching existing ids",
+      "Upsert 4 Template rows: Recommendation Letter (RECOMMENDATION_LETTER), Personal Statement (PERSONAL_STATEMENT), Petition (PETITION), USCIS Form (USCIS_FORM) -- each with placeholder instruction content tied to EB-1A ApplicationType",
+      "Backfill: update all existing Case records to set applicationTypeId to EB-1A's id where applicationTypeId is null",
+      "Add to package.json: \"prisma\": { \"seed\": \"tsx prisma/seed.ts\" }",
+      "Run pnpm db:seed to verify"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "foundation",
-    "description": "Create lib/db.ts (Prisma client singleton)",
+    "category": "functional",
+    "description": "DB-driven criteria lib: new lib/criteria.ts w/ getCriteriaForCase(caseId) and getCriteriaForType(code). Migrate all consumers (case-agent.ts, eb1a-agent.ts, report-panel.tsx, results-modal.tsx, incremental-analysis.ts) off lib/eb1a-criteria.ts. Deps: tasks 1, 2.",
     "steps": [
-      "Create lib/db.ts",
-      "Implement globalThis pattern for dev hot-reload",
-      "Export db instance"
+      "Create lib/criteria.ts exporting getCriteriaForCase(caseId): joins Case -> ApplicationType -> CriteriaMapping, returns active criteria ordered by displayOrder. Fallback to EB-1A if case has no applicationTypeId",
+      "Export getCriteriaForType(code: string): fetches CriteriaMapping by ApplicationType.code, returns active criteria ordered by displayOrder",
+      "Update lib/case-agent.ts: replace import of EB1A_CRITERIA with getCriteriaForCase, pass dynamic criteria to buildSystemPrompt",
+      "Update lib/eb1a-agent.ts: replace EB1A_CRITERIA import with getCriteriaForType('EB1A') call in evaluateResume/evaluateResumePdf/stream functions",
+      "Update app/case/[caseId]/_components/report-panel.tsx: replace any EB1A_CRITERIA usage with criteria fetched from API or passed as prop",
+      "Update app/onboard/_components/results-modal.tsx: replace any EB1A_CRITERIA reference with dynamic criteria",
+      "Update lib/incremental-analysis.ts: replace EB1A_CRITERIA import with getCriteriaForCase call",
+      "Deprecate lib/eb1a-criteria.ts: add @deprecated comment, remove direct imports from all consumers"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "file-upload",
-    "description": "Create /app/onboard/page.tsx (basic layout)",
+    "category": "functional",
+    "description": "S3 utilities: new lib/s3.ts with uploadToS3, getSignedDownloadUrl, deleteFromS3. Install @aws-sdk/client-s3 and @aws-sdk/s3-request-presigner. Graceful degradation when env vars missing. Deps: none.",
     "steps": [
-      "Create app/onboard/ directory",
-      "Create page.tsx with basic layout structure",
-      "Add heading and container for dropzone",
-      "Mark as client component"
+      "Run pnpm add @aws-sdk/client-s3 @aws-sdk/s3-request-presigner",
+      "Create lib/s3.ts with S3Client initialized from AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY env vars",
+      "Export uploadToS3(key: string, body: Buffer | ReadableStream, contentType: string): PutObjectCommand to S3_BUCKET, returns { key, url }",
+      "Export getSignedDownloadUrl(key: string, expiresIn?: number): GetObjectCommand + getSignedUrl from @aws-sdk/s3-request-presigner, default 1hr expiry",
+      "Export deleteFromS3(key: string): DeleteObjectCommand",
+      "Add isS3Configured() check: returns false if any env var missing. All exported functions throw descriptive error if not configured",
+      "Key convention: cases/{caseId}/documents/{documentId}/{filename}"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "file-upload",
-    "description": "Create dropzone.tsx component (react-dropzone, 10MB limit, PDF/DOCX/TXT)",
+    "category": "api",
+    "description": "Threshold PATCH API: new route PATCH /api/case/[caseId]/threshold. Validates 1-10, auth check, updates Case.criteriaThreshold. Deps: task 1.",
     "steps": [
-      "Create app/onboard/_components/dropzone.tsx",
-      "Implement useDropzone hook",
-      "Configure accept: PDF, DOCX, TXT mime types",
-      "Set maxSize: 10MB (10 * 1024 * 1024)",
-      "Add drag-over visual feedback",
-      "Display file name when selected"
+      "Create app/api/case/[caseId]/threshold/route.ts",
+      "Export async PATCH handler: extract caseId from params, parse { threshold } from JSON body",
+      "Auth check: getServerSession, verify user owns case (same pattern as app/api/case/[caseId]/analysis/route.ts)",
+      "Validate threshold: z.number().int().min(1).max(10), return 400 if invalid",
+      "Update case: db.case.update({ where: { id: caseId }, data: { criteriaThreshold: threshold } })",
+      "Return NextResponse.json({ success: true, criteriaThreshold: threshold })"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "file-upload",
-    "description": "Create file validation utils (size check, type check)",
+    "category": "api",
+    "description": "Case status PATCH API: new route PATCH /api/case/[caseId]/route.ts for status updates. Used by evidence phase indicator to set status=EVIDENCE. Deps: task 1.",
     "steps": [
-      "Add validateFileSize function (10MB max)",
-      "Add validateFileType function (PDF/DOCX/TXT)",
-      "Return descriptive error messages",
-      "Export from dropzone or separate utils file"
+      "Create app/api/case/[caseId]/route.ts (or add PATCH to existing if present)",
+      "Export async PATCH handler: extract caseId from params, parse { status } from JSON body",
+      "Auth check: getServerSession, verify user owns case",
+      "Validate status against CaseStatus enum values (SCREENING, ACTIVE, EVIDENCE, CLOSED)",
+      "Update case: db.case.update({ where: { id: caseId }, data: { status } })",
+      "Return NextResponse.json({ success: true, status })"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "file-upload",
-    "description": "Wire dropzone to page with state (file selected, error states)",
+    "category": "functional",
+    "description": "Agent threshold tool + dynamic prompt: add updateThreshold tool to case-agent.ts, make buildSystemPrompt use dynamic threshold from case.criteriaThreshold, fetch threshold in runCaseAgent. Deps: tasks 1, 3.",
     "steps": [
-      "Add useState for selectedFile",
-      "Add useState for error",
-      "Pass callbacks to dropzone component",
-      "Show error message when validation fails",
-      "Show Analyze button when file selected"
+      "In lib/case-agent.ts createCaseAgentTools(): add updateThreshold tool with z.object({ threshold: z.number().int().min(1).max(10) }), executes db.case.update, returns { success, newThreshold }",
+      "In lib/case-agent.ts runCaseAgent(): fetch case.criteriaThreshold alongside existing profile/analysis/rag queries (add to parallel Promise.all)",
+      "In lib/case-agent.ts buildSystemPrompt(): accept threshold param, replace hardcoded '3+ Strong' references with dynamic '{threshold}+ Strong' in system prompt text (around line 46)",
+      "Pass threshold to buildSystemPrompt in runCaseAgent"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "text-extraction",
-    "description": "Create lib/file-parser.ts (mammoth for DOCX, direct read for TXT)",
+    "category": "ui",
+    "description": "Threshold UI: page.tsx fetches criteriaThreshold, client.tsx accepts + threads prop, report-panel.tsx replaces hardcoded 3 w/ prop + adds number stepper, results-modal.tsx replaces hardcoded 3. Deps: tasks 1, 5.",
     "steps": [
-      "Create lib/file-parser.ts",
-      "Implement parseDocx using mammoth.extractRawText",
-      "Implement parseTxt with UTF-8 read",
-      "Add parseFile dispatcher based on file type",
-      "Return extracted text string"
+      "In app/case/[caseId]/page.tsx: include criteriaThreshold in case fetch (select or include), pass as prop to CasePageClient",
+      "In app/case/[caseId]/client.tsx: accept criteriaThreshold prop, add to state (to allow updates), thread to ReportPanel and any threshold-dependent UI",
+      "In app/case/[caseId]/_components/report-panel.tsx: accept threshold prop, replace hardcoded 3 on line 185 (threshold badge) and line 203 (comparison) with prop value",
+      "In report-panel.tsx: add number stepper control (+ / - buttons or input) next to threshold badge in header. On change, PATCH /api/case/[caseId]/threshold, update local state",
+      "In app/onboard/_components/results-modal.tsx: replace hardcoded 3 on line 214 with a threshold prop (default 3 for onboard context)"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "text-extraction",
-    "description": "Create lib/chunker.ts (500 char chunks, 50 overlap)",
+    "category": "functional",
+    "description": "Auto-assign applicationTypeId: in /api/analyze/route.ts, lookup EB-1A ApplicationType and assign to new Case on creation. Deps: tasks 1, 2.",
     "steps": [
-      "Create lib/chunker.ts",
-      "Implement chunkText function",
-      "Set chunk size: 500 characters",
-      "Set overlap: 50 characters",
-      "Return array of chunk strings"
+      "In app/api/analyze/route.ts: before or after creating the Case record (around line 19-22), fetch ApplicationType where code='EB1A'",
+      "Set applicationTypeId on the Case create call: db.case.create({ data: { userId, status: 'SCREENING', applicationTypeId: eb1aType.id } })",
+      "Handle edge case: if EB-1A ApplicationType not found (seed not run), log warning and proceed without applicationTypeId"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "text-extraction",
-    "description": "Add extraction error handling (empty/corrupted files)",
+    "category": "ui",
+    "description": "Evidence phase indicator badge: in client.tsx, when strongCount >= criteriaThreshold, show floating badge. Clicking badge PATCHes status=EVIDENCE and switches to evidence tab. Deps: tasks 1, 8.",
     "steps": [
-      "Check for empty extraction result",
-      "Check for very short content (<100 chars)",
-      "Throw descriptive errors for corrupted files",
-      "Wrap mammoth calls in try-catch"
+      "In app/case/[caseId]/client.tsx: compute strongCount from current analysis data (count criteria with strength='Strong')",
+      "When strongCount >= criteriaThreshold, render floating pill/chip badge positioned above ChatInput area: 'Start evidence phase'",
+      "Style badge: position absolute, z-10, pill shape, emerald background, hover effect",
+      "On badge click: PATCH /api/case/[caseId] with { status: 'EVIDENCE' }, then set activeTab to 'evidence' (relies on tab state from task 14)"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "vector-storage",
-    "description": "Create lib/pinecone.ts (client init, index connection)",
+    "category": "functional",
+    "description": "Evidence agent: new lib/evidence-agent.ts with ToolLoopAgent (Claude Sonnet 4). Tools: draftRecommendationLetter, draftPersonalStatement, generateFromTemplate, listDocuments, getProfile, getAnalysis. System prompt focused on evidence gathering. Deps: tasks 1, 2, 3.",
     "steps": [
-      "Create lib/pinecone.ts",
-      "Initialize Pinecone client with API key from env",
-      "Connect to index: caseforai-index",
-      "Export index reference"
+      "Create lib/evidence-agent.ts with MODEL = 'claude-sonnet-4-20250514' (same as case-agent.ts)",
+      "Build evidence-focused system prompt: role is evidence gathering specialist, knows about templates, document drafting, criteria context",
+      "Implement getProfile tool: fetches CaseProfile.data for case",
+      "Implement getAnalysis tool: fetches latest EB1AAnalysis for case, returns criteria w/ strengths",
+      "Implement listDocuments tool: queries Document where caseId, returns list w/ name/type/source/status",
+      "Implement draftRecommendationLetter tool: uses Template (RECOMMENDATION_LETTER) + profile + analysis context to generate letter. Saves as Document (MARKDOWN, SYSTEM_GENERATED, DRAFT). Upload to S3 if configured",
+      "Implement draftPersonalStatement tool: same pattern as rec letter but with PERSONAL_STATEMENT template",
+      "Implement generateFromTemplate tool: accepts templateId + variables object, fetches Template, replaces {{var}} mustache placeholders, generates doc via LLM, saves as Document",
+      "Export runEvidenceAgent(opts) following same ToolLoopAgent pattern as runCaseAgent: gathers context, builds prompt, returns streaming response"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "vector-storage",
-    "description": "Create lib/embeddings.ts (Google text-embedding-004)",
+    "category": "api",
+    "description": "Evidence chat API: new POST /api/case/[caseId]/evidence-chat/route.ts. Supports text + file uploads (same pattern as analysis chat). Filters ChatMessage by phase=EVIDENCE. Deps: tasks 1, 11.",
     "steps": [
-      "Create lib/embeddings.ts",
-      "Use @ai-sdk/google for embeddings",
-      "Configure model: text-embedding-004",
-      "Implement embedText function for single text",
-      "Implement embedTexts function for batch"
+      "Create app/api/case/[caseId]/evidence-chat/route.ts",
+      "Export async POST handler with same auth/ownership checks as existing chat/route.ts",
+      "Handle multipart (file upload) path: same pattern as chat/route.ts lines 103-130, but save ChatMessage with phase=EVIDENCE",
+      "Handle JSON (text message) path: same pattern as chat/route.ts lines 131-167, save ChatMessage with phase=EVIDENCE",
+      "Load message history filtered by phase=EVIDENCE (db.chatMessage.findMany where caseId AND phase='EVIDENCE')",
+      "Call runEvidenceAgent instead of runCaseAgent, pass evidence-phase messages",
+      "Save assistant response to ChatMessage with phase=EVIDENCE in onFinish callback",
+      "Return streaming response via result.toTextStreamResponse()"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "vector-storage",
-    "description": "Create upsert function (chunks -> vectors with caseId metadata)",
+    "category": "api",
+    "description": "Document CRUD API: POST (upload to S3), GET (list), GET detail (signed URL), PATCH (update), DELETE (S3 cleanup). All under /api/case/[caseId]/documents. Deps: tasks 1, 4.",
     "steps": [
-      "Add upsertChunks function to pinecone.ts",
-      "Generate embeddings for all chunks",
-      "Create vectors with unique IDs",
-      "Include caseId in vector metadata",
-      "Include chunk text in metadata",
-      "Return array of vector IDs"
+      "Create app/api/case/[caseId]/documents/route.ts with POST and GET handlers",
+      "POST handler: accept multipart FormData with file, auth check, create Document record, upload to S3 via lib/s3.ts (key: cases/{caseId}/documents/{docId}/{filename}). If S3 not configured, store content inline for markdown. Return document record",
+      "GET handler: auth check, db.document.findMany where caseId, return list with id/name/type/source/status/createdAt",
+      "Create app/api/case/[caseId]/documents/[docId]/route.ts with GET, PATCH, DELETE handlers",
+      "GET [docId] handler: auth check, fetch document, if s3Key present generate signed download URL via getSignedDownloadUrl, return document detail + signedUrl",
+      "PATCH [docId] handler: auth check, accept { content?, status?, name? } in body, update Document record",
+      "DELETE [docId] handler: auth check, if s3Key present call deleteFromS3, then delete Document record, return success"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "vector-storage",
-    "description": "Add retry logic for Pinecone failures (3 retries)",
+    "category": "ui",
+    "description": "Evidence tab UI: new phase-tabs.tsx (Analysis | Evidence toggle), client.tsx activeTab state + conditional rendering, page.tsx loads evidence messages separately, new evidence-chat-panel.tsx and documents-panel.tsx. Deps: tasks 1, 12, 13.",
     "steps": [
-      "Wrap upsert in retry loop",
-      "Max retries: 3",
-      "Add exponential backoff between retries",
-      "Throw after all retries exhausted"
+      "Create app/case/[caseId]/_components/phase-tabs.tsx: tab toggle component with 'Analysis' and 'Evidence' options. Style with existing shadcn patterns",
+      "In app/case/[caseId]/client.tsx: add activeTab state ('analysis' | 'evidence'), render PhaseTabs at top of content area",
+      "Conditional rendering: when activeTab='analysis', show existing ChatPanel + ReportPanel (60/40). When activeTab='evidence', show EvidenceChatPanel + DocumentsPanel (60/40)",
+      "In app/case/[caseId]/page.tsx: fetch evidence-phase ChatMessages separately (where phase='EVIDENCE'), pass as prop to client",
+      "Create app/case/[caseId]/_components/evidence-chat-panel.tsx: chat UI for evidence agent. New component (not reusing ChatPanel). POST to /api/case/[caseId]/evidence-chat, stream responses, display messages. Include file upload support (drag-drop)",
+      "Create app/case/[caseId]/_components/documents-panel.tsx: list view with name, type icon (MD/DOCX/PDF), source badge (System/Uploaded), status badge (Draft/Final), date. Preview: markdown rendered inline. Upload button (PDF/DOCX/MD). Download button (signed URL). Delete option. Fetches from /api/case/[caseId]/documents"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "ai-evaluation",
-    "description": "Create lib/eb1a-criteria.ts (10 criteria definitions)",
+    "category": "ui",
+    "description": "Admin layout + dashboard: app/admin/layout.tsx (admin shell w/ sidebar), app/admin/page.tsx (counts dashboard for cases, criteria, templates). Deps: task 1.",
     "steps": [
-      "Create lib/eb1a-criteria.ts",
-      "Define EB1A_CRITERIA array with all 10 criteria",
-      "Each criterion: id, name, description",
-      "Include: awards, membership, published material, judging, contributions, authorship, exhibitions, leading role, high salary, commercial success"
+      "Create app/admin/layout.tsx: admin shell with sidebar navigation (links to /admin, /admin/criteria, /admin/templates). Use existing shadcn sidebar patterns or simple flex layout",
+      "Create app/admin/page.tsx: server component that fetches counts (db.case.count(), db.criteriaMapping.count(), db.template.count()), renders dashboard cards with counts",
+      "No auth guard for v1 (open access per resolved decisions)"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "ai-evaluation",
-    "description": "Create lib/eb1a-agent.ts (Vercel AI SDK generateObject setup)",
+    "category": "api",
+    "description": "Admin criteria API + UI: GET/POST /api/admin/criteria, PATCH/DELETE /api/admin/criteria/[id], app/admin/criteria/page.tsx with table grouped by app type and inline edit. Deps: tasks 1, 2.",
     "steps": [
-      "Create lib/eb1a-agent.ts",
-      "Import google provider from @ai-sdk/google",
-      "Import generateObject from ai",
-      "Configure model: gemini-1.5-pro or gemini-2.5-flash",
-      "Set up base evaluation function shell"
+      "Create app/api/admin/criteria/route.ts: GET returns all CriteriaMapping with ApplicationType included, ordered by applicationTypeId + displayOrder. POST creates new CriteriaMapping from { applicationTypeId, criterionKey, name, description, displayOrder }",
+      "Create app/api/admin/criteria/[id]/route.ts: PATCH updates CriteriaMapping fields (name, description, displayOrder, active). DELETE removes CriteriaMapping by id",
+      "Create app/admin/criteria/page.tsx: fetch criteria via GET /api/admin/criteria, render table grouped by ApplicationType. Columns: criterionKey, name, description, displayOrder, active. Inline edit for name/description/displayOrder/active fields, PATCH on change"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "ai-evaluation",
-    "description": "Define Zod schema for AI output (strength, reason, evidence[])",
+    "category": "api",
+    "description": "Admin templates API + UI: GET/POST /api/admin/templates, PATCH/DELETE /api/admin/templates/[id], app/admin/templates/page.tsx (list), app/admin/templates/[id]/page.tsx (edit form w/ textarea). Deps: tasks 1, 2.",
     "steps": [
-      "Define CriterionResult schema: strength (Strong|Weak|None), reason (string), evidence (string[])",
-      "Define EB1AEvaluation schema: array of criterion results",
-      "Export schemas and inferred types"
+      "Create app/api/admin/templates/route.ts: GET returns all Templates with ApplicationType included, ordered by type. POST creates new Template from { name, type, applicationTypeId, content }",
+      "Create app/api/admin/templates/[id]/route.ts: PATCH updates Template fields (name, type, content, active, version). DELETE removes Template by id",
+      "Create app/admin/templates/page.tsx: fetch templates via GET /api/admin/templates, render list view with name, type badge, applicationType name, version, active status. Link each row to /admin/templates/[id]",
+      "Create app/admin/templates/[id]/page.tsx: fetch template by id, render edit form with inputs for name/type/active and textarea for content (instruction text). Save via PATCH on submit"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "ai-evaluation",
-    "description": "Implement attorney system prompt + evaluation logic",
+    "category": "api",
+    "description": "Admin application-types API: GET/POST /api/admin/application-types. Deps: task 1.",
     "steps": [
-      "Write system prompt as immigration attorney persona",
-      "Include instructions for each criterion evaluation",
-      "Require evidence quotes from resume",
-      "Call generateObject with schema and prompt",
-      "Return typed evaluation result"
+      "Create app/api/admin/application-types/route.ts",
+      "GET handler: return all ApplicationTypes ordered by code, include _count of criteria and cases",
+      "POST handler: create new ApplicationType from { code, name, defaultThreshold, active }. Validate code is unique, return created record"
     ],
-    "passes": true
-  },
-  {
-    "category": "server-action",
-    "description": "Create /app/onboard/actions.ts (processResume server action shell)",
-    "steps": [
-      "Create app/onboard/actions.ts",
-      "Add 'use server' directive",
-      "Define processResume(formData: FormData) function",
-      "Extract file from formData",
-      "Return placeholder response for now"
-    ],
-    "passes": true
-  },
-  {
-    "category": "server-action",
-    "description": "Wire full pipeline: upload -> extract -> embed -> analyze -> store",
-    "steps": [
-      "Create Case record in DB",
-      "Extract text (use file-parser for DOCX/TXT, pass PDF to LLM)",
-      "Chunk text using chunker.ts",
-      "Generate embeddings and upsert to Pinecone",
-      "Create ResumeUpload record with vector IDs",
-      "Run AI evaluation",
-      "Create EB1AAnalysis record",
-      "Return analysis results to client"
-    ],
-    "passes": true
-  },
-  {
-    "category": "results-display",
-    "description": "Create criterion-card.tsx (name, badge, reason, evidence)",
-    "steps": [
-      "Create app/onboard/_components/criterion-card.tsx",
-      "Accept props: criterionName, strength, reason, evidence[]",
-      "Display criterion name as heading",
-      "Show Badge with strength value",
-      "Display reason text",
-      "List evidence quotes"
-    ],
-    "passes": true
-  },
-  {
-    "category": "results-display",
-    "description": "Create results-modal.tsx (Dialog with summary + criteria list)",
-    "steps": [
-      "Create app/onboard/_components/results-modal.tsx",
-      "Use shadcn Dialog component",
-      "Show summary: X Strong, Y Weak criteria",
-      "Note: USCIS requires 3+ criteria",
-      "Map over criteria and render CriterionCard for each",
-      "Add close button"
-    ],
-    "passes": true
-  },
-  {
-    "category": "results-display",
-    "description": "Add Badge component styling (Strong=green, Weak=yellow, None=gray)",
-    "steps": [
-      "Use shadcn Badge component",
-      "Add variant or className for Strong (green/success)",
-      "Add variant or className for Weak (yellow/warning)",
-      "Add variant or className for None (gray/secondary)"
-    ],
-    "passes": true
-  },
-  {
-    "category": "results-display",
-    "description": "Wire modal to page with state transitions",
-    "steps": [
-      "Add useState for isModalOpen",
-      "Add useState for analysisResult",
-      "Call processResume action on Analyze click",
-      "Update state with results",
-      "Open modal when analysis complete"
-    ],
-    "passes": true
-  },
-  {
-    "category": "polish",
-    "description": "Add loading/error states (spinner, error messages, retry button)",
-    "steps": [
-      "Add isLoading state",
-      "Show spinner during processing",
-      "Display 'Analyzing...' text",
-      "Show error message on failure (red text)",
-      "Add retry button that resets state"
-    ],
-    "passes": true
+    "passes": false
   }
 ]

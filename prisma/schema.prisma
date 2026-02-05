@@ -61,21 +61,55 @@ model VerificationToken {
 enum CaseStatus {
   SCREENING
   ACTIVE
+  EVIDENCE
   CLOSED
 }
 
-model Case {
-  id        String     @id @default(cuid())
-  userId    String?
-  status    CaseStatus @default(SCREENING)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+enum ChatPhase {
+  ANALYSIS
+  EVIDENCE
+}
 
-  user           User?          @relation(fields: [userId], references: [id])
-  profile        CaseProfile?
-  resumeUploads  ResumeUpload[]
-  eb1aAnalyses   EB1AAnalysis[]
-  chatMessages   ChatMessage[]
+enum TemplateType {
+  PERSONAL_STATEMENT
+  RECOMMENDATION_LETTER
+  PETITION
+  USCIS_FORM
+  OTHER
+}
+
+enum DocumentType {
+  MARKDOWN
+  DOCX
+  PDF
+}
+
+enum DocumentSource {
+  SYSTEM_GENERATED
+  USER_UPLOADED
+}
+
+enum DocumentStatus {
+  DRAFT
+  FINAL
+}
+
+model Case {
+  id                 String     @id @default(cuid())
+  userId             String?
+  status             CaseStatus @default(SCREENING)
+  criteriaThreshold  Int        @default(3)
+  applicationTypeId  String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  user            User?            @relation(fields: [userId], references: [id])
+  applicationType ApplicationType? @relation(fields: [applicationTypeId], references: [id])
+  profile         CaseProfile?
+  resumeUploads   ResumeUpload[]
+  eb1aAnalyses    EB1AAnalysis[]
+  chatMessages    ChatMessage[]
+  documents       Document[]
 }
 
 model CaseProfile {
@@ -93,12 +127,13 @@ enum ChatRole {
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   caseId    String
   role      ChatRole
   content   String
   metadata  Json?
-  createdAt DateTime @default(now())
+  phase     ChatPhase @default(ANALYSIS)
+  createdAt DateTime  @default(now())
 
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
@@ -126,4 +161,70 @@ model EB1AAnalysis {
   createdAt   DateTime @default(now())
 
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model ApplicationType {
+  id               String   @id @default(cuid())
+  code             String   @unique
+  name             String
+  defaultThreshold Int      @default(3)
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  criteria  CriteriaMapping[]
+  templates Template[]
+  cases     Case[]
+}
+
+model CriteriaMapping {
+  id                String   @id @default(cuid())
+  applicationTypeId String
+  criterionKey      String
+  name              String
+  description       String
+  displayOrder      Int      @default(0)
+  active            Boolean  @default(true)
+
+  applicationType ApplicationType @relation(fields: [applicationTypeId], references: [id])
+  documents       Document[]
+
+  @@unique([applicationTypeId, criterionKey])
+}
+
+model Template {
+  id                String       @id @default(cuid())
+  name              String
+  type              TemplateType
+  applicationTypeId String
+  content           String
+  version           Int          @default(1)
+  active            Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  applicationType ApplicationType @relation(fields: [applicationTypeId], references: [id])
+  documents       Document[]
+}
+
+model Document {
+  id          String         @id @default(cuid())
+  caseId      String
+  name        String
+  type        DocumentType
+  source      DocumentSource
+  s3Key       String?
+  s3Url       String?
+  criterionId String?
+  templateId  String?
+  content     String?
+  status      DocumentStatus @default(DRAFT)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  case      Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  criterion CriteriaMapping? @relation(fields: [criterionId], references: [id])
+  template  Template?        @relation(fields: [templateId], references: [id])
+
+  @@index([caseId])
 }

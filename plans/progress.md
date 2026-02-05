@@ -253,3 +253,23 @@
 
 - All PRD items complete
 - PDF extraction still not implemented (out of scope for initial PRD)
+
+## 2026-02-05: Prisma Schema - Evidence Phase Foundation (PRD Task 1)
+
+### Completed
+
+- Added 5 new enums: ChatPhase, TemplateType, DocumentType, DocumentSource, DocumentStatus
+- Extended CaseStatus enum w/ EVIDENCE value
+- Added ApplicationType model (code unique, defaultThreshold, active flag)
+- Added CriteriaMapping model (applicationTypeId+criterionKey unique, displayOrder, active)
+- Added Template model (name, type, content, version, active)
+- Added Document model (caseId indexed, s3Key/s3Url optional, criterionId/templateId optional, status default DRAFT)
+- Modified Case: added criteriaThreshold (default 3), applicationTypeId (optional FK to ApplicationType), documents relation
+- Modified ChatMessage: added phase field (ChatPhase, default ANALYSIS)
+- Ran prisma generate + db push successfully
+
+### Notes for Next Dev
+
+- Pre-existing lint errors in case-agent.ts (no-explicit-any x4) and results-modal.tsx (unescaped entities x2) -- not introduced by this change
+- Next priority: Task 2 (seed script) -- depends on this task, unblocks tasks 3, 9
+- Task 4 (S3 utilities) has no deps and can be done in parallel w/ task 2
