@@ -73,3 +73,7 @@
 - Templates list page uses native `<select>` element instead of shadcn Select (not installed, keeps it simple)
 - Content textarea uses monospace font since template content is instruction text / markdown
 - Admin templates API has no auth guard, consistent with admin layout (task 15) and criteria API (task 16) open-access decision
+- Admin application-types API has no auth guard, consistent with all other admin endpoints
+- POST /api/admin/application-types catches Prisma P2002 for duplicate code uniqueness constraint (same pattern as criteria API)
+- GET includes `_count` for criteria and cases only (not templates); PRD specified "criteria and cases"
+- defaultThreshold on POST validated 1-10, consistent with threshold PATCH API (task 5)

@@ -630,3 +630,21 @@
 - Application type is read-only on edit page (changing it would break template-appType relationship)
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, actions.ts)
 - Next priority: Task 18 (admin application-types API, dep 1 met) -- last remaining task
+
+## 2026-02-05: Admin Application-Types API (PRD Task 18)
+
+### Completed
+
+- Created `app/api/admin/application-types/route.ts` with GET and POST handlers
+  - GET: returns all ApplicationTypes ordered by code, includes `_count` of criteria and cases
+  - POST: creates new ApplicationType from { code, name, defaultThreshold, active }, validates code uniqueness (409 on P2002)
+- No auth guard (consistent w/ admin layout + criteria + templates open-access decision)
+- Typecheck + lint pass clean (no new issues; pre-existing unchanged)
+
+### Notes for Next Dev
+
+- All 18 PRD tasks are now complete
+- POST catches Prisma P2002 to return 409 on duplicate code (same pattern as criteria API)
+- `_count` includes criteria and cases counts (not templates; PRD only asked for criteria + cases)
+- defaultThreshold validated 1-10 (consistent w/ threshold PATCH API from task 5)
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, actions.ts)

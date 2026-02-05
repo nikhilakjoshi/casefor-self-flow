@@ -229,6 +229,6 @@
       "GET handler: return all ApplicationTypes ordered by code, include _count of criteria and cases",
       "POST handler: create new ApplicationType from { code, name, defaultThreshold, active }. Validate code is unique, return created record"
     ],
-    "passes": false
+    "passes": true
   }
 ]
