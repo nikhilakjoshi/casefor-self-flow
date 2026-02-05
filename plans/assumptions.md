@@ -20,3 +20,6 @@
 - Auto-assign uses spread conditional `...(eb1aType && { applicationTypeId: eb1aType.id })` to avoid setting undefined on the create call
 - No auth check in /api/analyze (onboard flow is pre-auth, consistent with existing code pattern)
 - Case status PATCH uses hardcoded z.enum(['SCREENING','ACTIVE','EVIDENCE','CLOSED']) rather than importing CaseStatus from Prisma; keeps route self-contained and avoids Prisma enum import quirks
+- `updateThreshold` tool uses same 1-10 validation range as the PATCH API (task 5) for consistency
+- `runCaseAgent` falls back to threshold=3 if case record not found (defensive, shouldn't happen in practice)
+- Threshold is fetched via `select: { criteriaThreshold: true }` to minimize data transfer (not full case record)

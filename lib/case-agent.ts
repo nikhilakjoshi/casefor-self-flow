@@ -11,6 +11,7 @@ const MAX_HISTORY = 20;
 
 function buildSystemPrompt(opts: {
   criteria: Criterion[];
+  threshold: number;
   profile: Record<string, unknown> | null;
   analysis: CriterionResult[] | null;
   ragContext: string[];
@@ -41,7 +42,7 @@ YOUR BEHAVIOR:
 - Be specific about USCIS requirements. Cite which criteria benefit from the evidence.
 - When suggesting next steps, be concrete: "Do you have a letter from Dr. X confirming your contribution?" not just "get recommendation letters."
 
-THE 10 EB-1A CRITERIA (need 3+ Strong):
+THE 10 EB-1A CRITERIA (need ${opts.threshold}+ Strong):
 ${criteriaListFull}
 
 ${profileSection}
@@ -138,6 +139,32 @@ export function createCaseAgentTools(caseId: string, criteria: Criterion[]) {
           strongCount: analysis.strongCount,
           weakCount: analysis.weakCount,
         };
+      },
+    }),
+
+    updateThreshold: tool({
+      description:
+        "Update the criteria threshold for this case. The threshold is the number of Strong criteria needed for a viable case. Default is 3 per USCIS guidelines. Adjust if the applicant or attorney prefers a different target.",
+      inputSchema: z.object({
+        threshold: z
+          .number()
+          .int()
+          .min(1)
+          .max(10)
+          .describe("New threshold value (1-10)"),
+      }),
+      execute: async ({ threshold }) => {
+        console.log(
+          `${logPrefix} [updateThreshold] Setting threshold to ${threshold}`,
+        );
+        await db.case.update({
+          where: { id: caseId },
+          data: { criteriaThreshold: threshold },
+        });
+        console.log(
+          `${logPrefix} [updateThreshold] Threshold updated successfully`,
+        );
+        return { success: true, newThreshold: threshold };
       },
     }),
 
@@ -264,8 +291,9 @@ export async function runCaseAgent(opts: {
   log("runCaseAgent called, messages:", messages.length);
 
   // Gather context
-  const [criteria, profile, analysis, ragResults] = await Promise.all([
+  const [criteria, caseRecord, profile, analysis, ragResults] = await Promise.all([
     getCriteriaForCase(caseId),
+    db.case.findUnique({ where: { id: caseId }, select: { criteriaThreshold: true } }),
     db.caseProfile.findUnique({ where: { caseId } }),
     db.eB1AAnalysis.findFirst({
       where: { caseId },
@@ -276,10 +304,12 @@ export async function runCaseAgent(opts: {
       : Promise.resolve([]),
   ]);
 
-  log("context gathered - criteria:", criteria.length, "profile:", !!profile, "analysis:", !!analysis, "ragResults:", ragResults.length);
+  const threshold = caseRecord?.criteriaThreshold ?? 3;
+  log("context gathered - criteria:", criteria.length, "threshold:", threshold, "profile:", !!profile, "analysis:", !!analysis, "ragResults:", ragResults.length);
 
   const instructions = buildSystemPrompt({
     criteria,
+    threshold,
     profile: (profile?.data as Record<string, unknown>) ?? null,
     analysis: analysis ? (analysis.criteria as CriterionResult[]) : null,
     ragContext: ragResults.map((r) => r.text),

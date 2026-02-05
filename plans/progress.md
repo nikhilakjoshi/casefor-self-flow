@@ -368,3 +368,22 @@
 
 - Pre-existing lint errors unchanged
 - Next priority: Task 8 (threshold UI, deps met) or Task 7 (agent threshold tool, deps met) or Task 11 (evidence agent, deps met) or Task 4 (S3 utils, no deps)
+
+## 2026-02-05: Agent Threshold Tool + Dynamic Prompt (PRD Task 7)
+
+### Completed
+
+- Added `updateThreshold` tool to `createCaseAgentTools()` in `lib/case-agent.ts`
+  - Zod schema: `z.number().int().min(1).max(10)`
+  - Executes `db.case.update` on `criteriaThreshold`, returns `{ success, newThreshold }`
+- `runCaseAgent()` now fetches `case.criteriaThreshold` in parallel Promise.all
+  - Uses `db.case.findUnique` with `select: { criteriaThreshold: true }`
+  - Falls back to 3 if case not found
+- `buildSystemPrompt()` accepts `threshold` param, replaces hardcoded "3+ Strong" with dynamic `${threshold}+ Strong`
+- Typecheck passes clean, no new lint issues (pre-existing lint errors unchanged)
+
+### Notes for Next Dev
+
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, client.tsx, actions.ts)
+- Next priority: Task 8 (threshold UI, deps 1+5 met) or Task 4 (S3 utils, no deps, unblocks 11+13) or Task 11 (evidence agent, deps 1+2+3 met)
+- Task 8 unblocks task 10 (evidence badge); Task 4 unblocks tasks 11+13 (evidence agent, document CRUD)

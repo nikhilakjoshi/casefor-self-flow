@@ -97,7 +97,7 @@
       "In lib/case-agent.ts buildSystemPrompt(): accept threshold param, replace hardcoded '3+ Strong' references with dynamic '{threshold}+ Strong' in system prompt text (around line 46)",
       "Pass threshold to buildSystemPrompt in runCaseAgent"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
