@@ -433,3 +433,25 @@
 - `createEvidenceAgentTools` doesn't take `criteria` param (unlike case-agent) since evidence tools don't need enum validation on criterion keys
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, client.tsx, actions.ts)
 - Next priority: Task 12 (evidence chat API, deps 1+11 now met, unblocks 14) or Task 13 (document CRUD, deps 1+4 met, unblocks 14) or Task 8 (threshold UI, deps 1+5 met, unblocks 10)
+
+## 2026-02-05: Evidence Chat API (PRD Task 12)
+
+### Completed
+
+- Created `app/api/case/[caseId]/evidence-chat/route.ts` with POST handler
+- Auth check via `auth()` + ownership verification (same pattern as chat/route.ts)
+- Multipart (file upload) path: processes PDF/DOCX/TXT, chunks + embeds to Pinecone, saves ChatMessage with `phase: 'EVIDENCE'`
+- JSON (text message) path: saves user ChatMessage with `phase: 'EVIDENCE'`
+- Loads full evidence-phase message history from DB (`where: { caseId, phase: 'EVIDENCE' }`) as authoritative message list for agent
+- Calls `runEvidenceAgent` instead of `runCaseAgent`, passes evidence-phase messages
+- Saves assistant response to ChatMessage with `phase: 'EVIDENCE'` in onFinish callback
+- Returns streaming response via `result.toTextStreamResponse()`
+- Typecheck + lint pass clean (no new issues)
+
+### Notes for Next Dev
+
+- Evidence chat does NOT support `action: 'initiate'` (no AI-initiated evidence conversations); only user-initiated messages
+- File upload processing reuses same PDF extraction (Gemini 2.5 Flash) + chunking + Pinecone upsert pipeline as analysis chat
+- DB history is loaded fresh on each request as authoritative source (not relying on client-sent messages array for history)
+- Pre-existing lint errors unchanged
+- Next priority: Task 13 (document CRUD, deps 1+4 met, unblocks 14) or Task 8 (threshold UI, deps 1+5 met, unblocks 10)

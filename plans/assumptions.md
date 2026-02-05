@@ -34,3 +34,6 @@
 - `draftRecommendationLetter` links to the first criterionKey's CriteriaMapping for the Document.criterionId FK; a future enhancement could support multi-criterion linking
 - S3 upload in evidence tools is fire-and-forget with try/catch; if S3 fails the Document record still exists with inline content
 - `generateFromTemplate` does simple {{var}} string replacement; does not use a full template engine
+- Evidence chat API omits `action: 'initiate'` support (no AI-initiated evidence conversations); analysis chat has it but evidence phase is always user-initiated
+- Evidence chat loads DB message history (phase=EVIDENCE) as authoritative source each request, rather than trusting client-sent messages array for conversation continuity
+- File upload processing in evidence-chat reuses same pipeline (PDF extract + chunk + embed) as analysis chat; duplicated helper fns rather than extracting shared module to keep routes self-contained

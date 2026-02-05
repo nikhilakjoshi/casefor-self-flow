@@ -161,7 +161,7 @@
       "Save assistant response to ChatMessage with phase=EVIDENCE in onFinish callback",
       "Return streaming response via result.toTextStreamResponse()"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
