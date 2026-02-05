@@ -387,3 +387,24 @@
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, client.tsx, actions.ts)
 - Next priority: Task 8 (threshold UI, deps 1+5 met) or Task 4 (S3 utils, no deps, unblocks 11+13) or Task 11 (evidence agent, deps 1+2+3 met)
 - Task 8 unblocks task 10 (evidence badge); Task 4 unblocks tasks 11+13 (evidence agent, document CRUD)
+
+## 2026-02-05: S3 Utilities (PRD Task 4)
+
+### Completed
+
+- Installed `@aws-sdk/client-s3` (3.983.0) and `@aws-sdk/s3-request-presigner` (3.983.0)
+- Created `lib/s3.ts` with globalThis singleton pattern (matches pinecone.ts pattern)
+- `isS3Configured()`: checks AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET
+- `uploadToS3(key, body, contentType)`: PutObjectCommand, returns `{ key, url }`
+- `getSignedDownloadUrl(key, expiresIn?)`: presigned GET URL, default 1hr expiry
+- `deleteFromS3(key)`: DeleteObjectCommand
+- `buildDocumentKey(caseId, documentId, filename)`: helper for key convention `cases/{caseId}/documents/{documentId}/{filename}`
+- Added AWS env vars to `.env.example`: AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET
+- Typecheck + lint pass clean
+
+### Notes for Next Dev
+
+- S3 is optional: `isS3Configured()` returns false when env vars missing; all ops throw descriptive error if not configured
+- Document CRUD (task 13) should use `buildDocumentKey()` for consistent key paths
+- Pre-existing lint errors unchanged
+- Next priority: Task 11 (evidence agent, deps 1+2+3 met, unblocks 12) or Task 13 (document CRUD, deps 1+4 met, unblocks 14) or Task 8 (threshold UI, deps 1+5 met, unblocks 10)

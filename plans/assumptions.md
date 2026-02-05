@@ -23,3 +23,8 @@
 - `updateThreshold` tool uses same 1-10 validation range as the PATCH API (task 5) for consistency
 - `runCaseAgent` falls back to threshold=3 if case record not found (defensive, shouldn't happen in practice)
 - Threshold is fetched via `select: { criteriaThreshold: true }` to minimize data transfer (not full case record)
+- S3 client uses globalThis singleton pattern consistent w/ pinecone.ts
+- AWS_S3_BUCKET added as 4th required env var (PRD only listed 3: REGION, ACCESS_KEY_ID, SECRET_ACCESS_KEY) -- bucket name needed for all S3 ops
+- `uploadToS3` body accepts `Buffer | ReadableStream` (not Uint8Array/Blob) since these are the types PutObjectCommand accepts
+- `buildDocumentKey()` exported as helper for the key convention; not in PRD but avoids key format duplication across consumers
+- S3 URL constructed as `https://{bucket}.s3.{region}.amazonaws.com/{key}` (virtual-hosted style, standard for most regions)

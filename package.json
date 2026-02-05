@@ -22,6 +22,8 @@
     "@ai-sdk/google": "^3.0.20",
     "@ai-sdk/react": "^3.0.72",
     "@auth/prisma-adapter": "^2.11.1",
+    "@aws-sdk/client-s3": "^3.983.0",
+    "@aws-sdk/s3-request-presigner": "^3.983.0",
     "@pinecone-database/pinecone": "^7.0.0",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",

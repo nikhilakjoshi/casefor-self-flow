@@ -60,7 +60,7 @@
       "Add isS3Configured() check: returns false if any env var missing. All exported functions throw descriptive error if not configured",
       "Key convention: cases/{caseId}/documents/{documentId}/{filename}"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
