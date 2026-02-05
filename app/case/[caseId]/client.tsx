@@ -50,7 +50,25 @@ export function CasePageClient({
   const [analysisVersion, setAnalysisVersion] = useState(initialAnalysisVersion)
   const [threshold, setThreshold] = useState(initialThreshold)
   const [activeTab, setActiveTab] = useState<'analysis' | 'evidence'>('analysis')
+  const [strongCount, setStrongCount] = useState(initialAnalysis?.strongCount ?? 0)
+  const [badgeDismissed, setBadgeDismissed] = useState(false)
   const initiatedRef = useRef(false)
+
+  const showEvidenceBadge = activeTab === 'analysis' && strongCount >= threshold && !badgeDismissed
+
+  const handleStartEvidence = useCallback(async () => {
+    try {
+      await fetch(`/api/case/${caseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'EVIDENCE' }),
+      })
+    } catch (err) {
+      console.error('Failed to update case status:', err)
+    }
+    setActiveTab('evidence')
+    setBadgeDismissed(true)
+  }, [caseId])
 
   // AI-initiated conversation on first load
   useEffect(() => {
@@ -303,13 +321,21 @@ export function CasePageClient({
           )}
 
           {/* Chat Panel - 60% */}
-          <div className="w-[60%] flex flex-col overflow-hidden border-r border-stone-200 dark:border-stone-700">
+          <div className="w-[60%] flex flex-col overflow-hidden border-r border-stone-200 dark:border-stone-700 relative">
             <ChatPanel
               messages={messages}
               isLoading={isLoading}
               onSend={sendMessage}
               onFileSelect={onFileSelect}
             />
+            {showEvidenceBadge && (
+              <button
+                onClick={handleStartEvidence}
+                className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium shadow-lg transition-all hover:shadow-xl hover:scale-105"
+              >
+                Start evidence phase
+              </button>
+            )}
           </div>
 
           {/* Report Panel - 40% */}
@@ -320,6 +346,7 @@ export function CasePageClient({
               version={analysisVersion}
               threshold={threshold}
               onThresholdChange={setThreshold}
+              onStrongCountChange={setStrongCount}
             />
           </div>
         </div>

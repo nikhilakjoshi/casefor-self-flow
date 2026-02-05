@@ -54,3 +54,7 @@
 - PhaseTabs positioned in a top bar above the 60/40 split content area; tab state lives in client.tsx (not URL-based)
 - DocumentsPanel does not have a loading indicator for detail fetch (fetch is fast, keeps UI simple)
 - Evidence tab re-mounts EvidenceChatPanel when switching tabs; initialMessages from server are used as starting state (subsequent messages from same session are in component state only, will persist on re-mount from server data on next page load)
+- Evidence badge uses `onStrongCountChange` callback from ReportPanel rather than computing strongCount independently in client.tsx; avoids duplicating analysis fetch logic
+- Badge dismissal (`badgeDismissed`) is session-only; reappears on page reload if threshold still met -- intentional to allow re-entry to evidence phase
+- PATCH to set case status=EVIDENCE is fire-and-forget (tab switches regardless); status update is best-effort
+- Badge positioned `bottom-20` (80px from bottom) to float above ChatInput; uses absolute positioning within the chat panel column

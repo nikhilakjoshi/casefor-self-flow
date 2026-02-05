@@ -130,7 +130,7 @@
       "Style badge: position absolute, z-10, pill shape, emerald background, hover effect",
       "On badge click: PATCH /api/case/[caseId] with { status: 'EVIDENCE' }, then set activeTab to 'evidence' (relies on tab state from task 14)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",

@@ -27,6 +27,7 @@ interface ReportPanelProps {
   version?: number;
   threshold?: number;
   onThresholdChange?: (threshold: number) => void;
+  onStrongCountChange?: (count: number) => void;
 }
 
 function getStrengthConfig(strength: Strength) {
@@ -134,6 +135,7 @@ export function ReportPanel({
   version = 0,
   threshold = 3,
   onThresholdChange,
+  onStrongCountChange,
 }: ReportPanelProps) {
   const [analysis, setAnalysis] = useState<Analysis | null>(
     initialAnalysis ?? null,
@@ -159,6 +161,9 @@ export function ReportPanel({
             if (data.criteriaThreshold != null) {
               onThresholdChange?.(data.criteriaThreshold);
             }
+            if (data.strongCount != null) {
+              onStrongCountChange?.(data.strongCount);
+            }
           }
         }
       } catch (err) {
@@ -170,7 +175,7 @@ export function ReportPanel({
     return () => {
       cancelled = true;
     };
-  }, [caseId, version, onThresholdChange]);
+  }, [caseId, version, onThresholdChange, onStrongCountChange]);
 
   if (!analysis) {
     return (

@@ -529,3 +529,23 @@
 - Analysis messages query now explicitly filters `phase: 'ANALYSIS'` -- old messages without phase field default to ANALYSIS in DB so this is backward-compatible
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, actions.ts)
 - Next priority: Task 10 (evidence badge, deps 1+8+14 now met) or Task 15-18 (admin pages)
+
+## 2026-02-05: Evidence Phase Indicator Badge (PRD Task 10)
+
+### Completed
+
+- Added `strongCount` state to `client.tsx`, initialized from `initialAnalysis.strongCount`
+- Added `onStrongCountChange` callback prop to `ReportPanel` -- propagates strongCount up to client.tsx on each analysis refetch
+- Floating emerald pill badge appears above ChatInput when `strongCount >= threshold` and user is on analysis tab
+- Badge click: PATCHes `/api/case/[caseId]` with `{ status: 'EVIDENCE' }`, switches to evidence tab, dismisses badge
+- `badgeDismissed` state prevents badge from re-appearing after user dismisses it (within session)
+- Typecheck passes clean, no new lint issues (pre-existing unchanged)
+
+### Notes for Next Dev
+
+- Badge is positioned `bottom-20` inside the chat panel column (above ChatInput area), centered horizontally
+- Badge auto-hides on evidence tab (only shown on analysis tab)
+- `badgeDismissed` is session-only state; badge will reappear on page reload if threshold still met (intentional -- user may want to re-enter evidence phase)
+- PATCH to update case status is fire-and-forget; tab switch happens regardless of API success
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, actions.ts)
+- Next priority: Tasks 15-18 (admin layout, criteria API+UI, templates API+UI, application-types API)
