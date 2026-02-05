@@ -273,3 +273,23 @@
 - Pre-existing lint errors in case-agent.ts (no-explicit-any x4) and results-modal.tsx (unescaped entities x2) -- not introduced by this change
 - Next priority: Task 2 (seed script) -- depends on this task, unblocks tasks 3, 9
 - Task 4 (S3 utilities) has no deps and can be done in parallel w/ task 2
+
+## 2026-02-05: Seed Script (PRD Task 2)
+
+### Completed
+
+- Created `prisma/seed.ts` w/ upserts for EB-1A ApplicationType, 10 CriteriaMappings, 4 Templates
+- CriteriaMapping data mirrors `lib/eb1a-criteria.ts` (same keys, names, descriptions, displayOrder 0-9)
+- Templates: Recommendation Letter, Personal Statement, Petition Letter, USCIS Form Instructions (placeholder content)
+- Template IDs use deterministic format `{applicationTypeId}-{type}` for idempotent upserts
+- Backfills existing cases w/ null applicationTypeId to EB-1A
+- Added `db:seed` script + `prisma.seed` config to package.json
+- Uses `node --env-file=.env --import tsx` (no dotenv dep needed, Node 24 native)
+- Ran successfully: 1 ApplicationType, 10 criteria, 4 templates, 20 cases backfilled
+
+### Notes for Next Dev
+
+- dotenv not installed as project dep; seed uses Node's `--env-file` flag instead
+- Pre-existing lint errors unchanged (case-agent.ts x4, results-modal.tsx x2)
+- Next priority: Task 3 (DB-driven criteria lib) or Task 4 (S3 utils) -- both unblocked
+- Task 3 unblocks tasks 7, 11 (agent threshold, evidence agent) -- higher downstream impact

@@ -8,3 +8,7 @@
 - CriteriaMapping.description is non-optional String (PRD didn't specify nullability; all EB-1A criteria have descriptions)
 - Document.content is optional String (allows inline storage for markdown when S3 not configured, per PRD task 13 note)
 - All new fields on existing models use defaults to avoid breaking existing rows (criteriaThreshold=3, phase=ANALYSIS, applicationTypeId=null)
+- Template IDs use deterministic `{applicationTypeId}-{type}` format so upserts are idempotent across re-runs
+- Seed uses Node 24 `--env-file=.env` instead of dotenv (not a project dependency)
+- Template content is placeholder instruction text; will be refined when evidence agent (task 11) is implemented
+- Backfill sets all existing null-applicationTypeId cases to EB-1A (only app type currently supported)

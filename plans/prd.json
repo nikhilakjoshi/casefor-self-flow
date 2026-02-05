@@ -31,7 +31,7 @@
       "Add to package.json: \"prisma\": { \"seed\": \"tsx prisma/seed.ts\" }",
       "Run pnpm db:seed to verify"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
