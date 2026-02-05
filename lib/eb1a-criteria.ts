@@ -1,6 +1,7 @@
 /**
- * EB-1A Extraordinary Ability visa criteria definitions
- * USCIS requires applicants to meet at least 3 of these 10 criteria
+ * @deprecated Use lib/criteria.ts (getCriteriaForCase / getCriteriaForType) instead.
+ * Criteria are now DB-driven via CriteriaMapping model.
+ * This file is retained only for reference; no consumers should import it.
  */
 
 export interface EB1ACriterion {

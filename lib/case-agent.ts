@@ -3,23 +3,21 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { db } from "./db";
 import { queryContext } from "./rag";
-import { EB1A_CRITERIA } from "./eb1a-criteria";
+import { getCriteriaForCase, type Criterion } from "./criteria";
 import { countCriteriaStrengths, type CriterionResult } from "./eb1a-agent";
 
 const MODEL = "claude-sonnet-4-20250514";
 const MAX_HISTORY = 20;
 
-const criteriaIds = EB1A_CRITERIA.map((c) => c.id) as [string, ...string[]];
-
-const criteriaListFull = EB1A_CRITERIA.map(
-  (c) => `- ${c.id}: ${c.name} -- ${c.description}`,
-).join("\n");
-
 function buildSystemPrompt(opts: {
+  criteria: Criterion[];
   profile: Record<string, unknown> | null;
   analysis: CriterionResult[] | null;
   ragContext: string[];
 }): string {
+  const criteriaListFull = opts.criteria
+    .map((c) => `- ${c.key}: ${c.name} -- ${c.description}`)
+    .join("\n");
   const profileSection = opts.profile
     ? `CURRENT APPLICANT PROFILE:\n${JSON.stringify(opts.profile, null, 2)}`
     : "APPLICANT PROFILE: Not yet established.";
@@ -59,8 +57,9 @@ TOOL USAGE RULES:
 - For the initial greeting (no user messages yet), introduce yourself and summarize the current case state, then ask what the applicant wants to work on first.`;
 }
 
-export function createCaseAgentTools(caseId: string) {
+export function createCaseAgentTools(caseId: string, criteria: Criterion[]) {
   const logPrefix = `[CaseAgent:${caseId}]`;
+  const criteriaKeys = criteria.map((c) => c.key) as [string, ...string[]];
 
   return {
     updateProfile: tool({
@@ -149,7 +148,7 @@ export function createCaseAgentTools(caseId: string) {
         updates: z
           .array(
             z.object({
-              criterionId: z.enum(criteriaIds).describe("Criterion ID"),
+              criterionId: z.enum(criteriaKeys).describe("Criterion ID"),
               strength: z.enum(["Strong", "Weak", "None"]),
               reason: z.string().describe("Explanation of the assessment"),
               evidence: z
@@ -181,8 +180,8 @@ export function createCaseAgentTools(caseId: string) {
         // Build base criteria from previous version or defaults
         const baseCriteria: CriterionResult[] = current
           ? (current.criteria as CriterionResult[])
-          : EB1A_CRITERIA.map((c) => ({
-              criterionId: c.id,
+          : criteria.map((c) => ({
+              criterionId: c.key,
               strength: "None" as const,
               reason: "Not yet evaluated",
               evidence: [],
@@ -265,7 +264,8 @@ export async function runCaseAgent(opts: {
   log("runCaseAgent called, messages:", messages.length);
 
   // Gather context
-  const [profile, analysis, ragResults] = await Promise.all([
+  const [criteria, profile, analysis, ragResults] = await Promise.all([
+    getCriteriaForCase(caseId),
     db.caseProfile.findUnique({ where: { caseId } }),
     db.eB1AAnalysis.findFirst({
       where: { caseId },
@@ -276,15 +276,16 @@ export async function runCaseAgent(opts: {
       : Promise.resolve([]),
   ]);
 
-  log("context gathered - profile:", !!profile, "analysis:", !!analysis, "ragResults:", ragResults.length);
+  log("context gathered - criteria:", criteria.length, "profile:", !!profile, "analysis:", !!analysis, "ragResults:", ragResults.length);
 
   const instructions = buildSystemPrompt({
+    criteria,
     profile: (profile?.data as Record<string, unknown>) ?? null,
     analysis: analysis ? (analysis.criteria as CriterionResult[]) : null,
     ragContext: ragResults.map((r) => r.text),
   });
 
-  const tools = createCaseAgentTools(caseId);
+  const tools = createCaseAgentTools(caseId, criteria);
 
   log("creating ToolLoopAgent with model:", MODEL, "tools:", Object.keys(tools));
 

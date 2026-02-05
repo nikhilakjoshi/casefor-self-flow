@@ -9,7 +9,6 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { EB1A_CRITERIA } from "@/lib/eb1a-criteria";
 import { cn } from "@/lib/utils";
 
 export type Strength = "Strong" | "Weak" | "None";
@@ -31,11 +30,11 @@ interface ResultsModalProps {
   caseId?: string;
   onBuildCase?: () => void;
   onAddMoreInfo?: () => void;
+  criteriaNames?: Record<string, string>;
 }
 
-function getCriterionName(criterionId: string): string {
-  const criterion = EB1A_CRITERIA.find((c) => c.id === criterionId);
-  return criterion?.name ?? criterionId;
+function getCriterionName(criterionId: string, names?: Record<string, string>): string {
+  return names?.[criterionId] ?? criterionId;
 }
 
 function getStrengthConfig(strength: Strength) {
@@ -210,6 +209,7 @@ export function ResultsModal({
   caseId,
   onBuildCase,
   onAddMoreInfo,
+  criteriaNames,
 }: ResultsModalProps) {
   const meetsThreshold = strongCount >= 3;
   const noneCount = criteria.length - strongCount - weakCount;
@@ -311,7 +311,7 @@ export function ResultsModal({
             {criteria.map((c, idx) => (
               <CriterionCardEnhanced
                 key={idx}
-                criterionName={getCriterionName(c.criterionId)}
+                criterionName={getCriterionName(c.criterionId, criteriaNames)}
                 strength={c.strength}
                 reason={c.reason}
                 evidence={c.evidence}

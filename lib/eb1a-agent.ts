@@ -1,7 +1,7 @@
 import { generateText, streamText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
-import { EB1A_CRITERIA, type EB1ACriterion } from "./eb1a-criteria";
+import { getCriteriaForType, type Criterion } from "./criteria";
 
 // Zod schema for individual criterion evaluation
 export const CriterionResultSchema = z.object({
@@ -30,9 +30,9 @@ export type EB1AEvaluation = z.infer<typeof EB1AEvaluationSchema>;
 
 const MODEL = "gemini-2.5-flash";
 
-function buildSystemPrompt(criteria: EB1ACriterion[]): string {
+function buildSystemPrompt(criteria: Criterion[]): string {
   const criteriaList = criteria
-    .map((c) => `- ${c.id}: ${c.name} - ${c.description}`)
+    .map((c) => `- ${c.key}: ${c.name} - ${c.description}`)
     .join("\n");
 
   return `You are an experienced immigration attorney specializing in EB-1A Extraordinary Ability visas.
@@ -54,10 +54,17 @@ IMPORTANT GUIDELINES:
 - Provide specific quotes, not paraphrases`;
 }
 
+async function loadCriteria(criteria?: Criterion[]): Promise<Criterion[]> {
+  if (criteria && criteria.length > 0) return criteria;
+  return getCriteriaForType("EB1A");
+}
+
 export async function evaluateResume(
   resumeText: string,
+  criteria?: Criterion[],
 ): Promise<EB1AEvaluation> {
-  const systemPrompt = buildSystemPrompt(EB1A_CRITERIA);
+  const resolved = await loadCriteria(criteria);
+  const systemPrompt = buildSystemPrompt(resolved);
 
   const { output } = await generateText({
     model: google(MODEL),
@@ -80,8 +87,10 @@ const PdfEvaluationSchema = z.object({
 
 export async function evaluateResumePdf(
   pdfBuffer: ArrayBuffer,
+  criteria?: Criterion[],
 ): Promise<{ evaluation: EB1AEvaluation; extractedText: string }> {
-  const systemPrompt = buildSystemPrompt(EB1A_CRITERIA);
+  const resolved = await loadCriteria(criteria);
+  const systemPrompt = buildSystemPrompt(resolved);
 
   const { output } = await generateText({
     model: google(MODEL),
@@ -112,8 +121,12 @@ export async function evaluateResumePdf(
 }
 
 // Streaming version for PDF evaluation
-export function streamEvaluateResumePdf(pdfBuffer: ArrayBuffer) {
-  const systemPrompt = buildSystemPrompt(EB1A_CRITERIA);
+export async function streamEvaluateResumePdf(
+  pdfBuffer: ArrayBuffer,
+  criteria?: Criterion[],
+) {
+  const resolved = await loadCriteria(criteria);
+  const systemPrompt = buildSystemPrompt(resolved);
 
   return streamText({
     model: google(MODEL),
@@ -139,8 +152,12 @@ export function streamEvaluateResumePdf(pdfBuffer: ArrayBuffer) {
 }
 
 // Streaming version for text evaluation
-export function streamEvaluateResume(resumeText: string) {
-  const systemPrompt = buildSystemPrompt(EB1A_CRITERIA);
+export async function streamEvaluateResume(
+  resumeText: string,
+  criteria?: Criterion[],
+) {
+  const resolved = await loadCriteria(criteria);
+  const systemPrompt = buildSystemPrompt(resolved);
 
   return streamText({
     model: google(MODEL),

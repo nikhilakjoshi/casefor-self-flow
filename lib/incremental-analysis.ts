@@ -3,7 +3,7 @@ import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import { db } from "./db";
 import { queryContext } from "./rag";
-import { EB1A_CRITERIA } from "./eb1a-criteria";
+import { getCriteriaForCase } from "./criteria";
 import {
   CriterionResultSchema,
   type CriterionResult,
@@ -39,8 +39,11 @@ export async function runIncrementalAnalysis(
 
   const currentCriteria = currentAnalysis.criteria as CriterionResult[];
 
+  // Fetch dynamic criteria for this case
+  const dbCriteria = await getCriteriaForCase(caseId);
+
   // Step 1: Determine which criteria are affected
-  const criteriaList = EB1A_CRITERIA.map((c) => `- ${c.id}: ${c.name}`).join(
+  const criteriaList = dbCriteria.map((c) => `- ${c.key}: ${c.name}`).join(
     "\n",
   );
 
@@ -69,10 +72,10 @@ Only list criteria that the new evidence DIRECTLY supports.`,
   );
   const fullContext = contextResults.map((r) => r.text).join("\n\n");
 
-  const affectedCriteriaDetails = EB1A_CRITERIA.filter((c) =>
-    affected.affectedCriterionIds.includes(c.id),
+  const affectedCriteriaDetails = dbCriteria.filter((c) =>
+    affected.affectedCriterionIds.includes(c.key),
   )
-    .map((c) => `- ${c.id}: ${c.name} - ${c.description}`)
+    .map((c) => `- ${c.key}: ${c.name} - ${c.description}`)
     .join("\n");
 
   const { output: reeval } = await generateText({

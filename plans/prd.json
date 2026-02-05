@@ -46,7 +46,7 @@
       "Update lib/incremental-analysis.ts: replace EB1A_CRITERIA import with getCriteriaForCase call",
       "Deprecate lib/eb1a-criteria.ts: add @deprecated comment, remove direct imports from all consumers"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",

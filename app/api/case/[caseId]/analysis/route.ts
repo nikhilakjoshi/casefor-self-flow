@@ -31,6 +31,16 @@ export async function GET(
     return NextResponse.json(null)
   }
 
+  // Build criterionKey -> name map from DB
+  const criteriaNames: Record<string, string> = {}
+  if (caseRecord.applicationTypeId) {
+    const mappings = await db.criteriaMapping.findMany({
+      where: { applicationTypeId: caseRecord.applicationTypeId, active: true },
+      select: { criterionKey: true, name: true },
+    })
+    for (const m of mappings) criteriaNames[m.criterionKey] = m.name
+  }
+
   return NextResponse.json({
     id: analysis.id,
     criteria: analysis.criteria,
@@ -38,5 +48,6 @@ export async function GET(
     weakCount: analysis.weakCount,
     createdAt: analysis.createdAt,
     version: analysis.version,
+    criteriaNames,
   })
 }

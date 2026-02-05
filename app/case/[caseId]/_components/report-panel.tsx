@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { EB1A_CRITERIA } from "@/lib/eb1a-criteria";
 
 type Strength = "Strong" | "Weak" | "None";
 
@@ -18,17 +17,13 @@ interface Analysis {
   strongCount: number;
   weakCount: number;
   version?: number;
+  criteriaNames?: Record<string, string>;
 }
 
 interface ReportPanelProps {
   caseId: string;
   initialAnalysis?: Analysis | null;
   version?: number;
-}
-
-function getCriterionName(criterionId: string): string {
-  const criterion = EB1A_CRITERIA.find((c) => c.id === criterionId);
-  return criterion?.name ?? criterionId;
 }
 
 function getStrengthConfig(strength: Strength) {
@@ -95,7 +90,7 @@ function getStrengthConfig(strength: Strength) {
   }
 }
 
-function CriterionCard({ criterion }: { criterion: CriterionResult }) {
+function CriterionCard({ criterion, criteriaNames }: { criterion: CriterionResult; criteriaNames?: Record<string, string> }) {
   const config = getStrengthConfig(criterion.strength);
 
   return (
@@ -118,7 +113,7 @@ function CriterionCard({ criterion }: { criterion: CriterionResult }) {
               {config.icon}
             </span>
             <h4 className="text-xs font-semibold text-stone-800 dark:text-stone-200 truncate">
-              {getCriterionName(criterion.criterionId)}
+              {criteriaNames?.[criterion.criterionId] ?? criterion.criterionId}
             </h4>
           </div>
           <p className="mt-1.5 text-xs text-stone-600 dark:text-stone-400 line-clamp-2">
@@ -218,7 +213,7 @@ export function ReportPanel({
       {/* Criteria Grid */}
       <div className="flex-1 overflow-y-auto space-y-2">
         {analysis.criteria.map((c) => (
-          <CriterionCard key={c.criterionId} criterion={c} />
+          <CriterionCard key={c.criterionId} criterion={c} criteriaNames={analysis.criteriaNames} />
         ))}
       </div>
     </div>

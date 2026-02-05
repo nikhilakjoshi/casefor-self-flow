@@ -12,3 +12,8 @@
 - Seed uses Node 24 `--env-file=.env` instead of dotenv (not a project dependency)
 - Template content is placeholder instruction text; will be refined when evidence agent (task 11) is implemented
 - Backfill sets all existing null-applicationTypeId cases to EB-1A (only app type currently supported)
+- `Criterion` type uses `key` (= criterionKey) for criterion identification in prompts/analysis, `id` for DB relations
+- eb1a-agent streaming functions changed from sync to async (callers must await) to support dynamic criteria loading
+- analysis API now returns `criteriaNames` map so client components don't need static criteria imports
+- `results-modal.tsx` criteriaNames prop is optional; falls back to raw criterionId as display name if not provided
+- `lib/eb1a-criteria.ts` retained as deprecated reference file; no consumers import it

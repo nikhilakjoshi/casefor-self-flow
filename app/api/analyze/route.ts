@@ -26,8 +26,8 @@ export async function POST(request: Request) {
 
     // Get the streaming response
     const streamResult = isPdf
-      ? streamEvaluateResumePdf(buffer)
-      : streamEvaluateResume(await parseFile(file))
+      ? await streamEvaluateResumePdf(buffer)
+      : await streamEvaluateResume(await parseFile(file))
 
     const encoder = new TextEncoder()
 

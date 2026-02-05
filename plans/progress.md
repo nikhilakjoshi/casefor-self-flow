@@ -293,3 +293,29 @@
 - Pre-existing lint errors unchanged (case-agent.ts x4, results-modal.tsx x2)
 - Next priority: Task 3 (DB-driven criteria lib) or Task 4 (S3 utils) -- both unblocked
 - Task 3 unblocks tasks 7, 11 (agent threshold, evidence agent) -- higher downstream impact
+
+## 2026-02-05: DB-Driven Criteria Lib (PRD Task 3)
+
+### Completed
+
+- Created `lib/criteria.ts` w/ `getCriteriaForCase(caseId)` and `getCriteriaForType(code)`
+  - `getCriteriaForCase`: joins Case -> ApplicationType -> CriteriaMapping, falls back to EB1A
+  - `getCriteriaForType`: fetches by ApplicationType.code, returns active criteria ordered by displayOrder
+  - Returns flat `Criterion` type: `{ id, key, name, description, displayOrder }`
+- Updated `lib/case-agent.ts`: dynamic criteria fetched in `runCaseAgent` Promise.all, passed to `buildSystemPrompt` and `createCaseAgentTools`
+- Updated `lib/eb1a-agent.ts`: all 4 exported functions (`evaluateResume`, `evaluateResumePdf`, `streamEvaluateResumePdf`, `streamEvaluateResume`) accept optional `criteria` param, fall back to `getCriteriaForType('EB1A')`. Streaming fns now async.
+- Updated `app/api/analyze/route.ts`: await streaming fns (now async)
+- Updated `app/api/case/[caseId]/analysis/route.ts`: returns `criteriaNames` map from DB
+- Updated `report-panel.tsx`: removed static import, uses `criteriaNames` from API response
+- Updated `results-modal.tsx`: removed static import, accepts optional `criteriaNames` prop
+- Updated `lib/incremental-analysis.ts`: uses `getCriteriaForCase` instead of static array
+- Deprecated `lib/eb1a-criteria.ts`: added @deprecated JSDoc, all imports removed
+
+### Notes for Next Dev
+
+- `Criterion.key` maps to `CriteriaMapping.criterionKey` (e.g., "awards") -- used as criterion ID in analysis data
+- `Criterion.id` is the DB record ID (cuid) -- used for DB relations
+- Pre-existing lint errors unchanged (case-agent.ts x4, results-modal.tsx x2+1 unused caseId)
+- Next priority: Task 5 (threshold PATCH API) or Task 4 (S3 utils) or Task 9 (auto-assign applicationTypeId)
+- Task 5 unblocks tasks 7, 8, 10 (threshold UI, evidence badge) -- high downstream
+- Task 4 unblocks tasks 11, 13 (evidence agent, document CRUD) -- high downstream
