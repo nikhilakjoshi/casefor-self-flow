@@ -68,3 +68,8 @@
 - Used useRef didFetch guard to prevent double-fetch in React strict mode and to satisfy react-hooks/set-state-in-effect lint rule
 - Active toggle in criteria table works both inline (during edit) and standalone (click toggles + PATCHes immediately); two separate code paths for clarity
 - Criteria table groups by applicationTypeId; if multiple app types exist, each gets its own section with header
+- Admin templates [id] route includes GET handler (not in PRD steps) since edit page needs to fetch template by id
+- Template applicationTypeId is read-only on edit page; changing it could break template-appType relationships and is not a common admin action
+- Templates list page uses native `<select>` element instead of shadcn Select (not installed, keeps it simple)
+- Content textarea uses monospace font since template content is instruction text / markdown
+- Admin templates API has no auth guard, consistent with admin layout (task 15) and criteria API (task 16) open-access decision

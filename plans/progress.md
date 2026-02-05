@@ -596,3 +596,37 @@
 - Used useRef didFetch pattern to avoid react-hooks/set-state-in-effect lint rule on useEffect data fetch
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, actions.ts)
 - Next priority: Task 17 (admin templates API+UI, deps 1+2 met) or Task 18 (admin application-types API, dep 1 met)
+
+## 2026-02-05: Admin Templates API + UI (PRD Task 17)
+
+### Completed
+
+- Created `app/api/admin/templates/route.ts` with GET and POST handlers
+  - GET: returns all Templates with ApplicationType included, ordered by type + name
+  - POST: creates new Template from { name, type, applicationTypeId, content }, validates applicationTypeId exists
+- Created `app/api/admin/templates/[id]/route.ts` with GET, PATCH, DELETE handlers
+  - GET: returns template by id with ApplicationType included
+  - PATCH: accepts { name?, type?, content?, active?, version? } via Zod validation, returns updated record w/ applicationType
+  - DELETE: removes Template by id, returns { success: true }
+- Created `app/admin/templates/page.tsx`: client component w/ templates list table
+  - Columns: name (link to edit page), type badge, application type name, version, active toggle
+  - Delete button per row
+  - Active toggle: clickable pill switch, PATCHes immediately
+  - Empty state: message suggesting seed script
+- Created `app/admin/templates/[id]/page.tsx`: edit form
+  - Fields: name (input), type (select dropdown), active (toggle), content (textarea w/ mono font)
+  - Application type shown as read-only text (not editable)
+  - Save navigates back to list; Cancel link to list
+  - Error display for save failures
+  - Back arrow navigation to list
+- No auth guard (consistent w/ admin layout from task 15)
+- Typecheck + lint pass clean (no new issues; pre-existing unchanged)
+
+### Notes for Next Dev
+
+- Added GET handler to [id]/route.ts (not in PRD steps but needed for edit page fetch)
+- Template type uses native `<select>` element (no shadcn Select component needed)
+- Content textarea uses mono font for template instruction editing
+- Application type is read-only on edit page (changing it would break template-appType relationship)
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, actions.ts)
+- Next priority: Task 18 (admin application-types API, dep 1 met) -- last remaining task

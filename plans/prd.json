@@ -219,7 +219,7 @@
       "Create app/admin/templates/page.tsx: fetch templates via GET /api/admin/templates, render list view with name, type badge, applicationType name, version, active status. Link each row to /admin/templates/[id]",
       "Create app/admin/templates/[id]/page.tsx: fetch template by id, render edit form with inputs for name/type/active and textarea for content (instruction text). Save via PATCH on submit"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
