@@ -28,3 +28,9 @@
 - `uploadToS3` body accepts `Buffer | ReadableStream` (not Uint8Array/Blob) since these are the types PutObjectCommand accepts
 - `buildDocumentKey()` exported as helper for the key convention; not in PRD but avoids key format duplication across consumers
 - S3 URL constructed as `https://{bucket}.s3.{region}.amazonaws.com/{key}` (virtual-hosted style, standard for most regions)
+- Evidence agent tools create structured markdown templates with context sections, not LLM-generated prose -- the agent itself (via conversation) guides the user through refinement
+- `createEvidenceAgentTools` doesn't take `criteria` param (unlike case-agent) since evidence tools don't need criterion key enum validation
+- Evidence agent fetches templates via `applicationType.cases` relation to find templates associated with the case's application type
+- `draftRecommendationLetter` links to the first criterionKey's CriteriaMapping for the Document.criterionId FK; a future enhancement could support multi-criterion linking
+- S3 upload in evidence tools is fire-and-forget with try/catch; if S3 fails the Document record still exists with inline content
+- `generateFromTemplate` does simple {{var}} string replacement; does not use a full template engine

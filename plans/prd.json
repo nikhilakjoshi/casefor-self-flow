@@ -146,7 +146,7 @@
       "Implement generateFromTemplate tool: accepts templateId + variables object, fetches Template, replaces {{var}} mustache placeholders, generates doc via LLM, saves as Document",
       "Export runEvidenceAgent(opts) following same ToolLoopAgent pattern as runCaseAgent: gathers context, builds prompt, returns streaming response"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",

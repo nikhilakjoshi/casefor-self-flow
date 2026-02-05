@@ -408,3 +408,28 @@
 - Document CRUD (task 13) should use `buildDocumentKey()` for consistent key paths
 - Pre-existing lint errors unchanged
 - Next priority: Task 11 (evidence agent, deps 1+2+3 met, unblocks 12) or Task 13 (document CRUD, deps 1+4 met, unblocks 14) or Task 8 (threshold UI, deps 1+5 met, unblocks 10)
+
+## 2026-02-05: Evidence Agent (PRD Task 11)
+
+### Completed
+
+- Created `lib/evidence-agent.ts` with ToolLoopAgent (Claude Sonnet 4) -- mirrors case-agent.ts pattern
+- Evidence-focused system prompt: role is evidence gathering specialist, knows templates, document drafting, criteria context
+- 6 tools implemented:
+  - `getProfile`: fetches CaseProfile.data for case
+  - `getAnalysis`: fetches latest EB1AAnalysis, returns criteria w/ strengths
+  - `listDocuments`: queries Document where caseId, returns list w/ name/type/source/status
+  - `draftRecommendationLetter`: accepts recommender info + criterionKeys, fetches template + profile + analysis, creates Document (MARKDOWN, SYSTEM_GENERATED, DRAFT), uploads to S3 if configured
+  - `draftPersonalStatement`: accepts optional focusCriteria, same pattern as rec letter with PERSONAL_STATEMENT template
+  - `generateFromTemplate`: accepts templateId + variables, replaces {{var}} mustache placeholders, creates Document
+- `runEvidenceAgent(opts)` gathers context in parallel (criteria, threshold, profile, analysis, templates), builds prompt, returns streaming response
+- All tools create Document records and optionally upload to S3 via `buildDocumentKey()`
+- Typecheck + lint pass clean (no new issues)
+
+### Notes for Next Dev
+
+- Evidence agent does NOT use LLM to generate document content -- it creates structured draft templates with context sections. The LLM (agent itself) uses the tool results conversationally to guide the user.
+- Document drafts are markdown-format templates with profile/criteria context embedded. The agent should be enhanced later to use LLM generation for actual prose.
+- `createEvidenceAgentTools` doesn't take `criteria` param (unlike case-agent) since evidence tools don't need enum validation on criterion keys
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, client.tsx, actions.ts)
+- Next priority: Task 12 (evidence chat API, deps 1+11 now met, unblocks 14) or Task 13 (document CRUD, deps 1+4 met, unblocks 14) or Task 8 (threshold UI, deps 1+5 met, unblocks 10)
