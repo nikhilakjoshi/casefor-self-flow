@@ -319,3 +319,21 @@
 - Next priority: Task 5 (threshold PATCH API) or Task 4 (S3 utils) or Task 9 (auto-assign applicationTypeId)
 - Task 5 unblocks tasks 7, 8, 10 (threshold UI, evidence badge) -- high downstream
 - Task 4 unblocks tasks 11, 13 (evidence agent, document CRUD) -- high downstream
+
+## 2026-02-05: Threshold PATCH API (PRD Task 5)
+
+### Completed
+
+- Created `app/api/case/[caseId]/threshold/route.ts` with PATCH handler
+- Auth check via `auth()` + ownership verification (same pattern as analysis/route.ts)
+- Zod validation: `z.number().int().min(1).max(10)` with 400 on invalid input
+- Updates `Case.criteriaThreshold` via `db.case.update`
+- Returns `{ success: true, criteriaThreshold }` on success
+- Typecheck passes clean
+
+### Notes for Next Dev
+
+- Next priority: Task 6 (case status PATCH) or Task 8 (threshold UI) or Task 4 (S3 utils)
+- Task 8 (threshold UI) depends on tasks 1+5 (both done) -- can start now
+- Task 6 unblocks task 10 (evidence badge) -- moderate downstream
+- Task 4 unblocks tasks 11, 13 (evidence agent, document CRUD) -- high downstream

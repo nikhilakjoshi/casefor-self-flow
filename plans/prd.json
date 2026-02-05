@@ -73,7 +73,7 @@
       "Update case: db.case.update({ where: { id: caseId }, data: { criteriaThreshold: threshold } })",
       "Return NextResponse.json({ success: true, criteriaThreshold: threshold })"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
