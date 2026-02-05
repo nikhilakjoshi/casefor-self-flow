@@ -17,3 +17,5 @@
 - analysis API now returns `criteriaNames` map so client components don't need static criteria imports
 - `results-modal.tsx` criteriaNames prop is optional; falls back to raw criterionId as display name if not provided
 - `lib/eb1a-criteria.ts` retained as deprecated reference file; no consumers import it
+- Auto-assign uses spread conditional `...(eb1aType && { applicationTypeId: eb1aType.id })` to avoid setting undefined on the create call
+- No auth check in /api/analyze (onboard flow is pre-auth, consistent with existing code pattern)

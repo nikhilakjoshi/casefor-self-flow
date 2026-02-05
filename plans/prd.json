@@ -119,7 +119,7 @@
       "Set applicationTypeId on the Case create call: db.case.create({ data: { userId, status: 'SCREENING', applicationTypeId: eb1aType.id } })",
       "Handle edge case: if EB-1A ApplicationType not found (seed not run), log warning and proceed without applicationTypeId"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",

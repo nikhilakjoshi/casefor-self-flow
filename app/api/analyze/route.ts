@@ -16,9 +16,20 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Lookup EB-1A ApplicationType for auto-assignment
+    const eb1aType = await db.applicationType.findUnique({
+      where: { code: 'EB1A' },
+    })
+    if (!eb1aType) {
+      console.warn('EB-1A ApplicationType not found (seed not run?), proceeding without applicationTypeId')
+    }
+
     // Create Case record
     const caseRecord = await db.case.create({
-      data: { status: 'SCREENING' },
+      data: {
+        status: 'SCREENING',
+        ...(eb1aType && { applicationTypeId: eb1aType.id }),
+      },
     })
 
     const isPdf = file.name.toLowerCase().endsWith('.pdf')

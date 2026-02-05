@@ -337,3 +337,18 @@
 - Task 8 (threshold UI) depends on tasks 1+5 (both done) -- can start now
 - Task 6 unblocks task 10 (evidence badge) -- moderate downstream
 - Task 4 unblocks tasks 11, 13 (evidence agent, document CRUD) -- high downstream
+
+## 2026-02-05: Auto-Assign ApplicationTypeId (PRD Task 9)
+
+### Completed
+
+- Modified `app/api/analyze/route.ts`: lookups EB-1A ApplicationType before case creation
+- Uses `db.applicationType.findUnique({ where: { code: 'EB1A' } })` to fetch
+- Spreads `applicationTypeId` into case create data when found
+- Graceful degradation: logs warning if EB-1A not found (seed not run), proceeds without it
+- Typecheck passes clean, no new lint issues
+
+### Notes for Next Dev
+
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, client.tsx, actions.ts)
+- Next priority: Task 6 (case status PATCH, unblocks task 10) or Task 4 (S3 utils, unblocks tasks 11, 13) or Task 7 (agent threshold tool) or Task 8 (threshold UI)
