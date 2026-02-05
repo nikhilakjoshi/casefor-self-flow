@@ -549,3 +549,22 @@
 - PATCH to update case status is fire-and-forget; tab switch happens regardless of API success
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, actions.ts)
 - Next priority: Tasks 15-18 (admin layout, criteria API+UI, templates API+UI, application-types API)
+
+## 2026-02-05: Admin Layout + Dashboard (PRD Task 15)
+
+### Completed
+
+- Created `components/admin-sidebar.tsx`: client component w/ static nav links (Dashboard, Criteria, Templates, Application Types), "Back to App" footer link
+  - Uses same Sidebar variant="inset" pattern as AppSidebar
+  - Active state detection: exact match for /admin, startsWith for sub-pages
+- Created `app/admin/layout.tsx`: SidebarProvider + AdminSidebar + SidebarInset shell, mirrors case layout pattern (h-12 header, overflow handling)
+- Created `app/admin/page.tsx`: server component, fetches counts via parallel Promise.all (db.case.count, db.criteriaMapping.count, db.template.count), renders 3 dashboard cards w/ icons + counts
+- No auth guard (open access per PRD resolved decisions)
+- Typecheck + lint pass clean (no new issues; pre-existing unchanged)
+
+### Notes for Next Dev
+
+- AdminSidebar nav includes /admin/application-types link (for task 18) even though that page doesn't exist yet
+- Dashboard cards use bg-card + border pattern consistent w/ existing card styles
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, actions.ts)
+- Next priority: Task 16 (admin criteria API+UI, deps 1+2 met) or Task 17 (admin templates API+UI, deps 1+2 met) or Task 18 (admin application-types API, dep 1 met)

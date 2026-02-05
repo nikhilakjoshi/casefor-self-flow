@@ -58,3 +58,7 @@
 - Badge dismissal (`badgeDismissed`) is session-only; reappears on page reload if threshold still met -- intentional to allow re-entry to evidence phase
 - PATCH to set case status=EVIDENCE is fire-and-forget (tab switches regardless); status update is best-effort
 - Badge positioned `bottom-20` (80px from bottom) to float above ChatInput; uses absolute positioning within the chat panel column
+- Admin sidebar includes /admin/application-types nav link proactively (task 18 page doesn't exist yet); link will 404 until implemented
+- Admin layout uses same SidebarProvider + SidebarInset pattern as case layout; no shared layout extraction (admin and case have different sidebars)
+- Admin dashboard has no auth guard per PRD resolved decisions; open access for v1
+- AdminSidebar active state: exact match for /admin dashboard, startsWith for sub-pages (prevents /admin/criteria from highlighting both Dashboard and Criteria)

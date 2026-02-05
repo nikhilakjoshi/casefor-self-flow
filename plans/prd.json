@@ -198,7 +198,7 @@
       "Create app/admin/page.tsx: server component that fetches counts (db.case.count(), db.criteriaMapping.count(), db.template.count()), renders dashboard cards with counts",
       "No auth guard for v1 (open access per resolved decisions)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
