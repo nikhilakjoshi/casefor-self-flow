@@ -86,7 +86,7 @@
       "Update case: db.case.update({ where: { id: caseId }, data: { status } })",
       "Return NextResponse.json({ success: true, status })"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",

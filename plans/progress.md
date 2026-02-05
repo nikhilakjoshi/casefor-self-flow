@@ -352,3 +352,19 @@
 
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, client.tsx, actions.ts)
 - Next priority: Task 6 (case status PATCH, unblocks task 10) or Task 4 (S3 utils, unblocks tasks 11, 13) or Task 7 (agent threshold tool) or Task 8 (threshold UI)
+
+## 2026-02-05: Case Status PATCH API (PRD Task 6)
+
+### Completed
+
+- Created `app/api/case/[caseId]/route.ts` with PATCH handler
+- Auth check via `auth()` + ownership verification (same pattern as threshold/route.ts)
+- Zod validation: `z.enum(['SCREENING', 'ACTIVE', 'EVIDENCE', 'CLOSED'])` with 400 on invalid
+- Updates `Case.status` via `db.case.update`
+- Returns `{ success: true, status }` on success
+- Typecheck passes clean, no new lint issues
+
+### Notes for Next Dev
+
+- Pre-existing lint errors unchanged
+- Next priority: Task 8 (threshold UI, deps met) or Task 7 (agent threshold tool, deps met) or Task 11 (evidence agent, deps met) or Task 4 (S3 utils, no deps)
