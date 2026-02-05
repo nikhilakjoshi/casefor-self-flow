@@ -48,3 +48,9 @@
 - Analysis API response includes `criteriaThreshold` alongside analysis data; ReportPanel propagates threshold changes to parent via `onThresholdChange` callback on refetch
 - Onboard results-modal uses default threshold=3 since no case record exists at onboard time (threshold is only configurable post-case-creation)
 - Threshold stepper positioned inline within the existing badge pill for compact layout (no separate control area)
+- EvidenceChatPanel is a fully independent component (not reusing ChatPanel) because it has different API endpoint, different empty state, and evidence-specific drag-drop; shared ChatInput/MessageItem components are reused
+- DocumentsPanel detail view uses inline back button (X) rather than browser navigation; no router state involved
+- Analysis messages query now explicitly filters `phase: 'ANALYSIS'` to avoid showing evidence messages in analysis tab; backward-compatible because existing messages have phase=ANALYSIS by default
+- PhaseTabs positioned in a top bar above the 60/40 split content area; tab state lives in client.tsx (not URL-based)
+- DocumentsPanel does not have a loading indicator for detail fetch (fetch is fast, keeps UI simple)
+- Evidence tab re-mounts EvidenceChatPanel when switching tabs; initialMessages from server are used as starting state (subsequent messages from same session are in component state only, will persist on re-mount from server data on next page load)

@@ -2,9 +2,11 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { cn } from '@/lib/utils'
 import { ChatPanel } from './_components/chat-panel'
 import { ReportPanel } from './_components/report-panel'
+import { PhaseTabs } from './_components/phase-tabs'
+import { EvidenceChatPanel } from './_components/evidence-chat-panel'
+import { DocumentsPanel } from './_components/documents-panel'
 import { Upload } from 'lucide-react'
 
 interface Message {
@@ -30,6 +32,7 @@ interface CasePageClientProps {
   hasExistingMessages: boolean
   initialAnalysisVersion: number
   initialThreshold?: number
+  initialEvidenceMessages?: Message[]
 }
 
 export function CasePageClient({
@@ -39,12 +42,14 @@ export function CasePageClient({
   hasExistingMessages,
   initialAnalysisVersion,
   initialThreshold = 3,
+  initialEvidenceMessages = [],
 }: CasePageClientProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
   const [analysisVersion, setAnalysisVersion] = useState(initialAnalysisVersion)
   const [threshold, setThreshold] = useState(initialThreshold)
+  const [activeTab, setActiveTab] = useState<'analysis' | 'evidence'>('analysis')
   const initiatedRef = useRef(false)
 
   // AI-initiated conversation on first load
@@ -271,45 +276,69 @@ export function CasePageClient({
   })
 
   return (
-    <div
-      {...getRootProps()}
-      className="flex flex-1 overflow-hidden relative"
-    >
-      <input {...getInputProps()} />
+    <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Phase tabs */}
+      <div className="shrink-0 px-4 py-2 border-b border-border">
+        <PhaseTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
 
-      {/* Full-page drag overlay */}
-      {isDragOver && (
-        <div className="absolute inset-0 z-50 bg-foreground/60 backdrop-blur-sm flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-background">
-            <div className="w-16 h-16 rounded-2xl bg-background/20 flex items-center justify-center">
-              <Upload className="w-8 h-8" />
+      {/* Tab content */}
+      {activeTab === 'analysis' ? (
+        <div
+          {...getRootProps()}
+          className="flex flex-1 overflow-hidden relative"
+        >
+          <input {...getInputProps()} />
+
+          {isDragOver && (
+            <div className="absolute inset-0 z-50 bg-foreground/60 backdrop-blur-sm flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3 text-background">
+                <div className="w-16 h-16 rounded-2xl bg-background/20 flex items-center justify-center">
+                  <Upload className="w-8 h-8" />
+                </div>
+                <p className="text-lg font-medium">Drop file to upload</p>
+                <p className="text-sm text-white/70">PDF, DOC, DOCX, or TXT</p>
+              </div>
             </div>
-            <p className="text-lg font-medium">Drop file to upload</p>
-            <p className="text-sm text-white/70">PDF, DOC, DOCX, or TXT</p>
+          )}
+
+          {/* Chat Panel - 60% */}
+          <div className="w-[60%] flex flex-col overflow-hidden border-r border-stone-200 dark:border-stone-700">
+            <ChatPanel
+              messages={messages}
+              isLoading={isLoading}
+              onSend={sendMessage}
+              onFileSelect={onFileSelect}
+            />
+          </div>
+
+          {/* Report Panel - 40% */}
+          <div className="w-[40%] bg-muted/50">
+            <ReportPanel
+              caseId={caseId}
+              initialAnalysis={initialAnalysis}
+              version={analysisVersion}
+              threshold={threshold}
+              onThresholdChange={setThreshold}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-1 overflow-hidden">
+          {/* Evidence Chat - 60% */}
+          <div className="w-[60%] flex flex-col overflow-hidden border-r border-stone-200 dark:border-stone-700">
+            <EvidenceChatPanel
+              caseId={caseId}
+              initialMessages={initialEvidenceMessages}
+            />
+          </div>
+
+          {/* Documents Panel - 40% */}
+          <div className="w-[40%] bg-muted/50">
+            <DocumentsPanel caseId={caseId} />
           </div>
         </div>
       )}
-
-      {/* Chat Panel - 60% */}
-      <div className="w-[60%] flex flex-col overflow-hidden border-r border-stone-200 dark:border-stone-700">
-        <ChatPanel
-          messages={messages}
-          isLoading={isLoading}
-          onSend={sendMessage}
-          onFileSelect={onFileSelect}
-        />
-      </div>
-
-      {/* Report Panel - 40% */}
-      <div className="w-[40%] bg-muted/50">
-        <ReportPanel
-          caseId={caseId}
-          initialAnalysis={initialAnalysis}
-          version={analysisVersion}
-          threshold={threshold}
-          onThresholdChange={setThreshold}
-        />
-      </div>
     </div>
   )
 }

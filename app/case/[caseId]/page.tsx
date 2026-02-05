@@ -24,6 +24,7 @@ export default async function CasePage({ params }: Props) {
         take: 1,
       },
       chatMessages: {
+        where: { phase: 'ANALYSIS' },
         orderBy: { createdAt: 'asc' },
         take: 50,
       },
@@ -35,6 +36,20 @@ export default async function CasePage({ params }: Props) {
   }
 
   const criteriaThreshold = caseRecord.criteriaThreshold ?? 3
+
+  // Fetch evidence-phase messages separately
+  const evidenceMessages = await db.chatMessage.findMany({
+    where: { caseId, phase: 'EVIDENCE' },
+    orderBy: { createdAt: 'asc' },
+    take: 50,
+  })
+
+  const initialEvidenceMessages = evidenceMessages.map((m) => ({
+    id: m.id,
+    role: m.role.toLowerCase() as 'user' | 'assistant',
+    content: m.content,
+    metadata: m.metadata as Record<string, unknown> | null,
+  }))
 
   // Ensure profile exists
   if (!caseRecord.profile) {
@@ -73,6 +88,7 @@ export default async function CasePage({ params }: Props) {
       hasExistingMessages={caseRecord.chatMessages.length > 0}
       initialAnalysisVersion={latestAnalysis?.version ?? 0}
       initialThreshold={criteriaThreshold}
+      initialEvidenceMessages={initialEvidenceMessages}
     />
   )
 }

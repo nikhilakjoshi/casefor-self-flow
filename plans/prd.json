@@ -188,7 +188,7 @@
       "Create app/case/[caseId]/_components/evidence-chat-panel.tsx: chat UI for evidence agent. New component (not reusing ChatPanel). POST to /api/case/[caseId]/evidence-chat, stream responses, display messages. Include file upload support (drag-drop)",
       "Create app/case/[caseId]/_components/documents-panel.tsx: list view with name, type icon (MD/DOCX/PDF), source badge (System/Uploaded), status badge (Draft/Final), date. Preview: markdown rendered inline. Upload button (PDF/DOCX/MD). Download button (signed URL). Delete option. Fetches from /api/case/[caseId]/documents"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",

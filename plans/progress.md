@@ -499,3 +499,33 @@
 - Onboard flow uses default threshold=3 (no case record yet to fetch from)
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, client.tsx, actions.ts)
 - Next priority: Task 10 (evidence badge, deps 1+8 now met) or Task 14 (evidence tab UI, deps 1+12+13 met) or Task 15-18 (admin pages)
+
+## 2026-02-05: Evidence Tab UI (PRD Task 14)
+
+### Completed
+
+- Created `app/case/[caseId]/_components/phase-tabs.tsx`: Analysis | Evidence toggle w/ pill-style tabs, bg-muted container
+- Created `app/case/[caseId]/_components/evidence-chat-panel.tsx`: standalone chat panel for evidence agent
+  - Own message state, streaming, file upload (drag-drop + attach button)
+  - POSTs to `/api/case/[caseId]/evidence-chat`
+  - Drop zone overlay, typing indicator, empty state placeholder
+- Created `app/case/[caseId]/_components/documents-panel.tsx`: document list + preview
+  - List view: type icon (MD/DOCX/PDF), source badge (System/Uploaded), status badge (Draft/Final), date
+  - Detail view: markdown rendered inline via markdown-to-jsx, download button for S3-backed files
+  - Upload button for PDF/DOCX/MD files, delete with hover reveal
+  - Fetches from `/api/case/[caseId]/documents` API
+- Updated `app/case/[caseId]/page.tsx`: loads evidence-phase ChatMessages separately (`where: { phase: 'EVIDENCE' }`), passes as `initialEvidenceMessages` prop
+  - Analysis messages now filtered with `where: { phase: 'ANALYSIS' }` (was unfiltered before)
+- Updated `app/case/[caseId]/client.tsx`: `activeTab` state ('analysis' | 'evidence'), PhaseTabs rendered in top bar
+  - Analysis tab: existing ChatPanel + ReportPanel (60/40)
+  - Evidence tab: EvidenceChatPanel + DocumentsPanel (60/40)
+  - Accepts `initialEvidenceMessages` prop, threads to EvidenceChatPanel
+- Typecheck + lint pass clean (no new issues; pre-existing unchanged)
+
+### Notes for Next Dev
+
+- EvidenceChatPanel manages its own messages/loading/dropzone state (not shared w/ analysis ChatPanel)
+- DocumentsPanel list view uses compact row items; detail view uses X button to go back (no router)
+- Analysis messages query now explicitly filters `phase: 'ANALYSIS'` -- old messages without phase field default to ANALYSIS in DB so this is backward-compatible
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, actions.ts)
+- Next priority: Task 10 (evidence badge, deps 1+8+14 now met) or Task 15-18 (admin pages)
