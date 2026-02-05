@@ -175,7 +175,7 @@
       "PATCH [docId] handler: auth check, accept { content?, status?, name? } in body, update Document record",
       "DELETE [docId] handler: auth check, if s3Key present call deleteFromS3, then delete Document record, return success"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",

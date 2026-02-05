@@ -37,3 +37,10 @@
 - Evidence chat API omits `action: 'initiate'` support (no AI-initiated evidence conversations); analysis chat has it but evidence phase is always user-initiated
 - Evidence chat loads DB message history (phase=EVIDENCE) as authoritative source each request, rather than trusting client-sent messages array for conversation continuity
 - File upload processing in evidence-chat reuses same pipeline (PDF extract + chunk + embed) as analysis chat; duplicated helper fns rather than extracting shared module to keep routes self-contained
+- Document POST accepts .md and .markdown extensions, both map to MARKDOWN DocumentType
+- Document record created before S3 upload to generate ID for `buildDocumentKey()`; if S3 upload fails the record still exists (no rollback)
+- Non-markdown files without S3 configured: record exists with metadata only, no content stored (user would need to configure S3 for binary file storage)
+- GET list endpoint uses `select` to return only summary fields (no content/s3Key); GET detail returns full record + signedUrl
+- PATCH accepts optional content/status/name fields via Zod; at least one field required implicitly (empty object is technically valid but no-op)
+- DELETE performs S3 cleanup in try/catch; if S3 delete fails, DB record is still removed to avoid orphaned records
+- `verifyOwnership` helper is local to [docId]/route.ts, not extracted to shared module (only used in that file's 3 handlers)

@@ -455,3 +455,27 @@
 - DB history is loaded fresh on each request as authoritative source (not relying on client-sent messages array for history)
 - Pre-existing lint errors unchanged
 - Next priority: Task 13 (document CRUD, deps 1+4 met, unblocks 14) or Task 8 (threshold UI, deps 1+5 met, unblocks 10)
+
+## 2026-02-05: Document CRUD API (PRD Task 13)
+
+### Completed
+
+- Created `app/api/case/[caseId]/documents/route.ts` with POST and GET handlers
+  - GET: auth + ownership check, returns documents list (id, name, type, source, status, createdAt) ordered by createdAt desc
+  - POST: multipart/form-data, accepts PDF/DOCX/MD files, creates Document record, uploads to S3 if configured, falls back to inline content for markdown
+- Created `app/api/case/[caseId]/documents/[docId]/route.ts` with GET, PATCH, DELETE handlers
+  - GET: auth + ownership check, returns document detail + signed S3 download URL if s3Key present
+  - PATCH: accepts { content?, status?, name? } via Zod validation, updates Document record
+  - DELETE: auth + ownership, deletes S3 object if present, deletes Document record
+- Shared `verifyOwnership` helper in [docId]/route.ts to reduce auth boilerplate
+- S3 operations wrapped in try/catch for graceful degradation (signed URL generation, S3 deletion)
+- Typecheck + lint pass clean (no new issues)
+
+### Notes for Next Dev
+
+- POST accepts file extensions: .pdf, .docx, .md, .markdown -- maps to DocumentType enum
+- Non-markdown files without S3 configured create a record with no stored content (metadata only)
+- Document record created before S3 upload so we have the ID for buildDocumentKey()
+- GET list uses `select` to minimize data transfer (no content/s3Key in list view)
+- Pre-existing lint errors unchanged
+- Next priority: Task 14 (evidence tab UI, deps 1+12+13 now met) or Task 8 (threshold UI, deps 1+5 met, unblocks 10) or Task 15-18 (admin pages)
