@@ -19,7 +19,7 @@ function getFileType(fileName: string): SupportedFileType | null {
 
 export async function parseDocx(buffer: ArrayBuffer): Promise<string> {
   try {
-    const result = await mammoth.extractRawText({ arrayBuffer: buffer })
+    const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) })
     const text = result.value.trim()
 
     if (!text) {

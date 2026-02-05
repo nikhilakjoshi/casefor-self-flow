@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// NextAuth required models
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  passwordHash  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  cases    Case[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum CaseStatus {
+  SCREENING
+  ACTIVE
+  CLOSED
+}
+
+model Case {
+  id        String     @id @default(cuid())
+  userId    String?
+  status    CaseStatus @default(SCREENING)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user           User?          @relation(fields: [userId], references: [id])
+  profile        CaseProfile?
+  resumeUploads  ResumeUpload[]
+  eb1aAnalyses   EB1AAnalysis[]
+  chatMessages   ChatMessage[]
+}
+
+model CaseProfile {
+  id        String   @id @default(cuid())
+  caseId    String   @unique
+  data      Json     @default("{}")
+  updatedAt DateTime @updatedAt
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  caseId    String
+  role      ChatRole
+  content   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, createdAt])
+}
+
+model ResumeUpload {
+  id               String   @id @default(cuid())
+  caseId           String
+  fileName         String
+  fileSize         Int
+  pineconeVectorIds String[]
+  createdAt        DateTime @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model EB1AAnalysis {
+  id          String   @id @default(cuid())
+  caseId      String
+  version     Int      @default(1)
+  criteria    Json
+  strongCount Int
+  weakCount   Int
+  createdAt   DateTime @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}

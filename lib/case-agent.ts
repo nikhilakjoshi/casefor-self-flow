@@ -1,0 +1,337 @@
+import { ToolLoopAgent, tool, stepCountIs } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
+import { z } from "zod";
+import { db } from "./db";
+import { queryContext } from "./rag";
+import { EB1A_CRITERIA } from "./eb1a-criteria";
+import { countCriteriaStrengths, type CriterionResult } from "./eb1a-agent";
+
+const MODEL = "claude-sonnet-4-20250514";
+const MAX_HISTORY = 20;
+
+const criteriaIds = EB1A_CRITERIA.map((c) => c.id) as [string, ...string[]];
+
+const criteriaListFull = EB1A_CRITERIA.map(
+  (c) => `- ${c.id}: ${c.name} -- ${c.description}`,
+).join("\n");
+
+function buildSystemPrompt(opts: {
+  profile: Record<string, unknown> | null;
+  analysis: CriterionResult[] | null;
+  ragContext: string[];
+}): string {
+  const profileSection = opts.profile
+    ? `CURRENT APPLICANT PROFILE:\n${JSON.stringify(opts.profile, null, 2)}`
+    : "APPLICANT PROFILE: Not yet established.";
+
+  const analysisSection = opts.analysis
+    ? `CURRENT ANALYSIS:\n${opts.analysis.map((c) => `${c.criterionId}: ${c.strength} - ${c.reason}`).join("\n")}`
+    : "ANALYSIS: No analysis yet.";
+
+  const ragSection =
+    opts.ragContext.length > 0
+      ? `RELEVANT DOCUMENT EXCERPTS:\n${opts.ragContext.join("\n---\n")}`
+      : "";
+
+  return `You are an expert EB-1A immigration paralegal assistant. You help applicants build strong Extraordinary Ability visa cases.
+
+YOUR BEHAVIOR:
+- You are proactive. After processing any information, immediately use your tools to update the profile and analysis.
+- Always call updateProfile when you learn new facts about the applicant (name, role, achievements, publications, etc).
+- Always call updateAnalysis when new evidence affects any criteria. Pass all affected criteria in a single call.
+- After tool calls, respond conversationally: acknowledge what you learned, explain how it impacts the case, then ask for the next piece of evidence or suggest what would strengthen weak criteria.
+- Be specific about USCIS requirements. Cite which criteria benefit from the evidence.
+- When suggesting next steps, be concrete: "Do you have a letter from Dr. X confirming your contribution?" not just "get recommendation letters."
+
+THE 10 EB-1A CRITERIA (need 3+ Strong):
+${criteriaListFull}
+
+${profileSection}
+
+${analysisSection}
+
+${ragSection}
+
+TOOL USAGE RULES:
+- Call updateProfile with a merge object. Existing fields are preserved; new fields are added/overwritten.
+- When the user provides new evidence, uploads a document, or shares information that could affect any criterion: first call getLatestAnalysis to see the current state, then call updateAnalysis with the criteria that should be upgraded based on the new evidence.
+- Call updateAnalysis with an array of all criteria that changed. Only include criteria whose strength should increase. Include specific evidence quotes for each.
+- For the initial greeting (no user messages yet), introduce yourself and summarize the current case state, then ask what the applicant wants to work on first.`;
+}
+
+export function createCaseAgentTools(caseId: string) {
+  const logPrefix = `[CaseAgent:${caseId}]`;
+
+  return {
+    updateProfile: tool({
+      description:
+        "Update the applicant profile with new information. Pass a partial object; it will be merged with existing data. Use this whenever you learn new facts about the applicant.",
+      inputSchema: z.object({
+        updates: z
+          .record(z.string(), z.unknown())
+          .describe(
+            'Key-value pairs to merge into the profile. E.g. {name: "Jane", currentRole: "Senior Researcher", institution: "MIT", publications: [{title: "...", journal: "...", year: 2023}]}',
+          ),
+      }),
+      execute: async ({ updates }) => {
+        console.log(
+          `${logPrefix} [updateProfile] Called with updates:`,
+          JSON.stringify(updates, null, 2),
+        );
+
+        const existing = await db.caseProfile.findUnique({
+          where: { caseId },
+        });
+        console.log(
+          `${logPrefix} [updateProfile] Existing profile:`,
+          existing ? "found" : "not found",
+        );
+
+        const currentData = (existing?.data as Record<string, unknown>) ?? {};
+        const merged = deepMerge(currentData, updates);
+        console.log(
+          `${logPrefix} [updateProfile] Merged profile keys:`,
+          Object.keys(merged),
+        );
+
+        await db.caseProfile.upsert({
+          where: { caseId },
+          create: { caseId, data: merged as any },
+          update: { data: merged as any },
+        });
+        console.log(
+          `${logPrefix} [updateProfile] Profile upserted successfully`,
+        );
+
+        const result = { success: true, profile: merged };
+        console.log(`${logPrefix} [updateProfile] Returning:`, {
+          success: true,
+          profileKeys: Object.keys(merged),
+        });
+        return result;
+      },
+    }),
+
+    getLatestAnalysis: tool({
+      description:
+        "Fetch the latest EB-1A criteria analysis from the database. Call this before updateAnalysis so you know the current state of each criterion and can make informed updates.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        console.log(`${logPrefix} [getLatestAnalysis] Called`);
+
+        const analysis = await db.eB1AAnalysis.findFirst({
+          where: { caseId },
+          orderBy: { createdAt: "desc" },
+        });
+
+        if (!analysis) {
+          console.log(`${logPrefix} [getLatestAnalysis] No analysis found`);
+          return { exists: false, version: 0, criteria: null };
+        }
+
+        console.log(
+          `${logPrefix} [getLatestAnalysis] Found analysis v${analysis.version}, strong: ${analysis.strongCount}, weak: ${analysis.weakCount}`,
+        );
+        return {
+          exists: true,
+          version: analysis.version,
+          criteria: analysis.criteria,
+          strongCount: analysis.strongCount,
+          weakCount: analysis.weakCount,
+        };
+      },
+    }),
+
+    updateAnalysis: tool({
+      description:
+        "Create a new version of the EB-1A criteria analysis. Always creates a new version with incremented version number. Pass only the criteria that changed -- unchanged criteria are preserved from the previous version. New evidence and reasons are merged with existing data.",
+      inputSchema: z.object({
+        updates: z
+          .array(
+            z.object({
+              criterionId: z.enum(criteriaIds).describe("Criterion ID"),
+              strength: z.enum(["Strong", "Weak", "None"]),
+              reason: z.string().describe("Explanation of the assessment"),
+              evidence: z
+                .array(z.string())
+                .describe("Specific evidence quotes"),
+            }),
+          )
+          .describe("Array of criteria to update"),
+      }),
+      execute: async ({ updates }) => {
+        console.log(
+          `${logPrefix} [updateAnalysis] Called with ${updates.length} updates:`,
+          updates.map((u) => `${u.criterionId}: ${u.strength}`),
+        );
+
+        const current = await db.eB1AAnalysis.findFirst({
+          where: { caseId },
+          orderBy: { createdAt: "desc" },
+        });
+        console.log(
+          `${logPrefix} [updateAnalysis] Current analysis:`,
+          current ? `v${current.version}` : "none",
+        );
+
+        const strengthRank = { None: 0, Weak: 1, Strong: 2 } as const;
+        const prevVersion = current?.version ?? 0;
+        const updateMap = new Map(updates.map((u) => [u.criterionId, u]));
+
+        // Build base criteria from previous version or defaults
+        const baseCriteria: CriterionResult[] = current
+          ? (current.criteria as CriterionResult[])
+          : EB1A_CRITERIA.map((c) => ({
+              criterionId: c.id,
+              strength: "None" as const,
+              reason: "Not yet evaluated",
+              evidence: [],
+            }));
+        console.log(
+          `${logPrefix} [updateAnalysis] Base criteria count: ${baseCriteria.length}`,
+        );
+
+        // Merge updates into base -- upgrade strength, append new evidence
+        const mergedCriteria = baseCriteria.map((c) => {
+          const upd = updateMap.get(c.criterionId);
+          if (!upd) return c;
+
+          const newStrength =
+            strengthRank[upd.strength] > strengthRank[c.strength]
+              ? upd.strength
+              : c.strength;
+
+          // Dedupe and merge evidence
+          const existingEvidence = new Set(c.evidence);
+          const combinedEvidence = [
+            ...c.evidence,
+            ...upd.evidence.filter((e) => !existingEvidence.has(e)),
+          ];
+
+          console.log(
+            `${logPrefix} [updateAnalysis] Merging ${c.criterionId}: ${c.strength} -> ${newStrength}, evidence count: ${c.evidence.length} -> ${combinedEvidence.length}`,
+          );
+
+          return {
+            criterionId: c.criterionId,
+            strength: newStrength,
+            reason: upd.reason,
+            evidence: combinedEvidence,
+          };
+        });
+
+        const counts = countCriteriaStrengths({ criteria: mergedCriteria });
+        const newVersion = prevVersion + 1;
+        console.log(
+          `${logPrefix} [updateAnalysis] Creating v${newVersion}, strong: ${counts.strong}, weak: ${counts.weak}`,
+        );
+
+        await db.eB1AAnalysis.create({
+          data: {
+            caseId,
+            version: newVersion,
+            criteria: mergedCriteria as any,
+            strongCount: counts.strong,
+            weakCount: counts.weak,
+          },
+        });
+        console.log(
+          `${logPrefix} [updateAnalysis] Analysis v${newVersion} created successfully`,
+        );
+
+        const result = {
+          success: true,
+          version: newVersion,
+          updated: updates.map((u) => u.criterionId),
+          strongCount: counts.strong,
+          weakCount: counts.weak,
+        };
+        console.log(`${logPrefix} [updateAnalysis] Returning:`, result);
+        return result;
+      },
+    }),
+  };
+}
+
+export async function runCaseAgent(opts: {
+  caseId: string;
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  onFinish?: (text: string) => Promise<void>;
+}) {
+  const { caseId, messages, onFinish } = opts;
+  const log = (msg: string, ...args: unknown[]) =>
+    console.log(`[CaseAgent:${caseId}] ${msg}`, ...args);
+
+  log("runCaseAgent called, messages:", messages.length);
+
+  // Gather context
+  const [profile, analysis, ragResults] = await Promise.all([
+    db.caseProfile.findUnique({ where: { caseId } }),
+    db.eB1AAnalysis.findFirst({
+      where: { caseId },
+      orderBy: { createdAt: "desc" },
+    }),
+    messages.length > 0
+      ? queryContext(caseId, messages[messages.length - 1].content, 5)
+      : Promise.resolve([]),
+  ]);
+
+  log("context gathered - profile:", !!profile, "analysis:", !!analysis, "ragResults:", ragResults.length);
+
+  const instructions = buildSystemPrompt({
+    profile: (profile?.data as Record<string, unknown>) ?? null,
+    analysis: analysis ? (analysis.criteria as CriterionResult[]) : null,
+    ragContext: ragResults.map((r) => r.text),
+  });
+
+  const tools = createCaseAgentTools(caseId);
+
+  log("creating ToolLoopAgent with model:", MODEL, "tools:", Object.keys(tools));
+
+  const agent = new ToolLoopAgent({
+    model: anthropic(MODEL),
+    instructions,
+    tools,
+    stopWhen: stepCountIs(7),
+    onStepFinish: ({ toolCalls, toolResults, text, finishReason }) => {
+      log("step finished - finishReason:", finishReason);
+      log("step text length:", text?.length ?? 0);
+      log("step toolCalls:", toolCalls?.map((tc: any) => tc.toolName) ?? "none");
+      log("step toolResults:", toolResults?.length ?? 0);
+    },
+    onFinish: async ({ text }) => {
+      log("agent finished, text length:", text?.length ?? 0);
+      if (onFinish) await onFinish(text);
+    },
+  });
+
+  log("starting stream");
+  return agent.stream({ messages: messages.slice(-MAX_HISTORY) });
+}
+
+function deepMerge(
+  target: Record<string, unknown>,
+  source: Record<string, unknown>,
+): Record<string, unknown> {
+  const result = { ...target };
+  for (const key of Object.keys(source)) {
+    const tVal = target[key];
+    const sVal = source[key];
+    if (
+      tVal &&
+      sVal &&
+      typeof tVal === "object" &&
+      typeof sVal === "object" &&
+      !Array.isArray(tVal) &&
+      !Array.isArray(sVal)
+    ) {
+      result[key] = deepMerge(
+        tVal as Record<string, unknown>,
+        sVal as Record<string, unknown>,
+      );
+    } else {
+      result[key] = sVal;
+    }
+  }
+  return result;
+}

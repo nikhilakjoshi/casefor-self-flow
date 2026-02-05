@@ -183,7 +183,7 @@
       "Create lib/eb1a-agent.ts",
       "Import google provider from @ai-sdk/google",
       "Import generateObject from ai",
-      "Configure model: gemini-1.5-pro or gemini-2.0-flash",
+      "Configure model: gemini-1.5-pro or gemini-2.5-flash",
       "Set up base evaluation function shell"
     ],
     "passes": true

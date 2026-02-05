@@ -1,0 +1,338 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#22c55e', 'primaryTextColor': '#000', 'primaryBorderColor': '#16a34a', 'lineColor': '#64748b', 'secondaryColor': '#fef3c7', 'tertiaryColor': '#e0f2fe'}}}%%
+
+flowchart TB
+    %% ===== ENTRY POINT =====
+    subgraph ENTRY["🔍 Client Discovery"]
+        CLIENT[/"Client Looking for Legal Help"/]
+        SEARCH["Searches via:<br/>• Word of mouth<br/>• Google<br/>• Chatbots"]
+        CLIENT --> SEARCH
+    end
+
+    %% ===== LEGAL SERVICE TYPES =====
+    subgraph SERVICES["⚖️ Legal Service Categories"]
+        direction LR
+        subgraph IMMIGRATION["Immigration"]
+            EB1A["EB1A"]
+            O1["O-1"]
+            EB1B["EB1B"]
+            EB2NIW["EB2-NIW"]
+            EB1C["EB1C"]
+        end
+        PATENTS["Patents"]
+        LLC["LLC"]
+        TRADEMARKS["Trademarks"]
+        OTHER["Other Legal Needs"]
+    end
+
+    SEARCH --> IMMIGRATION
+    SEARCH --> PATENTS
+    SEARCH --> LLC
+    SEARCH --> TRADEMARKS
+    SEARCH --> OTHER
+
+    %% ===== PROVIDER SELECTION =====
+    subgraph PROVIDERS["🏢 Provider Options"]
+        direction LR
+        LAWFIRM["Law Firm"]
+        INDYLAWYER["Independent Lawyer"]
+        CASEFOR["CASEFOR<br/>Digital Platform"]
+    end
+
+    EB1A --> LAWFIRM
+    EB1A --> INDYLAWYER
+    EB1A --> CASEFOR
+
+    %% ===== LANDING & AUTH =====
+    subgraph LANDING["🌐 Platform Entry"]
+        LANDING_LF["Landing Page<br/>(Law Firm)"]
+        LANDING_IL["Landing Page<br/>(Independent)"]
+        LANDING_CF["Landing Page<br/>(CASEFOR)"]
+        
+        LAWFIRM --> LANDING_LF
+        INDYLAWYER --> LANDING_IL
+        CASEFOR --> LANDING_CF
+        
+        LOGIN["Login / SignUp Page"]
+        LANDING_LF --> LOGIN
+        LANDING_IL --> LOGIN
+        LANDING_CF --> LOGIN
+    end
+
+    subgraph UXELEMENTS["📱 UX Elements"]
+        direction LR
+        BLOGS["Blogs"]
+        ABOUT["About"]
+        KNOWLEDGE["Knowledge Hub"]
+        SCHEDULER["Process Scheduler"]
+        FAQ["FAQ"]
+        AIBOT["AI Conversation Bot"]
+    end
+    
+    LOGIN -.-> UXELEMENTS
+
+    %% ===== EB1A CARD/MATTER =====
+    subgraph EB1ACARD["📋 EB1A Matter Card"]
+        MATTERCARD["Client can have multiple 'cards'<br/>EB1A is one case/matter"]
+    end
+    
+    LOGIN --> MATTERCARD
+
+    %% ===== INITIAL SCREENING =====
+    subgraph SCREENING["🎤 Initial Screening"]
+        SCREENING_CONTEXT["Initial Screening<br/>Data Context"]
+        
+        subgraph CAPTURE["Data Capture Methods"]
+            direction LR
+            VOICE["🎙️ Voice Capture<br/>(Conversational)"]
+            SURVEY["📝 Surveys<br/>(Text Capture)"]
+            DOCS["📄 Document<br/>Upload"]
+        end
+        
+        SCREENING_CONTEXT --> VOICE
+        SCREENING_CONTEXT --> SURVEY
+        SCREENING_CONTEXT --> DOCS
+        
+        EVALUATE["Evaluate Initial<br/>Information"]
+        VOICE --> EVALUATE
+        SURVEY --> EVALUATE
+        DOCS --> EVALUATE
+        
+        OUTPUTS["Outputs &<br/>Additional Questions<br/>(Iterative)"]
+        EVALUATE --> OUTPUTS
+    end
+    
+    MATTERCARD --> SCREENING_CONTEXT
+
+    %% ===== SCREENING PAYMENT =====
+    subgraph SCREENING_PAY["💳 Screening Payment"]
+        PAY_SCREEN["Payment: Initial fee for<br/>FULL screening results +<br/>Lawyer matching<br/>(credited to future costs)"]
+        
+        RESULTS_PREVIEW["Assessment Results<br/>Snapshot<br/>(Full results greyed out)"]
+    end
+    
+    OUTPUTS --> RESULTS_PREVIEW
+    RESULTS_PREVIEW --> PAY_SCREEN
+
+    %% ===== SCREENING OUTCOMES =====
+    subgraph OUTCOMES["📊 Screening Results"]
+        direction TB
+        STRONG{{"✅ Strong Candidate"}}
+        TOOFAR{{"⚠️ Too Far from EB1A"}}
+        
+        ALTERNATE["Find alternate path<br/>OR<br/>Monthly subscription for<br/>profile upgrades"]
+    end
+    
+    PAY_SCREEN --> STRONG
+    PAY_SCREEN --> TOOFAR
+    TOOFAR --> ALTERNATE
+
+    %% ===== LAWYER MATCHING =====
+    subgraph MATCHING["🤝 Lawyer Matching"]
+        CASEFOR_PATH["CASEFOR Digital Path:<br/>Lawyer Matching"]
+        
+        subgraph BACKEND["Backend Processes"]
+            direction TB
+            BIDDING["CASEFOR:<br/>Bidding Process"]
+            FIRM_ASSIGN["Law Firm:<br/>Picks one of their lawyers"]
+            INDY_AGREE["Independent Lawyer:<br/>Agrees to proceed"]
+        end
+        
+        CASEFOR_PATH --> BIDDING
+        CASEFOR_PATH --> FIRM_ASSIGN
+        CASEFOR_PATH --> INDY_AGREE
+        
+        subgraph CLIENT_RETURN["Client Returns"]
+            CLIENT_SEE_LIST["Client logs back to see<br/>preferred lawyer list<br/>& choose from it"]
+            CLIENT_SEE_ASSIGNED["Client logs back to see<br/>which lawyer was assigned"]
+            CLIENT_SEE_AGREED["Client logs back to see<br/>independent lawyer agreed"]
+        end
+        
+        BIDDING --> CLIENT_SEE_LIST
+        FIRM_ASSIGN --> CLIENT_SEE_ASSIGNED
+        INDY_AGREE --> CLIENT_SEE_AGREED
+        
+        CHOOSE_NEW["CASEFOR Digital Path:<br/>Choose new lawyer<br/>(if needed)"]
+        CLIENT_SEE_LIST --> CHOOSE_NEW
+    end
+    
+    STRONG --> CASEFOR_PATH
+
+    %% ===== CONSULTATION & PAYMENT =====
+    subgraph CONSULTATION["📅 Initial Consultation"]
+        LAWYER_CONSULT["Lawyer Initial Consultation<br/>Payment & Scheduling Call"]
+        
+        CONSULT_UX["UX Elements:<br/>• Review agreement<br/>• Payment processing<br/>• Show preferred lawyers<br/>• Scheduling"]
+        
+        LAWYER_NOTIFIED["Lawyer receives notification<br/>+ consultation scheduling"]
+    end
+    
+    CLIENT_SEE_LIST --> LAWYER_CONSULT
+    CLIENT_SEE_ASSIGNED --> LAWYER_CONSULT
+    CLIENT_SEE_AGREED --> LAWYER_CONSULT
+    CHOOSE_NEW --> LAWYER_CONSULT
+    LAWYER_CONSULT --> CONSULT_UX
+    CONSULT_UX --> LAWYER_NOTIFIED
+
+    %% ===== BUILD CONTEXT =====
+    subgraph CONTEXT["📚 Build Context"]
+        DATA_CONTEXT["Data Context"]
+        
+        subgraph CONTEXT_METHODS["Context Building Methods"]
+            direction LR
+            CTX_SURVEY["📝 Survey"]
+            CTX_CONVO["💬 Conversational"]
+        end
+        
+        subgraph EVIDENCE["Supporting Evidence"]
+            EVIDENCE_DOCS["📄 Docs"]
+            EVIDENCE_LINKS["🔗 Links / URLs"]
+            EVIDENCE_MEDIA["🎬 Media"]
+            EVIDENCE_RECO["👥 Recommenders"]
+        end
+        
+        DATA_CONTEXT --> CTX_SURVEY
+        DATA_CONTEXT --> CTX_CONVO
+        DATA_CONTEXT --> EVIDENCE
+        
+        EVIDENCE_MANAGER["UX: Managing all<br/>evidence types"]
+        EVIDENCE --> EVIDENCE_MANAGER
+    end
+    
+    LAWYER_NOTIFIED --> DATA_CONTEXT
+
+    %% ===== RECOMMENDER WORKFLOW =====
+    subgraph RECOMMENDER["✉️ Recommender Workflow"]
+        RECO_ASSESS["Recommender Assessment<br/>& Building/Verifying<br/>Recommendation Letters"]
+        
+        subgraph RECO_UX["Recommender UX Elements"]
+            WEBSCRAPE["🔍 Web scrape<br/>recommender bio"]
+            CREDIBILITY["📊 Assess recommender<br/>credibility & strength"]
+            TRACK["📈 Track willingness &<br/>letter completeness"]
+            REDLINE["✏️ Redline/review<br/>reco letters"]
+            RECO_LOGIN["🔐 Recommender login"]
+            DOCUSIGN["✍️ DocuSign"]
+        end
+        
+        RECO_ASSESS --> WEBSCRAPE
+        WEBSCRAPE --> CREDIBILITY
+        CREDIBILITY --> TRACK
+        TRACK --> REDLINE
+        REDLINE --> RECO_LOGIN
+        RECO_LOGIN --> DOCUSIGN
+    end
+    
+    EVIDENCE_RECO --> RECO_ASSESS
+
+    %% ===== CLIENT + LAWYER WORKSPACE =====
+    subgraph WORKSPACE["👥 Client + Lawyer Workspace"]
+        WORKSPACE_UX["UX Elements:<br/>• Matrix<br/>• Gaps<br/>• AI Results Analysis<br/>• LinkedIn/bio links for recommenders<br/>• Completeness<br/>• Critical next steps<br/>• Risks & urgent matters<br/>• Recommender status<br/>• Group chat feature"]
+        
+        CLIENT_RESPONDS["Client responds<br/>to requests"]
+    end
+    
+    EVIDENCE_MANAGER --> WORKSPACE_UX
+    DOCUSIGN --> WORKSPACE_UX
+    WORKSPACE_UX --> CLIENT_RESPONDS
+
+    %% ===== CLIENT DASHBOARD =====
+    subgraph CLIENT_DASH["🏠 Client Dashboard"]
+        DASH_MAIN["Dashboard Main Page:<br/>All legal matters as 'cards'"]
+        DASH_SECOND["Second Level Workspace:<br/>Each 'card' (EB1A example)<br/>with matrix, gaps, etc."]
+        
+        INTEGRATIONS["🔗 Integrations:<br/>Google, Apple,<br/>LinkedIn, Outlook"]
+        
+        DASH_MAIN --> DASH_SECOND
+        DASH_SECOND -.-> INTEGRATIONS
+    end
+    
+    CLIENT_RESPONDS --> CLIENT_DASH
+
+    %% ===== MAIN CONTRACT =====
+    subgraph CONTRACT["📜 Main Contract & Payment"]
+        MAIN_CONTRACT["Main Contract<br/>and Payment"]
+        CONTRACT_UX["UX Elements:<br/>• DocuSign<br/>• Payment Portal<br/>• ACH, Credit Card, etc."]
+    end
+    
+    WORKSPACE_UX --> MAIN_CONTRACT
+    MAIN_CONTRACT --> CONTRACT_UX
+
+    %% ===== LEGAL ONLY WORKSPACE =====
+    subgraph LEGAL_WORKSPACE["⚖️ Legal ONLY Workspace"]
+        LEGAL_WS["Legal Workspace"]
+        LEGAL_UX["UX Elements:<br/>• All client workspace elements +<br/>• Redlining<br/>• Give feedback<br/>• Instructions to legal team<br/>• AI tooling and editing<br/>• Push actions/notifications to client<br/>• Draft documents, edit documents<br/>• MAKE CASE button (iterative)<br/>• AI feedback while building case"]
+    end
+    
+    CONTRACT_UX --> LEGAL_WS
+    LEGAL_WS --> LEGAL_UX
+
+    %% ===== LEGAL DASHBOARD =====
+    subgraph LEGAL_DASH["📊 Legal ONLY Main Dashboard"]
+        LEGAL_DASHBOARD["Legal Dashboard"]
+        LEGAL_DASH_UX["UX Elements:<br/>• Multi-client view<br/>• Payment status<br/>• Case completeness status<br/>• Admin settings<br/>• Timelines<br/>• Next best actions<br/>• Risks"]
+    end
+    
+    LEGAL_UX --> LEGAL_DASHBOARD
+    LEGAL_DASHBOARD --> LEGAL_DASH_UX
+
+    %% ===== MAKE CASE =====
+    subgraph MAKECASE["🏗️ Make Case"]
+        MAKE_CASE_BTN["Make Case<br/>(Lawyer + AI)"]
+        DENIAL_ENGINE["Denial Engine<br/>Assessment"]
+        
+        MAKE_CASE_UX["UX Elements:<br/>• Built based on petition template<br/>• Denial assessment outcomes<br/>• Suggestions to lawyer"]
+        
+        MAKE_CASE_BTN --> DENIAL_ENGINE
+        DENIAL_ENGINE --> MAKE_CASE_UX
+    end
+    
+    LEGAL_UX --> MAKE_CASE_BTN
+
+    %% ===== DRAFT DOCUMENTS =====
+    subgraph DRAFTS["📝 Draft Documents"]
+        direction LR
+        DOC_PS["Personal Statement"]
+        DOC_PL["Petition Letter<br/>(finalized)"]
+        DOC_RECO["Reco Letters"]
+        DOC_COVER["Cover Letter"]
+        DOC_TOC["TOC"]
+        DOC_RESUME["Updated Resume<br/>(USCIS standard)"]
+        DOC_CRITERIA["Criteria Justification<br/>Document"]
+    end
+    
+    MAKE_CASE_UX --> DRAFTS
+
+    %% ===== FINAL OUTCOMES =====
+    subgraph FINAL["🎯 Final Outcome"]
+        CASE_RESULT{{"Case Assessment"}}
+        
+        CASE_PASS["✅ Case PASSES"]
+        CASE_FAIL["❌ Case FAILED"]
+        
+        READY["🚀 READY TO SEND<br/>TO USCIS"]
+        PUSH_REQ["Push additional<br/>requirements to client"]
+        
+        CASE_RESULT --> CASE_PASS
+        CASE_RESULT --> CASE_FAIL
+        
+        CASE_PASS --> READY
+        CASE_FAIL --> PUSH_REQ
+    end
+    
+    DRAFTS --> CASE_RESULT
+    PUSH_REQ --> CLIENT_RESPONDS
+
+    %% ===== STYLING =====
+    classDef green fill:#22c55e,stroke:#16a34a,color:#000
+    classDef yellow fill:#fef3c7,stroke:#f59e0b,color:#000
+    classDef blue fill:#dbeafe,stroke:#3b82f6,color:#000
+    classDef purple fill:#f3e8ff,stroke:#9333ea,color:#000
+    classDef red fill:#fee2e2,stroke:#ef4444,color:#000
+    classDef gray fill:#f3f4f6,stroke:#6b7280,color:#000
+    
+    class CLIENT,SEARCH gray
+    class EB1A,MATTERCARD,SCREENING_CONTEXT,EVALUATE,OUTPUTS green
+    class VOICE,SURVEY,DOCS yellow
+    class STRONG,CASE_PASS,READY green
+    class TOOFAR,ALTERNATE,CASE_FAIL,PUSH_REQ red
+    class CASEFOR_PATH,LAWYER_CONSULT,DATA_CONTEXT,RECO_ASSESS blue
+    class WORKSPACE_UX,LEGAL_UX,MAKE_CASE_BTN purple

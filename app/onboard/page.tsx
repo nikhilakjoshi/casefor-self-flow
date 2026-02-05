@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Dropzone } from "./_components/dropzone";
-import { ResultsModal } from "./_components/results-modal";
-import { processResume, type ProcessResumeResult } from "./actions";
-import type { Strength } from "./_components/criterion-card";
+import { ResultsModal, type Strength } from "./_components/results-modal";
 
 interface CriterionResultData {
   criterionId: string;
@@ -19,17 +17,104 @@ interface AnalysisResult {
   weakCount: number;
 }
 
+function countStrengths(criteria: CriterionResultData[]) {
+  return criteria.reduce(
+    (acc, c) => {
+      if (c.strength === "Strong") acc.strong++;
+      else if (c.strength === "Weak") acc.weak++;
+      return acc;
+    },
+    { strong: 0, weak: 0 }
+  );
+}
+
 export default function OnboardPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [caseId, setCaseId] = useState<string | null>(null);
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = useCallback(async (file: File) => {
     setError(null);
     setSelectedFile(file);
-  };
+    setIsLoading(true);
+    setIsStreaming(true);
+    setAnalysisResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.error ?? "Analysis failed");
+        setIsLoading(false);
+        setIsStreaming(false);
+        return;
+      }
+
+      // Capture case ID from response header
+      const responseCaseId = response.headers.get("X-Case-Id");
+      if (responseCaseId) {
+        setCaseId(responseCaseId);
+      }
+
+      // Open modal immediately to show streaming results
+      setIsModalOpen(true);
+      setIsLoading(false);
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        setError("Failed to read response stream");
+        setIsStreaming(false);
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data?.criteria) {
+                const counts = countStrengths(data.criteria);
+                setAnalysisResult({
+                  criteria: data.criteria,
+                  strongCount: counts.strong,
+                  weakCount: counts.weak,
+                });
+              }
+            } catch {
+              // Ignore parse errors for partial JSON
+            }
+          }
+        }
+      }
+
+      setIsStreaming(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setIsLoading(false);
+      setIsStreaming(false);
+    }
+  }, []);
 
   const handleError = (errorMsg: string) => {
     setError(errorMsg);
@@ -39,40 +124,24 @@ export default function OnboardPage() {
   const handleRetry = () => {
     setError(null);
     setAnalysisResult(null);
+    setCaseId(null);
   };
 
-  const handleAnalyze = async () => {
-    if (!selectedFile) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-
-      const result: ProcessResumeResult = await processResume(formData);
-
-      if (!result.success || !result.evaluation) {
-        setError(result.error ?? "Analysis failed");
-        return;
-      }
-
-      setAnalysisResult({
-        criteria: result.evaluation.criteria as CriterionResultData[],
-        strongCount: result.strongCount ?? 0,
-        weakCount: result.weakCount ?? 0,
-      });
-      setIsModalOpen(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
-    } finally {
-      setIsLoading(false);
+  const handleBuildCase = () => {
+    if (caseId) {
+      window.location.href = `/case/${caseId}`;
     }
   };
 
+  const handleAddMoreInfo = () => {
+    if (caseId) {
+      window.location.href = `/case/${caseId}`;
+    }
+  };
+
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-4 dark:bg-black">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
       <main className="w-full max-w-xl">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
@@ -83,15 +152,16 @@ export default function OnboardPage() {
           </p>
         </div>
 
-        <div className="rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="rounded-lg border border-border bg-card p-8">
           <Dropzone
             onFileSelect={handleFileSelect}
             onError={handleError}
             selectedFile={selectedFile}
+            isLoading={isLoading}
           />
 
           {error && (
-            <div className="mt-4 flex items-center justify-between rounded-md bg-red-50 px-3 py-2 dark:bg-red-950/30">
+            <div className="mt-4 flex items-center justify-between rounded-md bg-destructive/10 px-3 py-2">
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
               <button
                 type="button"
@@ -102,57 +172,20 @@ export default function OnboardPage() {
               </button>
             </div>
           )}
-
-          {selectedFile && (
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={handleAnalyze}
-                disabled={isLoading}
-                className="w-full rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-              >
-                {isLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg
-                      className="h-4 w-4 animate-spin"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    Analyzing...
-                  </span>
-                ) : (
-                  "Analyze Resume"
-                )}
-              </button>
-            </div>
-          )}
         </div>
       </main>
 
-      {analysisResult && (
-        <ResultsModal
-          open={isModalOpen}
-          onOpenChange={setIsModalOpen}
-          criteria={analysisResult.criteria}
-          strongCount={analysisResult.strongCount}
-          weakCount={analysisResult.weakCount}
-        />
-      )}
+      <ResultsModal
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        criteria={analysisResult?.criteria ?? []}
+        strongCount={analysisResult?.strongCount ?? 0}
+        weakCount={analysisResult?.weakCount ?? 0}
+        isStreaming={isStreaming}
+        caseId={caseId ?? undefined}
+        onBuildCase={handleBuildCase}
+        onAddMoreInfo={handleAddMoreInfo}
+      />
     </div>
   );
 }

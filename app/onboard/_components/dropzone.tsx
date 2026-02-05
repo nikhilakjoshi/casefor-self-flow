@@ -32,9 +32,10 @@ interface DropzoneProps {
   onFileSelect: (file: File) => void;
   onError: (error: string) => void;
   selectedFile: File | null;
+  isLoading?: boolean;
 }
 
-export function Dropzone({ onFileSelect, onError, selectedFile }: DropzoneProps) {
+export function Dropzone({ onFileSelect, onError, selectedFile, isLoading }: DropzoneProps) {
   const onDrop = useCallback(
     (acceptedFiles: File[], rejectedFiles: unknown[]) => {
       if (rejectedFiles.length > 0) {
@@ -67,20 +68,49 @@ export function Dropzone({ onFileSelect, onError, selectedFile }: DropzoneProps)
     accept: ACCEPTED_TYPES,
     maxSize: MAX_FILE_SIZE,
     multiple: false,
+    disabled: isLoading,
   });
 
   return (
     <div
       {...getRootProps()}
-      className={`flex min-h-[200px] cursor-pointer items-center justify-center rounded-md border-2 border-dashed transition-colors ${
-        isDragActive
-          ? "border-black bg-zinc-100 dark:border-white dark:bg-zinc-800"
-          : "border-zinc-300 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-600"
+      className={`flex min-h-[200px] items-center justify-center rounded-md border-2 border-dashed transition-colors ${
+        isLoading
+          ? "cursor-wait border-zinc-300 dark:border-zinc-700"
+          : isDragActive
+            ? "cursor-pointer border-foreground bg-muted"
+            : "cursor-pointer border-zinc-300 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-600"
       }`}
     >
       <input {...getInputProps()} />
       <div className="text-center px-4">
-        {selectedFile ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center gap-2">
+            <svg
+              className="h-6 w-6 animate-spin text-zinc-500"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Analyzing {selectedFile?.name}...
+            </p>
+          </div>
+        ) : selectedFile ? (
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             <span className="font-medium">{selectedFile.name}</span>
             <br />
@@ -88,11 +118,11 @@ export function Dropzone({ onFileSelect, onError, selectedFile }: DropzoneProps)
           </p>
         ) : isDragActive ? (
           <p className="text-sm font-medium text-black dark:text-white">
-            Drop your resume here
+            Drop your file here
           </p>
         ) : (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Drag and drop your resume here, or click to browse
+            Drag and drop your file here, or click to browse
             <br />
             <span className="text-xs">PDF, DOCX, or TXT (max 10MB)</span>
           </p>

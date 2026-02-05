@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { parseFile, FileParseError } from '@/lib/file-parser'
 import { chunkText } from '@/lib/chunker'
 import { upsertChunks } from '@/lib/pinecone'
-import { evaluateResume, countCriteriaStrengths, type EB1AEvaluation } from '@/lib/eb1a-agent'
+import { evaluateResume, evaluateResumePdf, countCriteriaStrengths, type EB1AEvaluation } from '@/lib/eb1a-agent'
 
 export interface ProcessResumeResult {
   success: boolean
@@ -28,16 +28,21 @@ export async function processResume(formData: FormData): Promise<ProcessResumeRe
       data: { status: 'SCREENING' },
     })
 
-    // 2. Extract text from file
+    // 2. Check if PDF (handle separately via Gemini)
+    const isPdf = file.name.toLowerCase().endsWith('.pdf')
     let text: string
-    try {
+    let evaluation: EB1AEvaluation
+
+    if (isPdf) {
+      // PDF: Send directly to Gemini for extraction + evaluation
+      const buffer = await file.arrayBuffer()
+      const result = await evaluateResumePdf(buffer)
+      text = result.extractedText
+      evaluation = result.evaluation
+    } else {
+      // DOCX/TXT: Extract locally, then evaluate
       text = await parseFile(file)
-    } catch (err) {
-      if (err instanceof FileParseError && err.message.includes('PDF')) {
-        // PDF extraction via LLM not implemented yet - placeholder
-        return { success: false, error: 'PDF extraction not yet supported' }
-      }
-      throw err
+      evaluation = await evaluateResume(text)
     }
 
     // 3. Chunk text
@@ -56,8 +61,7 @@ export async function processResume(formData: FormData): Promise<ProcessResumeRe
       },
     })
 
-    // 6. Run AI evaluation
-    const evaluation = await evaluateResume(text)
+    // 6. Count criteria strengths
     const counts = countCriteriaStrengths(evaluation)
 
     // 7. Create EB1AAnalysis record
