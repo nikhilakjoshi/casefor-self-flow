@@ -29,6 +29,7 @@ interface CasePageClientProps {
   } | null
   hasExistingMessages: boolean
   initialAnalysisVersion: number
+  initialThreshold?: number
 }
 
 export function CasePageClient({
@@ -37,11 +38,13 @@ export function CasePageClient({
   initialAnalysis,
   hasExistingMessages,
   initialAnalysisVersion,
+  initialThreshold = 3,
 }: CasePageClientProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
   const [analysisVersion, setAnalysisVersion] = useState(initialAnalysisVersion)
+  const [threshold, setThreshold] = useState(initialThreshold)
   const initiatedRef = useRef(false)
 
   // AI-initiated conversation on first load
@@ -303,6 +306,8 @@ export function CasePageClient({
           caseId={caseId}
           initialAnalysis={initialAnalysis}
           version={analysisVersion}
+          threshold={threshold}
+          onThresholdChange={setThreshold}
         />
       </div>
     </div>

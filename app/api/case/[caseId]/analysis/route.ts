@@ -49,5 +49,6 @@ export async function GET(
     createdAt: analysis.createdAt,
     version: analysis.version,
     criteriaNames,
+    criteriaThreshold: caseRecord.criteriaThreshold ?? 3,
   })
 }

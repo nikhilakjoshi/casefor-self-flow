@@ -44,3 +44,7 @@
 - PATCH accepts optional content/status/name fields via Zod; at least one field required implicitly (empty object is technically valid but no-op)
 - DELETE performs S3 cleanup in try/catch; if S3 delete fails, DB record is still removed to avoid orphaned records
 - `verifyOwnership` helper is local to [docId]/route.ts, not extracted to shared module (only used in that file's 3 handlers)
+- Threshold stepper uses optimistic update pattern: state changes immediately, reverts if PATCH fails (no loading indicator for threshold changes)
+- Analysis API response includes `criteriaThreshold` alongside analysis data; ReportPanel propagates threshold changes to parent via `onThresholdChange` callback on refetch
+- Onboard results-modal uses default threshold=3 since no case record exists at onboard time (threshold is only configurable post-case-creation)
+- Threshold stepper positioned inline within the existing badge pill for compact layout (no separate control area)

@@ -109,7 +109,7 @@
       "In report-panel.tsx: add number stepper control (+ / - buttons or input) next to threshold badge in header. On change, PATCH /api/case/[caseId]/threshold, update local state",
       "In app/onboard/_components/results-modal.tsx: replace hardcoded 3 on line 214 with a threshold prop (default 3 for onboard context)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",

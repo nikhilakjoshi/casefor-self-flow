@@ -18,12 +18,15 @@ interface Analysis {
   weakCount: number;
   version?: number;
   criteriaNames?: Record<string, string>;
+  criteriaThreshold?: number;
 }
 
 interface ReportPanelProps {
   caseId: string;
   initialAnalysis?: Analysis | null;
   version?: number;
+  threshold?: number;
+  onThresholdChange?: (threshold: number) => void;
 }
 
 function getStrengthConfig(strength: Strength) {
@@ -129,6 +132,8 @@ export function ReportPanel({
   caseId,
   initialAnalysis,
   version = 0,
+  threshold = 3,
+  onThresholdChange,
 }: ReportPanelProps) {
   const [analysis, setAnalysis] = useState<Analysis | null>(
     initialAnalysis ?? null,
@@ -151,6 +156,9 @@ export function ReportPanel({
           const data = await res.json();
           if (data) {
             setAnalysis(data);
+            if (data.criteriaThreshold != null) {
+              onThresholdChange?.(data.criteriaThreshold);
+            }
           }
         }
       } catch (err) {
@@ -162,7 +170,7 @@ export function ReportPanel({
     return () => {
       cancelled = true;
     };
-  }, [caseId, version]);
+  }, [caseId, version, onThresholdChange]);
 
   if (!analysis) {
     return (
@@ -177,7 +185,23 @@ export function ReportPanel({
     );
   }
 
-  const meetsThreshold = analysis.strongCount >= 3;
+  const meetsThreshold = analysis.strongCount >= threshold;
+
+  async function updateThreshold(newVal: number) {
+    if (newVal < 1 || newVal > 10) return;
+    const prev = threshold;
+    onThresholdChange?.(newVal);
+    try {
+      const res = await fetch(`/api/case/${caseId}/threshold`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threshold: newVal }),
+      });
+      if (!res.ok) onThresholdChange?.(prev);
+    } catch {
+      onThresholdChange?.(prev);
+    }
+  }
 
   return (
     <div className="h-full flex flex-col p-4 overflow-hidden">
@@ -189,13 +213,27 @@ export function ReportPanel({
           </h3>
           <div
             className={cn(
-              "px-2 py-1 rounded-full text-xs font-medium",
+              "flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium",
               meetsThreshold
                 ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                 : "bg-amber-500/15 text-amber-700 dark:text-amber-300",
             )}
           >
-            {analysis.strongCount}/3 threshold
+            <span>{analysis.strongCount}/{threshold}</span>
+            <button
+              onClick={() => updateThreshold(threshold - 1)}
+              disabled={threshold <= 1}
+              className="w-4 h-4 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30"
+            >
+              -
+            </button>
+            <button
+              onClick={() => updateThreshold(threshold + 1)}
+              disabled={threshold >= 10}
+              className="w-4 h-4 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30"
+            >
+              +
+            </button>
           </div>
         </div>
         <div className="flex gap-3 mt-2 text-xs text-stone-500">

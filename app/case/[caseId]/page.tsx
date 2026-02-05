@@ -34,6 +34,8 @@ export default async function CasePage({ params }: Props) {
     redirect('/dashboard')
   }
 
+  const criteriaThreshold = caseRecord.criteriaThreshold ?? 3
+
   // Ensure profile exists
   if (!caseRecord.profile) {
     await db.caseProfile.create({
@@ -70,6 +72,7 @@ export default async function CasePage({ params }: Props) {
       initialAnalysis={analysisData}
       hasExistingMessages={caseRecord.chatMessages.length > 0}
       initialAnalysisVersion={latestAnalysis?.version ?? 0}
+      initialThreshold={criteriaThreshold}
     />
   )
 }

@@ -31,6 +31,7 @@ interface ResultsModalProps {
   onBuildCase?: () => void;
   onAddMoreInfo?: () => void;
   criteriaNames?: Record<string, string>;
+  threshold?: number;
 }
 
 function getCriterionName(criterionId: string, names?: Record<string, string>): string {
@@ -210,8 +211,9 @@ export function ResultsModal({
   onBuildCase,
   onAddMoreInfo,
   criteriaNames,
+  threshold = 3,
 }: ResultsModalProps) {
-  const meetsThreshold = strongCount >= 3;
+  const meetsThreshold = strongCount >= threshold;
   const noneCount = criteria.length - strongCount - weakCount;
 
   return (
@@ -286,8 +288,8 @@ export function ResultsModal({
                   </p>
                   <p className="text-xs text-stone-600 dark:text-stone-400 mt-0.5">
                     {meetsThreshold
-                      ? "You demonstrate strong evidence in 3+ criteria"
-                      : `Consider strengthening ${3 - strongCount} more ${3 - strongCount === 1 ? "criterion" : "criteria"}`
+                      ? `You demonstrate strong evidence in ${threshold}+ criteria`
+                      : `Consider strengthening ${threshold - strongCount} more ${threshold - strongCount === 1 ? "criterion" : "criteria"}`
                     }
                   </p>
                 </div>

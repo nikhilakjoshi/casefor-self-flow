@@ -479,3 +479,23 @@
 - GET list uses `select` to minimize data transfer (no content/s3Key in list view)
 - Pre-existing lint errors unchanged
 - Next priority: Task 14 (evidence tab UI, deps 1+12+13 now met) or Task 8 (threshold UI, deps 1+5 met, unblocks 10) or Task 15-18 (admin pages)
+
+## 2026-02-05: Threshold UI (PRD Task 8)
+
+### Completed
+
+- `app/case/[caseId]/page.tsx`: fetches `criteriaThreshold` from case record, passes as `initialThreshold` prop to CasePageClient
+- `app/case/[caseId]/client.tsx`: accepts `initialThreshold` prop, manages `threshold` state, passes to ReportPanel w/ `onThresholdChange` callback
+- `app/case/[caseId]/_components/report-panel.tsx`: accepts `threshold` + `onThresholdChange` props, replaces hardcoded `3` w/ dynamic threshold, adds +/- stepper buttons next to threshold badge, PATCHes `/api/case/[caseId]/threshold` on change w/ optimistic update + rollback
+- `app/onboard/_components/results-modal.tsx`: accepts optional `threshold` prop (default 3), replaces hardcoded `3` in comparison + display text
+- `app/api/case/[caseId]/analysis/route.ts`: now includes `criteriaThreshold` in response so ReportPanel refetches pick up threshold changes from agent tool calls
+- Typecheck + lint pass clean (no new issues, pre-existing unchanged)
+
+### Notes for Next Dev
+
+- Threshold stepper is inline in the badge area (compact); +/- buttons w/ min 1, max 10
+- Optimistic update: state changes immediately, reverts on API failure
+- Analysis API response now includes `criteriaThreshold` so threshold stays in sync across refetches
+- Onboard flow uses default threshold=3 (no case record yet to fetch from)
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, client.tsx, actions.ts)
+- Next priority: Task 10 (evidence badge, deps 1+8 now met) or Task 14 (evidence tab UI, deps 1+12+13 met) or Task 15-18 (admin pages)
