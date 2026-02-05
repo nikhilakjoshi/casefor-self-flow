@@ -208,7 +208,7 @@
       "Create app/api/admin/criteria/[id]/route.ts: PATCH updates CriteriaMapping fields (name, description, displayOrder, active). DELETE removes CriteriaMapping by id",
       "Create app/admin/criteria/page.tsx: fetch criteria via GET /api/admin/criteria, render table grouped by ApplicationType. Columns: criterionKey, name, description, displayOrder, active. Inline edit for name/description/displayOrder/active fields, PATCH on change"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",

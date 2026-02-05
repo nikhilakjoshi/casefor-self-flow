@@ -568,3 +568,31 @@
 - Dashboard cards use bg-card + border pattern consistent w/ existing card styles
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, actions.ts)
 - Next priority: Task 16 (admin criteria API+UI, deps 1+2 met) or Task 17 (admin templates API+UI, deps 1+2 met) or Task 18 (admin application-types API, dep 1 met)
+
+## 2026-02-05: Admin Criteria API + UI (PRD Task 16)
+
+### Completed
+
+- Created `app/api/admin/criteria/route.ts` with GET and POST handlers
+  - GET: returns all CriteriaMapping with ApplicationType included, ordered by applicationTypeId + displayOrder
+  - POST: creates new CriteriaMapping from { applicationTypeId, criterionKey, name, description, displayOrder }, validates applicationTypeId exists, handles P2002 unique constraint violation (409)
+- Created `app/api/admin/criteria/[id]/route.ts` with PATCH and DELETE handlers
+  - PATCH: accepts { name?, description?, displayOrder?, active? } via Zod validation, returns updated record w/ applicationType
+  - DELETE: removes CriteriaMapping by id, returns { success: true }
+- Created `app/admin/criteria/page.tsx`: client component w/ criteria table grouped by ApplicationType
+  - Columns: criterionKey (mono), name, description, displayOrder, active toggle
+  - Inline edit mode: pencil icon -> edit all fields inline -> check/X to save/cancel
+  - Active toggle: clickable pill switch, PATCHes immediately on click (outside edit mode)
+  - Delete: trash icon per row, deletes via DELETE API
+  - Empty state: message suggesting seed script
+- No auth guard (open access per PRD resolved decisions, consistent w/ admin layout)
+- Typecheck + lint pass clean (no new issues; pre-existing unchanged)
+
+### Notes for Next Dev
+
+- Admin criteria API has no auth guard (consistent w/ admin layout from task 15)
+- POST returns 409 on duplicate criterionKey for same applicationTypeId (Prisma P2002)
+- Active toggle works both in edit mode and in normal view (different click handlers)
+- Used useRef didFetch pattern to avoid react-hooks/set-state-in-effect lint rule on useEffect data fetch
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, actions.ts)
+- Next priority: Task 17 (admin templates API+UI, deps 1+2 met) or Task 18 (admin application-types API, dep 1 met)

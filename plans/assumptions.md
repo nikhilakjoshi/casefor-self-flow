@@ -62,3 +62,9 @@
 - Admin layout uses same SidebarProvider + SidebarInset pattern as case layout; no shared layout extraction (admin and case have different sidebars)
 - Admin dashboard has no auth guard per PRD resolved decisions; open access for v1
 - AdminSidebar active state: exact match for /admin dashboard, startsWith for sub-pages (prevents /admin/criteria from highlighting both Dashboard and Criteria)
+- Admin criteria API has no auth guard, consistent with admin layout (task 15) open-access decision
+- POST /api/admin/criteria catches Prisma P2002 error code to return 409 on duplicate (applicationTypeId, criterionKey) pairs
+- Admin criteria page is a client component (not server) since it needs inline editing state; initial data fetched client-side
+- Used useRef didFetch guard to prevent double-fetch in React strict mode and to satisfy react-hooks/set-state-in-effect lint rule
+- Active toggle in criteria table works both inline (during edit) and standalone (click toggles + PATCHes immediately); two separate code paths for clarity
+- Criteria table groups by applicationTypeId; if multiple app types exist, each gets its own section with header
