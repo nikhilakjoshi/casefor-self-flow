@@ -707,3 +707,22 @@
 - Date fields (startDate, endDate) accept ISO datetime strings, converted to Date objects
 - Next priority: GET/PATCH/DELETE /api/case/[caseId]/recommenders/[recommenderId] (tasks 27-29)
 - Pre-existing lint errors unchanged
+
+## 2026-02-07: Recommender Individual CRUD API (PRD Tasks 27-29)
+
+### Completed
+
+- Created `app/api/case/[caseId]/recommenders/[recommenderId]/route.ts` with GET, PATCH, DELETE handlers
+- GET: auth check, case ownership verification via verifyOwnership helper, includes documents relation in query
+- PATCH: Zod schema with all fields optional, handles date conversion and contextNotes Json via Prisma.DbNull
+- DELETE: returns 204 No Content on success
+- All handlers verify recommender exists and belongs to case before operating
+- Typecheck passes
+
+### Notes for Next Dev
+
+- `verifyOwnership` helper is local to this route (same pattern as documents/[docId]/route.ts)
+- PATCH uses explicit field-by-field update construction to handle undefined vs null distinction correctly
+- contextNotes set to Prisma.DbNull when explicitly passed as null (allows clearing the field)
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities, etc.)
+- Next priority: Recommender agent tools (tasks 30-33) or multi-file upload batch handling (tasks 4-8)

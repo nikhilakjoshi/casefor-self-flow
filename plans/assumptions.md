@@ -83,3 +83,6 @@
 - Used `prisma db push` instead of `prisma migrate dev` for schema sync (faster, no migration file needed in dev)
 - Recommender API POST uses spread conditional for contextNotes to avoid Prisma nullable Json type issues: `...(data.contextNotes && { contextNotes: data.contextNotes as Prisma.InputJsonValue })`
 - Recommender API validates date strings as ISO datetime format via `z.string().datetime()` before converting to Date objects
+- Recommender [recommenderId] PATCH uses explicit field-by-field update to correctly distinguish between undefined (not provided) and null (explicitly clear)
+- contextNotes clearing uses Prisma.DbNull when explicitly passed as null; required value import from '@prisma/client' (not type-only import)
+- verifyOwnership helper kept local to [recommenderId]/route.ts to match documents/[docId] pattern (not extracted to shared module)
