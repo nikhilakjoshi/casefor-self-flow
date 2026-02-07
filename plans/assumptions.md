@@ -107,3 +107,8 @@
 - Multi-file upload API expects FormData key 'files' (plural); single-file 'file' key is deprecated
 - processFile runs incremental analysis synchronously (awaits completion) to capture accurate status; differs from old fire-and-forget pattern
 - MAX_FILES=10 is a constant in upload route; not configurable via env var
+- Multi-file upload UI uses two-step flow: drop files to queue, click Upload to process -- allows removing files before upload
+- File matching in batch response uses fileName; assumes unique names within batch (duplicate names may cause mismatched status updates)
+- Retry button for failed files not implemented; user can re-drop failed files instead
+- Upload button shows dynamic count of pending files (e.g., "Upload 3 file(s)")
+- "Clear completed" button only appears when at least one file succeeded

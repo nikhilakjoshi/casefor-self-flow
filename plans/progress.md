@@ -879,3 +879,36 @@
 - processFile runs analysis synchronously (awaits) to capture status; not fire-and-forget
 - Pre-existing lint errors unchanged
 - Next priority: Multi-file upload UI (tasks 9-14)
+
+## 2026-02-07: Multi-File Upload UI (PRD Tasks 9-14)
+
+### Completed
+
+- Updated `app/case/[caseId]/_components/upload-zone.tsx` for multi-file uploads
+- Changed `maxFiles: 1` to `maxFiles: 10` in dropzone config
+- Added `FileUploadState` interface: file, status, progress, error
+- Added `BatchUploadResponse` interface matching API response format
+- New state management: `fileStates` array tracks each file's upload lifecycle
+- `onDrop` handler queues multiple files with 'pending' status
+- Two-step flow: files queue first, then explicit "Upload" button triggers batch upload
+- File list UI with status icons (FileText/Loader2/Check/AlertCircle) and color coding:
+  - Gray: pending
+  - Blue: uploading
+  - Amber: analyzing (unused but ready)
+  - Green: success
+  - Red: error
+- Remove button (X) visible only for pending files
+- FormData uses 'files' key (plural) to match batch API
+- Response parsing matches files by fileName to update states
+- Summary shows success/failed counts after upload completes
+- "Clear completed" button removes successful uploads from list
+- `onUploadComplete` called only when `totalSuccess > 0`
+- Typecheck passes; no new lint issues (pre-existing unchanged)
+
+### Notes for Next Dev
+
+- Retry button for failed files not implemented (marked optional in PRD)
+- Upload button disabled during upload; dropzone also disabled
+- File matching by name assumes unique names within batch
+- PRD complete: all tasks pass
+- Pre-existing lint errors unchanged

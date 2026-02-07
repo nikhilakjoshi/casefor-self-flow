@@ -91,7 +91,7 @@
       "Find useDropzone config",
       "Change maxFiles: 1 to maxFiles: 10"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -101,7 +101,7 @@
       "Add interface FileUploadState: { file: File, status: 'pending'|'uploading'|'analyzing'|'success'|'error', progress: number, error?: string }",
       "Add state: const [fileStates, setFileStates] = useState<FileUploadState[]>([])"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -111,7 +111,7 @@
       "Map acceptedFiles to initial FileUploadState objects with status: 'pending'",
       "setFileStates with new array"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -123,7 +123,7 @@
       "Show progress bar per file",
       "Use color coding: gray=pending, blue=uploading, yellow=analyzing, green=success, red=error"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -133,7 +133,7 @@
       "onClick: filter file from fileStates array",
       "Only show remove button when status is 'pending'"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -144,7 +144,7 @@
       "Match by fileName to update status and error fields",
       "Call onUploadComplete only if totalSuccess > 0"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -154,7 +154,7 @@
       "Keep failed files visible with error message",
       "Allow retry button for failed files (optional enhancement)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "data",
