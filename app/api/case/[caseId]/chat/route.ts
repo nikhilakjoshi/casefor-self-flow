@@ -154,7 +154,7 @@ export async function POST(
       }
     } else {
       // Normal message -- save user message
-      const lastUserMsg = messages.findLast((m) => m.role === "user");
+      const lastUserMsg = messages.findLast((m: { role: string; content: string }) => m.role === "user");
       if (lastUserMsg) {
         await db.chatMessage.create({
           data: {

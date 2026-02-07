@@ -141,7 +141,7 @@ export async function POST(
         take: 50,
       });
 
-      messages = dbMessages.map((m) => ({
+      messages = dbMessages.map((m: { role: string; content: string }) => ({
         role: m.role.toLowerCase() as "user" | "assistant",
         content: m.content,
       }));
@@ -174,7 +174,7 @@ export async function POST(
   });
 
   // Use DB history as the authoritative message list
-  const historyMessages = dbMessages.map((m) => ({
+  const historyMessages = dbMessages.map((m: { role: string; content: string }) => ({
     role: m.role.toLowerCase() as "user" | "assistant",
     content: m.content,
   }));
