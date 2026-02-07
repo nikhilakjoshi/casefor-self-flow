@@ -8,6 +8,10 @@ const ACCEPTED_TYPES = {
   "application/pdf": [".pdf"],
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
   "text/plain": [".txt"],
+  "text/markdown": [".md", ".markdown"],
+  "text/csv": [".csv"],
+  "application/vnd.ms-excel": [".xls"],
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
 };
 
 export function validateFileSize(file: File): string | null {
@@ -19,11 +23,11 @@ export function validateFileSize(file: File): string | null {
 
 export function validateFileType(file: File): string | null {
   const validTypes = Object.keys(ACCEPTED_TYPES);
-  const validExtensions = [".pdf", ".docx", ".txt"];
+  const validExtensions = [".pdf", ".docx", ".txt", ".md", ".markdown", ".csv", ".xls", ".xlsx"];
   const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
 
   if (!validTypes.includes(file.type) && !validExtensions.includes(ext)) {
-    return "Invalid file type. Please upload a PDF, DOCX, or TXT file";
+    return "Invalid file type. Please upload a PDF, DOCX, TXT, MD, CSV, XLS, or XLSX file";
   }
   return null;
 }
@@ -39,7 +43,7 @@ export function Dropzone({ onFileSelect, onError, selectedFile, isLoading }: Dro
   const onDrop = useCallback(
     (acceptedFiles: File[], rejectedFiles: unknown[]) => {
       if (rejectedFiles.length > 0) {
-        onError("Invalid file. Please upload a PDF, DOCX, or TXT file under 10MB");
+        onError("Invalid file. Please upload a PDF, DOCX, TXT, MD, CSV, XLS, or XLSX file under 10MB");
         return;
       }
 
@@ -124,7 +128,7 @@ export function Dropzone({ onFileSelect, onError, selectedFile, isLoading }: Dro
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Drag and drop your file here, or click to browse
             <br />
-            <span className="text-xs">PDF, DOCX, or TXT (max 10MB)</span>
+            <span className="text-xs">PDF, DOCX, TXT, MD, CSV, XLS, XLSX (max 10MB)</span>
           </p>
         )}
       </div>

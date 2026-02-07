@@ -240,7 +240,7 @@
       "Open app/case/[caseId]/_components/upload-zone.tsx",
       "Update accept object to include: text/markdown: ['.md'], text/csv: ['.csv'], application/vnd.ms-excel: ['.xls'], application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: ['.xlsx']"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -249,7 +249,7 @@
       "Open app/onboard/_components/dropzone.tsx",
       "Update accept object to include same new MIME types as upload-zone"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "data",

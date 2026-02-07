@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { cn } from '@/lib/utils'
-import { Upload, X, FileText } from 'lucide-react'
+import { Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface UploadZoneProps {
@@ -59,6 +59,10 @@ export function UploadZone({ caseId, onUploadComplete, onClose }: UploadZoneProp
       'application/msword': ['.doc'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'text/plain': ['.txt'],
+      'text/markdown': ['.md', '.markdown'],
+      'text/csv': ['.csv'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
     },
     maxFiles: 1,
     disabled: uploading,
@@ -106,7 +110,7 @@ export function UploadZone({ caseId, onUploadComplete, onClose }: UploadZoneProp
               {isDragActive ? 'Drop file here' : 'Drag & drop or click to upload'}
             </p>
             <p className="mt-1 text-xs text-stone-400">
-              PDF, DOC, DOCX, or TXT
+              PDF, DOC, DOCX, TXT, MD, CSV, XLS, XLSX
             </p>
           </>
         )}

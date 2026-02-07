@@ -835,3 +835,23 @@
 - Upload route now supports: pdf, docx, txt, md, markdown, csv, xlsx, xls
 - Removed unused `parseFile` import (route uses individual parser functions)
 - Next priority: UI updates to accept new MIME types (tasks 23-24) or multi-file batch upload (tasks 4-8)
+
+## 2026-02-07: Dropzone MIME Type Updates (PRD Tasks 23-24)
+
+### Completed
+
+- Updated `app/case/[caseId]/_components/upload-zone.tsx` accept MIME types
+  - Added: text/markdown (.md, .markdown), text/csv (.csv), application/vnd.ms-excel (.xls), application/vnd.openxmlformats-officedocument.spreadsheetml.sheet (.xlsx)
+  - Updated help text to show all supported formats
+  - Removed unused FileText import
+- Updated `app/onboard/_components/dropzone.tsx` accept MIME types
+  - Added same MIME types as upload-zone
+  - Updated ACCEPTED_TYPES constant, validateFileType extensions list, error messages
+  - Updated help text to show all supported formats
+- Typecheck passes; no new lint issues (pre-existing unchanged)
+
+### Notes for Next Dev
+
+- Both dropzones now accept: PDF, DOC, DOCX, TXT, MD, CSV, XLS, XLSX
+- onboard dropzone validates by both MIME type and file extension (fallback for browsers that don't report correct MIME)
+- Next priority: Multi-file batch upload (API tasks 4-8, UI tasks 9-14)
