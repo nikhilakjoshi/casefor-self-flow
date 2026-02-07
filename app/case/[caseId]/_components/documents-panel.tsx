@@ -42,8 +42,9 @@ import {
   Circle,
   AlertCircle,
   Shield,
-  Target,
+  Users,
 } from 'lucide-react'
+import { RecommendersPanel } from './recommenders-panel'
 
 // Types
 interface DocumentItem {
@@ -449,8 +450,48 @@ function DocumentChecklist({
 }
 
 type SaveStatus = 'saved' | 'saving' | 'unsaved'
+type PanelTab = 'documents' | 'recommenders'
+
+// Tab selector component
+function PanelTabs({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: PanelTab
+  onTabChange: (tab: PanelTab) => void
+}) {
+  return (
+    <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
+      <button
+        onClick={() => onTabChange('documents')}
+        className={cn(
+          'flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+          activeTab === 'documents'
+            ? 'bg-background text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'
+        )}
+      >
+        <FileText className="w-3.5 h-3.5" />
+        Documents
+      </button>
+      <button
+        onClick={() => onTabChange('recommenders')}
+        className={cn(
+          'flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+          activeTab === 'recommenders'
+            ? 'bg-background text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'
+        )}
+      >
+        <Users className="w-3.5 h-3.5" />
+        Recommenders
+      </button>
+    </div>
+  )
+}
 
 export function DocumentsPanel({ caseId, isChatActive }: DocumentsPanelProps) {
+  const [activeTab, setActiveTab] = useState<PanelTab>('documents')
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [selectedDoc, setSelectedDoc] = useState<DocumentDetail | null>(null)
   const [isLoadingList, setIsLoadingList] = useState(true)
@@ -795,10 +836,31 @@ export function DocumentsPanel({ caseId, isChatActive }: DocumentsPanelProps) {
     )
   }
 
-  // List view
+  // Recommenders tab
+  if (activeTab === 'recommenders') {
+    return (
+      <div className="h-full flex flex-col overflow-hidden">
+        {/* Tab selector */}
+        <div className="shrink-0 px-4 pt-4 pb-2">
+          <PanelTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        </div>
+        {/* Recommenders panel content */}
+        <div className="flex-1 min-h-0">
+          <RecommendersPanel caseId={caseId} />
+        </div>
+      </div>
+    )
+  }
+
+  // List view (documents tab)
   return (
     <>
       <div className="h-full flex flex-col p-4 overflow-hidden">
+        {/* Tab selector */}
+        <div className="shrink-0 mb-4">
+          <PanelTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        </div>
+
         {/* Checklist section */}
         <DocumentChecklist
           caseId={caseId}

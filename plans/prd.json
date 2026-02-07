@@ -429,7 +429,7 @@
       "onSubmit: POST/PATCH to /api/case/{caseId}/recommenders[/{id}]",
       "Props: caseId, recommender? (for edit mode), onSave, onCancel"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -441,7 +441,7 @@
       "Add 'Add Recommender' button that opens RecommenderForm",
       "Card actions: Edit (opens form), Delete (with confirm), Generate Letter"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -453,7 +453,7 @@
       "Pass caseId prop to RecommendersPanel",
       "Maintain existing documents list as default tab"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",

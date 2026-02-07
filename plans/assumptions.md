@@ -93,3 +93,9 @@
 - getRecommender includes linked documents via `include: { documents: true }` for full context
 - draftRecommendationLetter builds richer specificInstructions when recommender has bio/credentials/contextNotes stored
 - Recommender tools added to existing createEvidenceAgentTools function (not a separate tools object)
+- RecommenderForm uses native `<select>` for relationshipType dropdown (no shadcn Select component installed)
+- RecommendersPanel uses didFetchRef guard pattern to prevent double-fetch in React strict mode
+- DocumentsPanel tabs are local component state; not persisted/URL-based
+- Generate Letter button not included in RecommendersPanel -- evidence agent handles letter generation via chat interaction
+- PanelTabs component is local to documents-panel.tsx (not extracted to shared component)
+- RecommendersPanel re-mounts when switching tabs (fresh state); initial data fetched on mount each time

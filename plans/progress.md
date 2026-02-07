@@ -761,4 +761,37 @@
 - draftRecommendationLetter now requires either recommenderId OR (recommenderName, recommenderTitle, recommenderRelation) -- returns error if neither
 - listRecommenders includes `_count.documents` to show how many letters are linked to each recommender
 - Pre-existing lint errors unchanged
-- Next priority: Recommender UI (tasks 35-37) or multi-file upload (tasks 4-8)
+
+## 2026-02-07: Recommender UI (PRD Tasks 35-37)
+
+### Completed
+
+- Created `app/case/[caseId]/_components/recommender-form.tsx`
+  - Form w/ collapsible sections (Contact Info, Professional Details, Relationship Timeline)
+  - Required fields: name, title, relationshipType (dropdown), relationshipContext (textarea)
+  - All optional fields: email, phone, linkedIn, countryRegion, organization, bio, credentials, startDate, endDate, durationYears
+  - Edit mode: fetches full recommender data, pre-fills form, uses PATCH
+  - Create mode: uses POST to /api/case/{caseId}/recommenders
+  - Props: caseId, recommender? (for edit), onSave, onCancel
+- Created `app/case/[caseId]/_components/recommenders-panel.tsx`
+  - Lists recommenders as cards w/ avatar (initials), name, title, relationship badge
+  - Color-coded badges per relationship type
+  - Shows org, email, document count metadata
+  - Add Recommender button opens form
+  - Dropdown menu: Edit (opens form w/ data), Delete (confirm dialog)
+  - Empty state prompts adding first recommender
+- Updated `app/case/[caseId]/_components/documents-panel.tsx`
+  - Added PanelTabs component (Documents | Recommenders toggle)
+  - Tabs render at top of panel
+  - Conditionally renders RecommendersPanel when Recommenders tab active
+  - Documents list remains default tab
+- Typecheck passes; no new lint issues (pre-existing unchanged)
+
+### Notes for Next Dev
+
+- RecommenderForm uses native `<select>` for relationshipType (no shadcn Select needed)
+- RecommendersPanel fetches recommenders client-side on mount via didFetchRef guard
+- DocumentsPanel's tab state is local; switching tabs re-mounts components
+- Generate Letter action not implemented in UI (agent handles letter gen via chat)
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2, etc.)
+- Next priority: Multi-file upload batch handling (tasks 4-8) or new file format parsers (tasks 16-22)
