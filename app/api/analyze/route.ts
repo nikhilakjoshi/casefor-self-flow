@@ -1,3 +1,4 @@
+import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { parseFile } from '@/lib/file-parser'
 import { chunkText } from '@/lib/chunker'
@@ -5,6 +6,14 @@ import { upsertChunks } from '@/lib/pinecone'
 import { streamEvaluateResume, streamEvaluateResumePdf, countCriteriaStrengths } from '@/lib/eb1a-agent'
 
 export async function POST(request: Request) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   const formData = await request.formData()
   const file = formData.get('file') as File | null
 
@@ -27,6 +36,7 @@ export async function POST(request: Request) {
     // Create Case record
     const caseRecord = await db.case.create({
       data: {
+        userId: session.user.id,
         status: 'SCREENING',
         ...(eb1aType && { applicationTypeId: eb1aType.id }),
       },

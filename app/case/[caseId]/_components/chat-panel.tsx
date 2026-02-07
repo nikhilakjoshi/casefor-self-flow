@@ -4,6 +4,8 @@ import { useRef, useEffect } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ChatInput } from '@/components/ui/chat-input'
 import { MessageItem } from './message-item'
+import { Button } from '@/components/ui/button'
+import { RotateCcw } from 'lucide-react'
 
 interface Message {
   id: string
@@ -17,9 +19,12 @@ interface ChatPanelProps {
   isLoading: boolean
   onSend: (text: string) => void
   onFileSelect?: (file: File) => void
+  onClear?: () => void
+  showEvidenceAction?: boolean
+  onStartEvidence?: () => void
 }
 
-export function ChatPanel({ messages, isLoading, onSend, onFileSelect }: ChatPanelProps) {
+export function ChatPanel({ messages, isLoading, onSend, onFileSelect, onClear, showEvidenceAction, onStartEvidence }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -33,6 +38,22 @@ export function ChatPanel({ messages, isLoading, onSend, onFileSelect }: ChatPan
 
   return (
     <div className="flex flex-col h-full">
+      {/* Header with clear button */}
+      {messages.length > 0 && onClear && (
+        <div className="shrink-0 flex justify-end px-4 pt-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClear}
+            disabled={isLoading}
+            className="text-muted-foreground hover:text-foreground text-xs gap-1.5"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Clear history
+          </Button>
+        </div>
+      )}
+
       {/* Messages */}
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-4 space-y-4">
@@ -48,9 +69,7 @@ export function ChatPanel({ messages, isLoading, onSend, onFileSelect }: ChatPan
                 key={m.id}
                 role={m.role}
                 content={m.content}
-                isFileUpload={
-                  m.metadata?.type === 'file_upload'
-                }
+                isFileUpload={m.metadata?.type === 'file_upload'}
               />
             ))
           )}
@@ -82,6 +101,8 @@ export function ChatPanel({ messages, isLoading, onSend, onFileSelect }: ChatPan
           onFileSelect={onFileSelect}
           isLoading={isLoading}
           placeholder="Type a message or drop a file anywhere..."
+          showEvidenceAction={showEvidenceAction}
+          onStartEvidence={onStartEvidence}
         />
       </div>
     </div>

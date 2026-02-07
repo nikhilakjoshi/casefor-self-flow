@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useSession, signOut } from "next-auth/react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   FileText,
@@ -11,6 +11,8 @@ import {
   LogOut,
   Plus,
   ChevronsUpDown,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 
 import {
@@ -27,6 +29,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -42,6 +59,7 @@ import {
 
 interface CaseItem {
   id: string
+  name: string | null
   status: string
   createdAt: string
 }
@@ -49,27 +67,88 @@ interface CaseItem {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession()
   const pathname = usePathname()
+  const router = useRouter()
   const { isMobile } = useSidebar()
   const [cases, setCases] = useState<CaseItem[]>([])
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [selectedCase, setSelectedCase] = useState<CaseItem | null>(null)
+  const [newName, setNewName] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Extract current caseId from path
   const currentCaseId = pathname.match(/\/case\/([^/]+)/)?.[1]
 
-  useEffect(() => {
-    async function fetchCases() {
-      if (!session?.user) return
-      try {
-        const res = await fetch('/api/cases')
-        if (res.ok) {
-          const data = await res.json()
-          setCases(data.cases || [])
-        }
-      } catch (err) {
-        console.error('Failed to fetch cases:', err)
+  const fetchCases = useCallback(async () => {
+    if (!session?.user) return
+    try {
+      const res = await fetch('/api/cases')
+      if (res.ok) {
+        const data = await res.json()
+        setCases(data.cases || [])
       }
+    } catch (err) {
+      console.error('Failed to fetch cases:', err)
     }
-    fetchCases()
   }, [session?.user])
+
+  useEffect(() => {
+    fetchCases()
+  }, [fetchCases])
+
+  const handleRename = (caseItem: CaseItem) => {
+    setSelectedCase(caseItem)
+    setNewName(caseItem.name || `Case ${caseItem.id.slice(-6)}`)
+    setRenameDialogOpen(true)
+  }
+
+  const handleDelete = (caseItem: CaseItem) => {
+    setSelectedCase(caseItem)
+    setDeleteDialogOpen(true)
+  }
+
+  const submitRename = async () => {
+    if (!selectedCase || !newName.trim()) return
+    setIsSubmitting(true)
+    try {
+      const res = await fetch(`/api/case/${selectedCase.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim() }),
+      })
+      if (res.ok) {
+        await fetchCases()
+        setRenameDialogOpen(false)
+      }
+    } catch (err) {
+      console.error('Failed to rename case:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const submitDelete = async () => {
+    if (!selectedCase) return
+    setIsSubmitting(true)
+    try {
+      const res = await fetch(`/api/case/${selectedCase.id}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        await fetchCases()
+        setDeleteDialogOpen(false)
+        if (currentCaseId === selectedCase.id) {
+          router.push('/dashboard')
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete case:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const getCaseName = (c: CaseItem) => c.name || `Case ${c.id.slice(-6)}`
 
   const user = session?.user
 
@@ -99,19 +178,36 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupContent>
             <SidebarMenu>
               {cases.map((c) => (
-                <SidebarMenuItem key={c.id}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={c.id === currentCaseId}
-                  >
-                    <Link href={`/case/${c.id}`}>
-                      <FolderOpen className="size-4" />
-                      <span className="truncate">
-                        Case {c.id.slice(-6)}
-                      </span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <ContextMenu key={c.id}>
+                  <ContextMenuTrigger asChild>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={c.id === currentCaseId}
+                      >
+                        <Link href={`/case/${c.id}`}>
+                          <FolderOpen className="size-4" />
+                          <span className="truncate">
+                            {getCaseName(c)}
+                          </span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem onClick={() => handleRename(c)}>
+                      <Pencil className="size-4 mr-2" />
+                      Rename
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => handleDelete(c)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="size-4 mr-2" />
+                      Delete
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
               ))}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
@@ -192,6 +288,49 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenu>
         )}
       </SidebarFooter>
+
+      {/* Rename Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Case</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Enter case name"
+            onKeyDown={(e) => e.key === 'Enter' && submitRename()}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={submitRename} disabled={isSubmitting || !newName.trim()}>
+              {isSubmitting ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Case</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete "{selectedCase ? getCaseName(selectedCase) : ''}"? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={submitDelete} disabled={isSubmitting}>
+              {isSubmitting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sidebar>
   )
 }

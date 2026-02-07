@@ -185,3 +185,33 @@ export async function POST(
 
   return result.toTextStreamResponse();
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ caseId: string }> },
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const { caseId } = await params;
+
+  const caseRecord = await db.case.findUnique({
+    where: { id: caseId },
+  });
+
+  if (!caseRecord || caseRecord.userId !== session.user.id) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  // Delete all analysis-phase messages
+  await db.chatMessage.deleteMany({
+    where: {
+      caseId,
+      phase: "ANALYSIS",
+    },
+  });
+
+  return new Response(null, { status: 204 });
+}

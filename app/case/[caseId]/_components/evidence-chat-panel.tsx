@@ -5,7 +5,8 @@ import { useDropzone } from 'react-dropzone'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ChatInput } from '@/components/ui/chat-input'
 import { MessageItem } from './message-item'
-import { Upload } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Upload, RotateCcw } from 'lucide-react'
 
 interface Message {
   id: string
@@ -17,17 +18,73 @@ interface Message {
 interface EvidenceChatPanelProps {
   caseId: string
   initialMessages: Message[]
+  onLoadingChange?: (loading: boolean) => void
 }
 
-export function EvidenceChatPanel({ caseId, initialMessages }: EvidenceChatPanelProps) {
+export function EvidenceChatPanel({ caseId, initialMessages, onLoadingChange }: EvidenceChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoadingState] = useState(false)
+
+  const setIsLoading = useCallback((v: boolean) => {
+    setIsLoadingState(v)
+    onLoadingChange?.(v)
+  }, [onLoadingChange])
   const [isDragOver, setIsDragOver] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const initiatedRef = useRef(false)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // AI-initiated conversation on first load
+  useEffect(() => {
+    if (initiatedRef.current) return
+    if (initialMessages.length > 0) return
+    initiatedRef.current = true
+
+    async function initiate() {
+      setIsLoading(true)
+      try {
+        const res = await fetch(`/api/case/${caseId}/evidence-chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'initiate', messages: [] }),
+        })
+
+        if (!res.ok) return
+
+        const reader = res.body?.getReader()
+        if (!reader) return
+
+        const decoder = new TextDecoder()
+        let content = ''
+        const msgId = `init-${Date.now()}`
+
+        setMessages((prev) => [
+          ...prev,
+          { id: msgId, role: 'assistant', content: '' },
+        ])
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          content += decoder.decode(value, { stream: true })
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === msgId ? { ...m, content } : m
+            )
+          )
+        }
+      } catch (err) {
+        console.error('Evidence initiate error:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    initiate()
+  }, [caseId, initialMessages.length])
 
   const showTypingIndicator =
     isLoading &&
@@ -180,6 +237,21 @@ export function EvidenceChatPanel({ caseId, initialMessages }: EvidenceChatPanel
     [onDrop]
   )
 
+  const clearHistory = useCallback(async () => {
+    if (isLoading) return
+    try {
+      const res = await fetch(`/api/case/${caseId}/evidence-chat`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        setMessages([])
+        initiatedRef.current = false
+      }
+    } catch (err) {
+      console.error('Clear history error:', err)
+    }
+  }, [caseId, isLoading])
+
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
     onDragEnter: () => setIsDragOver(true),
@@ -208,6 +280,22 @@ export function EvidenceChatPanel({ caseId, initialMessages }: EvidenceChatPanel
             <p className="text-lg font-medium">Drop file to upload</p>
             <p className="text-sm text-white/70">PDF, DOC, DOCX, or TXT</p>
           </div>
+        </div>
+      )}
+
+      {/* Header with clear button */}
+      {messages.length > 0 && (
+        <div className="shrink-0 flex justify-end px-4 pt-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearHistory}
+            disabled={isLoading}
+            className="text-muted-foreground hover:text-foreground text-xs gap-1.5"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Clear history
+          </Button>
         </div>
       )}
 

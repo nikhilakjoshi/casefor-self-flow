@@ -52,6 +52,7 @@ export function CasePageClient({
   const [activeTab, setActiveTab] = useState<'analysis' | 'evidence'>('analysis')
   const [strongCount, setStrongCount] = useState(initialAnalysis?.strongCount ?? 0)
   const [badgeDismissed, setBadgeDismissed] = useState(false)
+  const [isEvidenceLoading, setIsEvidenceLoading] = useState(false)
   const initiatedRef = useRef(false)
 
   const showEvidenceBadge = activeTab === 'analysis' && strongCount >= threshold && !badgeDismissed
@@ -276,6 +277,22 @@ export function CasePageClient({
     [onDrop]
   )
 
+  // Clear chat history
+  const clearHistory = useCallback(async () => {
+    if (isLoading) return
+    try {
+      const res = await fetch(`/api/case/${caseId}/chat`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        setMessages([])
+        initiatedRef.current = false
+      }
+    } catch (err) {
+      console.error('Clear history error:', err)
+    }
+  }, [caseId, isLoading])
+
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
     onDragEnter: () => setIsDragOver(true),
@@ -320,26 +337,21 @@ export function CasePageClient({
             </div>
           )}
 
-          {/* Chat Panel - 60% */}
-          <div className="w-[60%] flex flex-col overflow-hidden border-r border-stone-200 dark:border-stone-700 relative">
+          {/* Chat Panel - 50% */}
+          <div className="w-[50%] flex flex-col overflow-hidden border-r border-stone-200 dark:border-stone-700 relative">
             <ChatPanel
               messages={messages}
               isLoading={isLoading}
               onSend={sendMessage}
               onFileSelect={onFileSelect}
+              onClear={clearHistory}
+              showEvidenceAction={showEvidenceBadge}
+              onStartEvidence={handleStartEvidence}
             />
-            {showEvidenceBadge && (
-              <button
-                onClick={handleStartEvidence}
-                className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium shadow-lg transition-all hover:shadow-xl hover:scale-105"
-              >
-                Start evidence phase
-              </button>
-            )}
           </div>
 
-          {/* Report Panel - 40% */}
-          <div className="w-[40%] bg-muted/50">
+          {/* Report Panel - 50% */}
+          <div className="w-[50%] bg-muted/50">
             <ReportPanel
               caseId={caseId}
               initialAnalysis={initialAnalysis}
@@ -352,17 +364,18 @@ export function CasePageClient({
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">
-          {/* Evidence Chat - 60% */}
-          <div className="w-[60%] flex flex-col overflow-hidden border-r border-stone-200 dark:border-stone-700">
+          {/* Evidence Chat - 50% */}
+          <div className="w-[50%] flex flex-col overflow-hidden border-r border-stone-200 dark:border-stone-700">
             <EvidenceChatPanel
               caseId={caseId}
               initialMessages={initialEvidenceMessages}
+              onLoadingChange={setIsEvidenceLoading}
             />
           </div>
 
-          {/* Documents Panel - 40% */}
-          <div className="w-[40%] bg-muted/50">
-            <DocumentsPanel caseId={caseId} />
+          {/* Documents Panel - 50% */}
+          <div className="w-[50%] bg-muted/50">
+            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} />
           </div>
         </div>
       )}

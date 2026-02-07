@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Plus, ArrowUp, Paperclip } from "lucide-react";
+import { Plus, ArrowUp, Paperclip, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,6 +16,8 @@ interface ChatInputProps {
   onFileSelect?: (file: File) => void;
   isLoading?: boolean;
   placeholder?: string;
+  showEvidenceAction?: boolean;
+  onStartEvidence?: () => void;
 }
 
 export function ChatInput({
@@ -23,6 +25,8 @@ export function ChatInput({
   onFileSelect,
   isLoading = false,
   placeholder = "Reply...",
+  showEvidenceAction = false,
+  onStartEvidence,
 }: ChatInputProps) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -108,6 +112,23 @@ export function ChatInput({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            )}
+
+            {/* Evidence phase action button */}
+            {showEvidenceAction && onStartEvidence && (
+              <button
+                onClick={onStartEvidence}
+                className="group relative h-8 px-3 flex items-center gap-2 rounded-lg text-sm font-medium transition-all duration-300 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 border border-amber-200/60 dark:border-amber-700/40 text-amber-700 dark:text-amber-300 hover:border-amber-300 dark:hover:border-amber-600 hover:shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:scale-[1.02]"
+              >
+                {/* Subtle glow backdrop */}
+                <span className="absolute inset-0 rounded-lg bg-gradient-to-r from-amber-400/0 via-amber-400/10 to-orange-400/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                {/* Animated ring */}
+                <span className="absolute inset-0 rounded-lg animate-[ping_2s_ease-in-out_infinite] bg-amber-400/20 opacity-75" style={{ animationDuration: '2.5s' }} />
+
+                <Rocket className="h-4 w-4 relative z-10 transition-transform duration-300 group-hover:rotate-[-15deg] group-hover:translate-x-[1px] group-hover:-translate-y-[1px]" />
+                <span className="relative z-10">Start Evidence</span>
+              </button>
             )}
           </div>
 

@@ -130,19 +130,39 @@ export async function POST(
   } else {
     // JSON path
     const body = await request.json();
+    const action = body.action || null;
     messages = body.messages || [];
 
-    // Save user message with EVIDENCE phase
-    const lastUserMsg = messages.findLast((m: { role: string }) => m.role === "user");
-    if (lastUserMsg) {
-      await db.chatMessage.create({
-        data: {
-          caseId,
-          role: "USER",
-          content: lastUserMsg.content,
-          phase: "EVIDENCE",
-        },
+    if (action === "initiate") {
+      // AI-initiated: load existing evidence messages from DB
+      const dbMessages = await db.chatMessage.findMany({
+        where: { caseId, phase: "EVIDENCE" },
+        orderBy: { createdAt: "asc" },
+        take: 50,
       });
+
+      messages = dbMessages.map((m) => ({
+        role: m.role.toLowerCase() as "user" | "assistant",
+        content: m.content,
+      }));
+
+      // Seed starter message if no history
+      if (messages.length === 0) {
+        messages = [{ role: "user" as const, content: "Begin evidence gathering." }];
+      }
+    } else {
+      // Normal message -- save user message
+      const lastUserMsg = messages.findLast((m: { role: string }) => m.role === "user");
+      if (lastUserMsg) {
+        await db.chatMessage.create({
+          data: {
+            caseId,
+            role: "USER",
+            content: lastUserMsg.content,
+            phase: "EVIDENCE",
+          },
+        });
+      }
     }
   }
 
@@ -180,4 +200,34 @@ export async function POST(
   });
 
   return result.toTextStreamResponse();
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ caseId: string }> },
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const { caseId } = await params;
+
+  const caseRecord = await db.case.findUnique({
+    where: { id: caseId },
+  });
+
+  if (!caseRecord || caseRecord.userId !== session.user.id) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  // Delete all evidence-phase messages
+  await db.chatMessage.deleteMany({
+    where: {
+      caseId,
+      phase: "EVIDENCE",
+    },
+  });
+
+  return new Response(null, { status: 204 });
 }

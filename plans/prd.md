@@ -1,192 +1,287 @@
-# EB1A Resume Analyzer PRD
+# PRD: Evidence Phase, Configurable Threshold, DB-Driven Criteria & Document Management
 
-## Overview
+## 1. Overview
 
-Single-page feature (`/onboard`) enabling users to upload resumes for automated EB1A visa eligibility evaluation. System extracts text, stores embeddings in Pinecone, and uses AI to analyze against all 10 EB1A criteria.
+casefor-ai currently supports a single-phase flow: upload resume, screen against 10 hardcoded EB-1A criteria, chat with agent to strengthen criteria. This PRD covers expansion into a multi-phase system with configurable thresholds, a dedicated evidence-gathering phase, S3-backed document management, DB-driven criteria/templates, and admin tooling.
 
-**Why it matters**: Provides instant preliminary assessment for potential EB1A applicants, helping them understand their qualification strength before engaging legal services.
+## 2. Goals & Non-Goals
 
----
+### Goals
+- Per-case configurable criteria threshold (DB field + UI + agent tool)
+- Evidence phase accessible via tab toggle on case page
+- Dedicated evidence agent with document-drafting tools
+- Replace `lib/eb1a-criteria.ts` with DB-driven `ApplicationType` + `CriteriaMapping`
+- `Template` table for generation instructions (personal statements, rec letters, petitions, USCIS forms)
+- S3-backed `Document` table with preview/download
+- Admin UI for CRUD on templates and criteria
+- Seed script for initial EB-1A data
 
-## Goals
+### Non-Goals
+- Full admin RBAC (just email-list auth)
+- Rich text template editor
+- O-1 or other visa type UI (schema ready only)
+- DOCX/PDF rendering/export engine
+- Payment/billing
 
-- Enable resume upload via drag-and-drop (PDF, DOCX, TXT)
-- Extract and chunk text for vector storage
-- Store embeddings in Pinecone for future retrieval
-- AI-powered evaluation against all 10 EB1A criteria
-- Display results in modal with Strong/Weak/None ratings per criterion
+## 3. User Stories
 
-## Non-Goals
+| ID | Story |
+|----|-------|
+| US-1 | As an applicant, I change my criteria threshold from 3 to 4 via report panel |
+| US-2 | As an applicant, I tell the agent "set threshold to 5" and it updates |
+| US-3 | As an applicant, I see a "Start evidence phase" badge when threshold is met |
+| US-4 | As an applicant, I switch between Analysis and Evidence tabs |
+| US-5 | As an applicant, I chat with the evidence agent to draft rec letters and personal statements |
+| US-6 | As an applicant, I see all my documents (generated + uploaded) in the evidence panel |
+| US-7 | As an applicant, I upload evidence docs to S3 and preview/download them |
+| US-8 | As an admin, I CRUD criteria mappings for EB-1A |
+| US-9 | As an admin, I CRUD instruction templates |
 
-- Multiple file uploads per session
-- User authentication on `/onboard` (public access)
-- Resume editing or improvement suggestions
-- Full case management (deferred to post-login flow)
+## 4. Functional Requirements
 
----
+### 4.1 Schema Changes
 
-## User Stories
-
-1. **As a potential EB1A applicant**, I want to upload my resume and see which criteria I qualify for, so I can decide whether to pursue the application.
-
-2. **As a user**, I want clear Strong/Weak/None ratings with explanations, so I understand my eligibility gaps.
-
-3. **As a user**, I want the analysis to complete quickly (<30s), so I get immediate feedback.
-
----
-
-## Functional Requirements
-
-### FR1: File Upload
-- Accept PDF, DOCX, TXT files via React Dropzone
-- Max file size: 10MB
-- Show file name after selection
-- Single file per session (refresh to restart)
-
-### FR2: Text Extraction
-- PDF: Send directly to LLM (Gemini supports PDF input natively)
-- DOCX: Use `mammoth` library
-- TXT: Direct UTF-8 read
-- Handle extraction failures gracefully
-
-### FR3: Vector Storage
-- Chunk extracted text: 500 characters with 50 character overlap
-- Generate embeddings via Google `text-embedding-004`
-- Upsert to Pinecone index `caseforai-index`
-- Store `caseId` in vector metadata for association
-
-### FR4: Database Records
-
-**Case** (new entity):
-- `id` (cuid)
-- `status` (enum: SCREENING, ACTIVE, CLOSED)
-- `createdAt`
-- `updatedAt`
-
-**ResumeUpload** (linked to Case):
-- `id` (cuid)
-- `caseId` (FK to Case)
-- `fileName`
-- `fileSize`
-- `pineconeVectorIds[]`
-- `createdAt`
-
-**EB1AAnalysis** (linked to Case):
-- `id` (cuid)
-- `caseId` (FK to Case)
-- `criteria` (JSON array of results)
-- `strongCount`
-- `weakCount`
-- `createdAt`
-
-### FR5: AI Evaluation
-- Use Vercel AI SDK `generateObject` with Google Gemini
-- System prompt: Immigration attorney persona
-- Evaluate all 10 EB1A criteria:
-  1. Major awards/prizes for excellence
-  2. Membership in associations requiring outstanding achievement
-  3. Published material about the person
-  4. Judging work of others
-  5. Original scientific/scholarly/artistic contributions
-  6. Authorship of scholarly articles
-  7. Display at artistic exhibitions
-  8. Leading/critical role in distinguished organizations
-  9. High salary/remuneration
-  10. Commercial success in performing arts
-- Output per criterion: `{ strength: Strong|Weak|None, reason, evidence[] }`
-
-### FR6: Results Display
-- Show results in modal dialog
-- Summary: count of Strong/Weak criteria
-- Note: USCIS requires 3+ criteria
-- List all 10 criteria with:
-  - Name
-  - Badge (Strong=green, Weak=yellow, None=gray)
-  - Reason (1-2 sentences)
-  - Evidence quotes from resume
-
-### FR7: States
-- Empty: Dropzone with instructions
-- Selected: File name shown, "Analyze" button
-- Processing: Spinner with "Analyzing..." text
-- Complete: Modal with results
-- Error: Red error message with retry option
-
----
-
-## Technical Considerations
-
-### Architecture
-- Next.js 16 App Router with server actions
-- Single server action `processResume(formData)` handles full pipeline
-- Client components for upload UI and modal
-
-### Dependencies (to install)
-```
-prisma @prisma/client
-ai @ai-sdk/google
-@pinecone-database/pinecone
-react-dropzone
-mammoth
-zod
-```
-Note: No `pdf-parse` needed - Gemini handles PDF natively.
-
-### Existing Infrastructure
-- PostgreSQL via Railway (DATABASE_URL configured)
-- Pinecone API key and index configured
-- Google AI API key configured
-- shadcn/ui component library available
-
-### File Structure
-```
-app/onboard/
-  page.tsx
-  actions.ts
-  _components/
-    dropzone.tsx
-    results-modal.tsx
-    criterion-card.tsx
-lib/
-  db.ts
-  pinecone.ts
-  embeddings.ts
-  file-parser.ts           # DOCX/TXT only; PDF goes direct to LLM
-  chunker.ts
-  eb1a-criteria.ts
-  eb1a-agent.ts
-prisma/
-  schema.prisma            # Case, ResumeUpload, EB1AAnalysis models
+**New enums:**
+```prisma
+enum ChatPhase { ANALYSIS EVIDENCE }
+enum TemplateType { PERSONAL_STATEMENT RECOMMENDATION_LETTER PETITION USCIS_FORM OTHER }
+enum DocumentType { MARKDOWN DOCX PDF }
+enum DocumentSource { SYSTEM_GENERATED USER_UPLOADED }
+enum DocumentStatus { DRAFT FINAL }
 ```
 
----
+**Extend `CaseStatus`:** add `EVIDENCE`
 
-## Edge Cases & Error Handling
+**New models:**
 
-| Scenario | Handling |
+```prisma
+model ApplicationType {
+  id               String   @id @default(cuid())
+  code             String   @unique    // "EB1A", "O1"
+  name             String
+  defaultThreshold Int      @default(3)
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  criteria         CriteriaMapping[]
+  templates        Template[]
+  cases            Case[]
+}
+
+model CriteriaMapping {
+  id                String  @id @default(cuid())
+  applicationTypeId String
+  criterionKey      String
+  name              String
+  description       String
+  displayOrder      Int     @default(0)
+  active            Boolean @default(true)
+  applicationType   ApplicationType @relation(fields: [applicationTypeId], references: [id])
+  documents         Document[]
+  @@unique([applicationTypeId, criterionKey])
+}
+
+model Template {
+  id                String       @id @default(cuid())
+  name              String
+  type              TemplateType
+  applicationTypeId String
+  content           String       // instruction text
+  version           Int          @default(1)
+  active            Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  applicationType   ApplicationType @relation(fields: [applicationTypeId], references: [id])
+  documents         Document[]
+}
+
+model Document {
+  id          String         @id @default(cuid())
+  caseId      String
+  name        String
+  type        DocumentType
+  source      DocumentSource
+  s3Key       String?
+  s3Url       String?
+  criterionId String?
+  templateId  String?
+  content     String?        // markdown drafts inline
+  status      DocumentStatus @default(DRAFT)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  case        Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  criterion   CriteriaMapping? @relation(fields: [criterionId], references: [id])
+  template    Template?        @relation(fields: [templateId], references: [id])
+  @@index([caseId])
+}
+```
+
+**Modified models:**
+- `Case`: add `criteriaThreshold Int @default(3)`, `applicationTypeId String?`, relation to `ApplicationType`, relation to `Document[]`
+- `ChatMessage`: add `phase ChatPhase @default(ANALYSIS)`
+
+### 4.2 Configurable Threshold
+
+**Threshold data flow:**
+```
+DB (Case.criteriaThreshold) -> page.tsx -> client.tsx -> ReportPanel (display) + ChatPanel (badge)
+                             -> case-agent.ts system prompt ("need N+ Strong")
+                             -> agent updateThreshold tool (allows chat-based updates)
+```
+
+**Files to change:**
+- `app/case/[caseId]/page.tsx` -- fetch `criteriaThreshold`, pass to client
+- `app/case/[caseId]/client.tsx` -- accept threshold prop, thread to children
+- `app/case/[caseId]/_components/report-panel.tsx` -- replace hardcoded `3` on lines 185/203 with prop
+- `app/onboard/_components/results-modal.tsx` -- replace hardcoded `3` on line 214
+- `lib/case-agent.ts` -- dynamic threshold in `buildSystemPrompt` line 46; fetch `case.criteriaThreshold` in `runCaseAgent`
+
+**New agent tool** in `case-agent.ts`:
+```typescript
+updateThreshold: tool({
+  description: "Update criteria threshold for this case (1-10)",
+  inputSchema: z.object({ threshold: z.number().int().min(1).max(10) }),
+  execute: async ({ threshold }) => {
+    await db.case.update({ where: { id: caseId }, data: { criteriaThreshold: threshold } });
+    return { success: true, newThreshold: threshold };
+  },
+})
+```
+
+**New API route:** `PATCH /api/case/[caseId]/threshold` for UI stepper control on report panel.
+
+**UI control:** Number stepper next to threshold badge in report panel header. Calls PATCH route, updates local state.
+
+### 4.3 Evidence Phase Indicator
+
+- In `client.tsx`: when `strongCount >= criteriaThreshold`, render floating badge above `ChatInput`: "Start evidence phase"
+- Clicking badge: `PATCH /api/case/[caseId]` sets `status: EVIDENCE`, auto-switches to Evidence tab
+- Badge uses `position: absolute` above input area, styled as pill/chip
+
+### 4.4 Phase Tabs
+
+- New `phase-tabs.tsx`: "Analysis" | "Evidence" tab toggle at top of content area
+- `client.tsx` manages `activeTab: 'analysis' | 'evidence'` state
+- Analysis tab: current `ChatPanel` + `ReportPanel` (60/40)
+- Evidence tab: `EvidenceChatPanel` + `DocumentsPanel` (60/40)
+- Both tabs accessible regardless of case status
+
+### 4.5 Evidence Agent
+
+**New file:** `lib/evidence-agent.ts`
+
+Separate `ToolLoopAgent` (Claude Sonnet 4, same model as case agent). System prompt focused on evidence gathering, document drafting, template-driven generation. Templates use mustache `{{var}}` syntax for variable interpolation.
+
+**Tools:**
+
+| Tool | Purpose |
+|------|---------|
+| `draftRecommendationLetter` | Generate rec letter from template + profile + criteria context. Saves as Document (MARKDOWN, SYSTEM_GENERATED, DRAFT) |
+| `draftPersonalStatement` | Generate personal statement section/full. Saves as Document |
+| `generateFromTemplate` | Generate doc from specific template ID + mustache `{{var}}` variables |
+| `listDocuments` | List all documents for case |
+| `getProfile` | Fetch case profile |
+| `getAnalysis` | Fetch latest criteria analysis |
+
+**New API route:** `POST /api/case/[caseId]/evidence-chat/route.ts` -- supports both text messages and file uploads (same pattern as analysis chat). Filters `phase: EVIDENCE` messages.
+
+**Chat separation:** `ChatMessage.phase` field (ANALYSIS/EVIDENCE). Each route filters by phase. `page.tsx` loads both sets separately.
+
+**Generated docs:** Uploaded to S3 immediately on generation. If S3 upload fails, show shadcn Sonner toast error but don't block user journey. Document record still created w/ inline content as fallback.
+
+### 4.6 Document Management
+
+**S3 setup:**
+- New `lib/s3.ts`: `uploadToS3(key, body, contentType)`, `getSignedDownloadUrl(key)`, `deleteFromS3(key)`
+- Deps: `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`
+- Env vars: `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET`
+- Key convention: `cases/{caseId}/documents/{documentId}/{filename}`
+
+**API routes:**
+- `POST /api/case/[caseId]/documents` -- upload file to S3, create Document record
+- `GET /api/case/[caseId]/documents` -- list documents for case
+- `GET /api/case/[caseId]/documents/[docId]` -- detail (inline content or signed URL)
+- `PATCH /api/case/[caseId]/documents/[docId]` -- update content/status
+- `DELETE /api/case/[caseId]/documents/[docId]` -- delete record + S3 object
+
+**Documents panel (`documents-panel.tsx`):**
+- List view with: name, type icon (MD/DOCX/PDF), source badge (System/Uploaded), status badge (Draft/Final), date
+- Preview: markdown rendered inline, PDF/DOCX via signed URL download
+- Upload button: accepts PDF/DOCX/MD
+- Each doc row has download button (signed URL) and delete option
+
+### 4.7 Seed Script
+
+**File:** `prisma/seed.ts`
+
+1. Upsert `ApplicationType` for EB-1A (code: "EB1A", defaultThreshold: 3)
+2. Upsert 10 `CriteriaMapping` rows from current `eb1a-criteria.ts` data
+3. Upsert starter `Template` rows:
+   - Recommendation Letter template (RECOMMENDATION_LETTER)
+   - Personal Statement template (PERSONAL_STATEMENT)
+   - Petition template (PETITION)
+   - USCIS Form template (USCIS_FORM)
+
+Add to `package.json`: `"prisma": { "seed": "tsx prisma/seed.ts" }`
+
+### 4.8 DB-Driven Criteria (replace eb1a-criteria.ts)
+
+**New file:** `lib/criteria.ts`
+- `getCriteriaForCase(caseId)` -- joins Case -> ApplicationType -> CriteriaMapping
+- `getCriteriaForType(code)` -- fetches by application type code
+- Used by: `case-agent.ts`, `eb1a-agent.ts`, `report-panel.tsx`, `results-modal.tsx`
+
+`lib/eb1a-criteria.ts` deprecated. All consumers switch to `lib/criteria.ts` helpers.
+
+### 4.9 Admin UI
+
+**Auth:** Open access for now -- no auth guard. Add auth later.
+
+**Pages:**
+- `app/admin/layout.tsx` -- admin shell w/ sidebar nav
+- `app/admin/page.tsx` -- counts dashboard
+- `app/admin/criteria/page.tsx` -- criteria table, grouped by app type. Inline edit name/description/displayOrder/active.
+- `app/admin/templates/page.tsx` -- template list
+- `app/admin/templates/[id]/page.tsx` -- edit form w/ textarea for content
+
+**API routes:**
+- `GET/POST /api/admin/criteria`
+- `PATCH/DELETE /api/admin/criteria/[id]`
+- `GET/POST /api/admin/templates`
+- `PATCH/DELETE /api/admin/templates/[id]`
+- `GET/POST /api/admin/application-types`
+
+## 5. Technical Considerations
+
+- **Migration of existing cases:** Backfill `applicationTypeId` to EB-1A's ID, `criteriaThreshold` defaults to 3 automatically
+- **ChatMessage migration:** Default `phase: ANALYSIS` means existing messages need no migration
+- **Existing EB1AAnalysis rows:** Store criteria JSON inline, no FK change needed. They continue working as-is.
+- **Agent criteria loading:** `case-agent.ts` and `eb1a-agent.ts` switch from importing `EB1A_CRITERIA` to calling `getCriteriaForCase()` / `getCriteriaForType()`
+- **S3 graceful degradation:** If env vars missing, document upload disabled in UI. Agent tools return descriptive errors.
+- **Threshold validation:** Clamp 1-10 in API and agent tool
+
+## 6. Edge Cases
+
+- **Threshold 0 or >10:** Reject with 400
+- **Missing applicationTypeId on case:** Fallback to EB-1A criteria
+- **Evidence tab without meeting threshold:** Accessible but badge not shown
+- **S3 upload failure:** Document record still created w/ inline content as fallback. Sonner toast shown. Don't block user journey.
+- **Deleted criteria still in analyses:** Stored inline in JSON, renders fine. Agent stops using deactivated criteria.
+- **Large markdown content:** Use S3 for large docs, `content` column for small drafts
+- **Concurrent threshold updates:** Last write wins (acceptable for single-user-per-case)
+
+## 7. Resolved Questions
+
+| Question | Decision |
 |----------|----------|
-| File >10MB | Reject with "File too large" before upload |
-| Invalid file type | Reject with "Unsupported format" |
-| Empty/corrupted PDF | "Unable to extract text from file" |
-| Pinecone upsert fails | Retry 3x, then show error |
-| AI timeout (>60s) | Show timeout error with retry button |
-| Non-English resume | Process anyway, note in results if detection fails |
-| Very short resume (<100 chars) | Warn "Resume appears incomplete" |
+| Evidence agent model | Claude Sonnet 4 (same as case agent) |
+| Evidence chat file uploads | Yes, drag-and-drop (same pattern as analysis chat) |
+| Admin auth | Open access for now, add auth later |
+| Template variables | Mustache `{{var}}` syntax |
+| `/api/analyze` auto-assign applicationTypeId | Yes, auto-assign EB-1A on case creation |
+| Existing EB1AAnalysis rows | Leave as-is (criteria stored inline, no FK migration) |
+| Generated docs S3 timing | Immediate on generation. S3 failure: toast error, don't block, create record w/ inline content fallback |
 
----
+## 8. Open Questions
 
-## Decisions (Resolved)
-
-| Question | Answer |
-|----------|--------|
-| Auth on /onboard | Public (no auth required) |
-| Results persistence | Yes - create Case + EB1AAnalysis records |
-| Vector cleanup | Retain vectors, store caseId in metadata |
-| PDF extraction | Send PDF directly to Gemini (native support) |
-
-## Future Work (Not in Scope)
-
-- User login flow post-analysis
-- Case management dashboard
-- Additional document uploads per case
-- Lawyer matching based on results
+- Admin auth long-term: env var email list vs `isAdmin` field on User model?

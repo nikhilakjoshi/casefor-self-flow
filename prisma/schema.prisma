@@ -97,6 +97,7 @@ enum DocumentStatus {
 model Case {
   id                 String     @id @default(cuid())
   userId             String?
+  name               String?
   status             CaseStatus @default(SCREENING)
   criteriaThreshold  Int        @default(3)
   applicationTypeId  String?
@@ -227,4 +228,15 @@ model Document {
   template  Template?        @relation(fields: [templateId], references: [id])
 
   @@index([caseId])
+}
+
+model DocumentVerification {
+  id              String   @id @default(cuid())
+  caseId          String
+  assessments     Json     // Map of documentId -> { strength, feedback }
+  overallStrength String
+  overallFeedback String
+  createdAt       DateTime @default(now())
+
+  @@index([caseId, createdAt])
 }
