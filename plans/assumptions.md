@@ -86,3 +86,10 @@
 - Recommender [recommenderId] PATCH uses explicit field-by-field update to correctly distinguish between undefined (not provided) and null (explicitly clear)
 - contextNotes clearing uses Prisma.DbNull when explicitly passed as null; required value import from '@prisma/client' (not type-only import)
 - verifyOwnership helper kept local to [recommenderId]/route.ts to match documents/[docId] pattern (not extracted to shared module)
+- Zod 4 requires two arguments for `z.record()`: key schema and value schema (e.g., `z.record(z.string(), z.unknown())`)
+- saveRecommender tool uses RelationshipType enum imported from @prisma/client (not redefined as Zod enum)
+- draftRecommendationLetter now requires EITHER recommenderId OR all three manual inputs (name, title, relation) - returns error if neither provided
+- listRecommenders includes document count via `_count.documents` to show recommender utilization
+- getRecommender includes linked documents via `include: { documents: true }` for full context
+- draftRecommendationLetter builds richer specificInstructions when recommender has bio/credentials/contextNotes stored
+- Recommender tools added to existing createEvidenceAgentTools function (not a separate tools object)

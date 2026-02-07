@@ -381,7 +381,7 @@
       "Execute: if recommenderId, update existing; else create new via db.recommender",
       "Return { success: true, recommenderId, name }"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -392,7 +392,7 @@
       "Execute: db.recommender.findMany({ where: { caseId }, select: { id, name, title, relationshipType } })",
       "Return { recommenders: [...] }"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -403,7 +403,7 @@
       "Execute: db.recommender.findUnique with all fields",
       "Return full recommender object or null"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -415,7 +415,7 @@
       "When creating document, include recommenderId in db.document.create",
       "Use contextNotes from recommender for richer personalization in generation"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -464,6 +464,6 @@
       "Instructions: proactively save recommender details when mentioned, use listRecommenders before drafting letters, link generated letters to recommenders",
       "Mention: essential fields are name, title, type, context; store nuanced info in contextNotes (freeform JSON)"
     ],
-    "passes": false
+    "passes": true
   }
 ]

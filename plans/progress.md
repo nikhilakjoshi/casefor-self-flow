@@ -726,3 +726,39 @@
 - contextNotes set to Prisma.DbNull when explicitly passed as null (allows clearing the field)
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities, etc.)
 - Next priority: Recommender agent tools (tasks 30-33) or multi-file upload batch handling (tasks 4-8)
+
+## 2026-02-07: Recommender Agent Tools (PRD Tasks 30-34)
+
+### Completed
+
+- Added `saveRecommender` tool to Evidence Agent in `lib/evidence-agent.ts`
+  - Schema: recommenderId (optional for update), name, title, relationshipType (enum), relationshipContext (required), all optional fields
+  - contextNotes uses `z.record(z.string(), z.unknown())` for freeform JSON
+  - Execute: creates or updates recommender via db.recommender
+  - Returns `{ success, recommenderId, name }`
+- Added `listRecommenders` tool
+  - Schema: empty object (no inputs)
+  - Returns recommenders with id, name, title, relationshipType, organization, documentCount
+- Added `getRecommender` tool
+  - Schema: `{ recommenderId: z.string() }`
+  - Returns full recommender object with linked documents
+- Updated `draftRecommendationLetter` tool to support recommenderId
+  - If recommenderId provided, fetches recommender data (name, title, relation, org, bio, credentials, contextNotes)
+  - Falls back to manual input (recommenderName/Title/Relation) if no recommenderId
+  - Links created document to recommender via recommenderId FK
+  - Uses recommender's contextNotes, bio, credentials in generation prompt for richer personalization
+- Updated system prompt with RECOMMENDER MANAGEMENT section
+  - Instructions to proactively save recommender details when mentioned
+  - Call listRecommenders before drafting letters
+  - Use recommenderId when drafting to leverage stored context
+  - Store nuanced info in contextNotes as freeform JSON
+- Added imports: `Prisma`, `RelationshipType` from `@prisma/client`
+- Typecheck passes; no new lint issues
+
+### Notes for Next Dev
+
+- Zod 4 requires `z.record(keySchema, valueSchema)` with two args, not `z.record(valueSchema)`
+- draftRecommendationLetter now requires either recommenderId OR (recommenderName, recommenderTitle, recommenderRelation) -- returns error if neither
+- listRecommenders includes `_count.documents` to show how many letters are linked to each recommender
+- Pre-existing lint errors unchanged
+- Next priority: Recommender UI (tasks 35-37) or multi-file upload (tasks 4-8)

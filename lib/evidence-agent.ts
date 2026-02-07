@@ -6,6 +6,7 @@ import { getCriteriaForCase, type Criterion } from "./criteria";
 import { type CriterionResult } from "./eb1a-agent";
 import { isS3Configured, uploadToS3, buildDocumentKey } from "./s3";
 import { queryContext } from "./rag";
+import { Prisma, RelationshipType } from "@prisma/client";
 
 const MODEL = "claude-sonnet-4-20250514";
 const GENERATION_MODEL = "claude-sonnet-4-20250514";
@@ -188,12 +189,23 @@ DOCUMENT SEARCH:
 - Use it to find specific details, quotes, or evidence to include in drafted documents.
 - Search before drafting to ground documents in the applicant's actual materials.
 
+RECOMMENDER MANAGEMENT:
+- Proactively save recommender details when the applicant mentions potential letter writers.
+- Use saveRecommender to store: name, title, relationshipType, relationshipContext (required), plus optional fields like organization, bio, credentials, email, etc.
+- Store nuanced context (how they met, specific projects, unique insights) in contextNotes as freeform JSON.
+- Call listRecommenders before drafting recommendation letters to use stored data.
+- When drafting a letter with recommenderId, the tool fetches the recommender's data automatically.
+- Link generated letters to recommenders so they appear in the recommender's document list.
+- Essential fields: name, title, relationshipType (ACADEMIC_ADVISOR, RESEARCH_COLLABORATOR, INDUSTRY_COLLEAGUE, SUPERVISOR, MENTEE, CLIENT, PEER_EXPERT, OTHER), relationshipContext.
+
 TOOL USAGE RULES:
 - Call getProfile and getAnalysis before drafting to ensure documents reflect current case data.
 - Call listDocuments to check what already exists before creating duplicates.
 - Call listTemplates to see available templates and their content when you need to pick the right one.
+- Call listRecommenders before drafting recommendation letters to check for saved recommenders.
 - Use searchDocuments to find specific content from uploaded materials when drafting.
 - When drafting, specify relevant criterionKeys so the document is linked to the right criteria.
+- Use draftRecommendationLetter with recommenderId to leverage stored recommender context.
 - After drafting, summarize what was created and ask if revisions are needed.`;
 }
 
@@ -329,21 +341,185 @@ function createEvidenceAgentTools(caseId: string) {
       },
     }),
 
+    saveRecommender: tool({
+      description:
+        "Save or update a recommender's information. Use this proactively when the user mentions potential recommenders. Creates a new recommender if no recommenderId provided, updates existing if recommenderId given.",
+      inputSchema: z.object({
+        recommenderId: z
+          .string()
+          .optional()
+          .describe("ID of existing recommender to update (omit for new)"),
+        name: z.string().describe("Full name of the recommender"),
+        title: z.string().describe("Professional title/position"),
+        relationshipType: z
+          .enum([
+            "ACADEMIC_ADVISOR",
+            "RESEARCH_COLLABORATOR",
+            "INDUSTRY_COLLEAGUE",
+            "SUPERVISOR",
+            "MENTEE",
+            "CLIENT",
+            "PEER_EXPERT",
+            "OTHER",
+          ])
+          .describe("Type of professional relationship"),
+        relationshipContext: z
+          .string()
+          .describe("Description of how they know the applicant and context of relationship"),
+        email: z.string().optional().describe("Email address"),
+        phone: z.string().optional().describe("Phone number"),
+        linkedIn: z.string().optional().describe("LinkedIn profile URL"),
+        countryRegion: z.string().optional().describe("Country or region"),
+        organization: z.string().optional().describe("Current organization/institution"),
+        bio: z.string().optional().describe("Brief bio or background"),
+        credentials: z.string().optional().describe("Notable credentials, degrees, awards"),
+        startDate: z.string().optional().describe("When relationship started (ISO date)"),
+        endDate: z.string().optional().describe("When relationship ended if applicable (ISO date)"),
+        durationYears: z.number().optional().describe("Duration of relationship in years"),
+        contextNotes: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe("Freeform JSON for additional nuanced context"),
+      }),
+      execute: async ({
+        recommenderId,
+        name,
+        title,
+        relationshipType,
+        relationshipContext,
+        email,
+        phone,
+        linkedIn,
+        countryRegion,
+        organization,
+        bio,
+        credentials,
+        startDate,
+        endDate,
+        durationYears,
+        contextNotes,
+      }) => {
+        console.log(
+          `${logPrefix} [saveRecommender] ${recommenderId ? "Updating" : "Creating"} recommender: ${name}`,
+        );
+
+        const data = {
+          name,
+          title,
+          relationshipType: relationshipType as RelationshipType,
+          relationshipContext,
+          email,
+          phone,
+          linkedIn,
+          countryRegion,
+          organization,
+          bio,
+          credentials,
+          startDate: startDate ? new Date(startDate) : undefined,
+          endDate: endDate ? new Date(endDate) : undefined,
+          durationYears,
+          ...(contextNotes && { contextNotes: contextNotes as Prisma.InputJsonValue }),
+        };
+
+        if (recommenderId) {
+          const existing = await db.recommender.findFirst({
+            where: { id: recommenderId, caseId },
+          });
+          if (!existing) {
+            return { success: false, error: "Recommender not found" };
+          }
+          const updated = await db.recommender.update({
+            where: { id: recommenderId },
+            data,
+          });
+          console.log(`${logPrefix} [saveRecommender] Updated ${updated.id}`);
+          return { success: true, recommenderId: updated.id, name: updated.name };
+        } else {
+          const created = await db.recommender.create({
+            data: { caseId, ...data },
+          });
+          console.log(`${logPrefix} [saveRecommender] Created ${created.id}`);
+          return { success: true, recommenderId: created.id, name: created.name };
+        }
+      },
+    }),
+
+    listRecommenders: tool({
+      description:
+        "List all recommenders for this case. Check existing recommenders before saving new ones.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        console.log(`${logPrefix} [listRecommenders] Called`);
+        const recommenders = await db.recommender.findMany({
+          where: { caseId },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            name: true,
+            title: true,
+            relationshipType: true,
+            organization: true,
+            _count: { select: { documents: true } },
+          },
+        });
+        console.log(`${logPrefix} [listRecommenders] Found ${recommenders.length}`);
+        return {
+          recommenders: recommenders.map((r) => ({
+            id: r.id,
+            name: r.name,
+            title: r.title,
+            relationshipType: r.relationshipType,
+            organization: r.organization,
+            documentCount: r._count.documents,
+          })),
+        };
+      },
+    }),
+
+    getRecommender: tool({
+      description:
+        "Get full details of a specific recommender by ID, including all context notes.",
+      inputSchema: z.object({
+        recommenderId: z.string().describe("ID of the recommender"),
+      }),
+      execute: async ({ recommenderId }) => {
+        console.log(`${logPrefix} [getRecommender] Fetching ${recommenderId}`);
+        const recommender = await db.recommender.findFirst({
+          where: { id: recommenderId, caseId },
+          include: {
+            documents: {
+              select: { id: true, name: true, type: true, status: true },
+            },
+          },
+        });
+        if (!recommender) {
+          return { found: false, recommender: null };
+        }
+        console.log(`${logPrefix} [getRecommender] Found ${recommender.name}`);
+        return { found: true, recommender };
+      },
+    }),
+
     draftRecommendationLetter: tool({
       description:
-        "Draft a recommendation letter for the EB-1A petition. Uses the recommendation letter template and applicant profile to generate a complete letter from the recommender's perspective.",
+        "Draft a recommendation letter for the EB-1A petition. If recommenderId provided, uses stored recommender data. Otherwise uses provided name/title/relation. Links the document to the recommender if recommenderId given.",
       inputSchema: z.object({
+        recommenderId: z
+          .string()
+          .optional()
+          .describe("ID of saved recommender to use (fetches their stored data)"),
         recommenderName: z
           .string()
-          .describe("Name of the person writing the recommendation"),
+          .optional()
+          .describe("Name of the person writing the recommendation (ignored if recommenderId)"),
         recommenderTitle: z
           .string()
-          .describe("Title/position of the recommender"),
+          .optional()
+          .describe("Title/position of the recommender (ignored if recommenderId)"),
         recommenderRelation: z
           .string()
-          .describe(
-            "How the recommender knows the applicant (e.g., 'PhD advisor', 'research collaborator')",
-          ),
+          .optional()
+          .describe("How the recommender knows the applicant (ignored if recommenderId)"),
         criterionKeys: z
           .array(z.string())
           .describe(
@@ -355,14 +531,57 @@ function createEvidenceAgentTools(caseId: string) {
           .describe("Any additional context or instructions for the letter"),
       }),
       execute: async ({
-        recommenderName,
-        recommenderTitle,
-        recommenderRelation,
+        recommenderId,
+        recommenderName: inputName,
+        recommenderTitle: inputTitle,
+        recommenderRelation: inputRelation,
         criterionKeys,
         additionalContext,
       }) => {
+        // Fetch recommender data if ID provided
+        let recommenderData: {
+          id?: string;
+          name: string;
+          title: string;
+          relation: string;
+          organization?: string | null;
+          bio?: string | null;
+          credentials?: string | null;
+          contextNotes?: unknown;
+        } | null = null;
+
+        if (recommenderId) {
+          const recommender = await db.recommender.findFirst({
+            where: { id: recommenderId, caseId },
+          });
+          if (!recommender) {
+            return { success: false, error: "Recommender not found" };
+          }
+          recommenderData = {
+            id: recommender.id,
+            name: recommender.name,
+            title: recommender.title,
+            relation: recommender.relationshipContext,
+            organization: recommender.organization,
+            bio: recommender.bio,
+            credentials: recommender.credentials,
+            contextNotes: recommender.contextNotes,
+          };
+        } else if (inputName && inputTitle && inputRelation) {
+          recommenderData = {
+            name: inputName,
+            title: inputTitle,
+            relation: inputRelation,
+          };
+        } else {
+          return {
+            success: false,
+            error: "Either recommenderId or (recommenderName, recommenderTitle, recommenderRelation) required",
+          };
+        }
+
         console.log(
-          `${logPrefix} [draftRecLetter] Drafting for ${recommenderName}, criteria: ${criterionKeys}`,
+          `${logPrefix} [draftRecLetter] Drafting for ${recommenderData.name}, criteria: ${criterionKeys}`,
         );
 
         const template = await db.template.findFirst({
@@ -392,9 +611,6 @@ function createEvidenceAgentTools(caseId: string) {
           criterionKeys.includes(c.criterionId),
         );
 
-        const applicantName =
-          (profileData.name as string) ?? "the applicant";
-
         const criterionMapping = criterionKeys.length > 0
           ? await db.criteriaMapping.findFirst({
               where: {
@@ -404,17 +620,32 @@ function createEvidenceAgentTools(caseId: string) {
             })
           : null;
 
+        // Build richer context from recommender data
+        const recommenderContext = recommenderData.contextNotes
+          ? `\nAdditional context about this recommender: ${JSON.stringify(recommenderData.contextNotes)}`
+          : "";
+        const recommenderBio = recommenderData.bio
+          ? `\nRecommender background: ${recommenderData.bio}`
+          : "";
+        const recommenderCredentials = recommenderData.credentials
+          ? `\nRecommender credentials: ${recommenderData.credentials}`
+          : "";
+        const recommenderOrg = recommenderData.organization
+          ? ` at ${recommenderData.organization}`
+          : "";
+
         // Create document first with empty content so frontend can start polling
         const doc = await db.document.create({
           data: {
             caseId,
-            name: `Recommendation Letter - ${recommenderName}`,
+            name: `Recommendation Letter - ${recommenderData.name}`,
             type: "MARKDOWN",
             source: "SYSTEM_GENERATED",
             content: "",
             status: "DRAFT",
             criterionId: criterionMapping?.id ?? null,
             templateId: template?.id ?? null,
+            recommenderId: recommenderData.id ?? null,
           },
         });
 
@@ -429,8 +660,8 @@ function createEvidenceAgentTools(caseId: string) {
           profile: profileData,
           criteria: relevantCriteria.length > 0 ? relevantCriteria : analysisCriteria,
           additionalContext,
-          specificInstructions: `This letter is from ${recommenderName}, ${recommenderTitle}.
-Relationship to applicant: ${recommenderRelation}
+          specificInstructions: `This letter is from ${recommenderData.name}, ${recommenderData.title}${recommenderOrg}.
+Relationship to applicant: ${recommenderData.relation}${recommenderBio}${recommenderCredentials}${recommenderContext}
 The letter should address these EB-1A criteria: ${criterionKeys.join(", ")}
 Write in first person from the recommender's perspective. The recommender is vouching for the applicant's extraordinary ability based on their professional relationship.`,
         });
@@ -440,7 +671,7 @@ Write in first person from the recommender's perspective. The recommender is vou
             const key = buildDocumentKey(
               caseId,
               doc.id,
-              `rec-letter-${recommenderName.toLowerCase().replace(/\s+/g, "-")}.md`,
+              `rec-letter-${recommenderData.name.toLowerCase().replace(/\s+/g, "-")}.md`,
             );
             const { url } = await uploadToS3(
               key,
@@ -465,6 +696,7 @@ Write in first person from the recommender's perspective. The recommender is vou
           name: doc.name,
           status: doc.status,
           templateUsed: template?.name ?? "default",
+          recommenderId: recommenderData.id ?? null,
         };
       },
     }),
