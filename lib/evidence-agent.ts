@@ -5,6 +5,7 @@ import { db } from "./db";
 import { getCriteriaForCase, type Criterion } from "./criteria";
 import { type CriterionResult } from "./eb1a-agent";
 import { isS3Configured, uploadToS3, buildDocumentKey } from "./s3";
+import { queryContext } from "./rag";
 
 const MODEL = "claude-sonnet-4-20250514";
 const GENERATION_MODEL = "claude-sonnet-4-20250514";
@@ -181,10 +182,17 @@ ${analysisSection}
 
 ${templateSection}
 
+DOCUMENT SEARCH:
+- Use searchDocuments tool to find relevant content from uploaded documents when needed.
+- This searches the applicant's resume, supporting documents, and any other uploaded files.
+- Use it to find specific details, quotes, or evidence to include in drafted documents.
+- Search before drafting to ground documents in the applicant's actual materials.
+
 TOOL USAGE RULES:
 - Call getProfile and getAnalysis before drafting to ensure documents reflect current case data.
 - Call listDocuments to check what already exists before creating duplicates.
 - Call listTemplates to see available templates and their content when you need to pick the right one.
+- Use searchDocuments to find specific content from uploaded materials when drafting.
 - When drafting, specify relevant criterionKeys so the document is linked to the right criteria.
 - After drafting, summarize what was created and ask if revisions are needed.`;
 }
@@ -299,6 +307,25 @@ function createEvidenceAgentTools(caseId: string) {
             content: t.content,
           })),
         };
+      },
+    }),
+
+    searchDocuments: tool({
+      description:
+        "Search uploaded documents and case materials for relevant information. Uses RAG to find content from resumes, supporting documents, and other uploaded files that match the query.",
+      inputSchema: z.object({
+        query: z.string().describe("The search query to find relevant content"),
+        topK: z
+          .number()
+          .optional()
+          .default(5)
+          .describe("Number of results to return (default: 5)"),
+      }),
+      execute: async ({ query, topK }) => {
+        console.log(`${logPrefix} [searchDocuments] Query: "${query}", topK: ${topK}`);
+        const results = await queryContext(caseId, query, topK);
+        console.log(`${logPrefix} [searchDocuments] Found ${results.length} results`);
+        return { results };
       },
     }),
 

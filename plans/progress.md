@@ -648,3 +648,21 @@
 - `_count` includes criteria and cases counts (not templates; PRD only asked for criteria + cases)
 - defaultThreshold validated 1-10 (consistent w/ threshold PATCH API from task 5)
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, plus warnings in upload/route.ts, upload-zone.tsx, actions.ts)
+
+## 2026-02-07: Evidence Agent RAG Search Tool
+
+### Completed
+
+- Added `searchDocuments` tool to Evidence Agent in `lib/evidence-agent.ts`
+- Imports `queryContext` from `lib/rag.ts` for vector search
+- Tool schema: `{ query: string, topK?: number (default 5) }`
+- Returns RAG results with text and relevance scores
+- Updated system prompt with DOCUMENT SEARCH section explaining usage
+- Typecheck passes; no new lint issues (pre-existing unchanged)
+
+### Notes for Next Dev
+
+- `searchDocuments` enables agent to search uploaded docs (resume, supporting materials) during evidence gathering
+- Results include `text` (chunk content) and `score` (similarity score)
+- Agent prompt instructs to use searchDocuments before drafting to ground docs in real materials
+- Pre-existing lint errors unchanged

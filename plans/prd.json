@@ -1,234 +1,469 @@
 [
   {
+    "category": "functional",
+    "description": "Import queryContext from RAG module in evidence-agent.ts",
+    "steps": [
+      "Open lib/evidence-agent.ts",
+      "Add import: import { queryContext } from './rag'",
+      "Verify import resolves correctly"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Add searchDocuments tool to Evidence Agent for RAG-based document search",
+    "steps": [
+      "Open lib/evidence-agent.ts",
+      "In createEvidenceAgentTools function, add new tool 'searchDocuments'",
+      "Schema: z.object({ query: z.string(), topK: z.number().optional().default(5) })",
+      "Execute: call queryContext(caseId, query, topK), return { results }",
+      "Add description: 'Search uploaded documents and case materials for relevant information'"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Update Evidence Agent system prompt to mention document search capability",
+    "steps": [
+      "Open lib/evidence-agent.ts",
+      "Find buildEvidenceSystemPrompt function",
+      "Add section: 'DOCUMENT SEARCH: Use searchDocuments tool to find relevant content from uploaded documents when needed.'"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Change upload route from single file to multiple files input",
+    "steps": [
+      "Open app/api/case/[caseId]/upload/route.ts",
+      "Change formData.get('file') to formData.getAll('files')",
+      "Add validation: max 10 files",
+      "Add validation: reject if no files provided"
+    ],
+    "passes": false
+  },
+  {
+    "category": "api",
+    "description": "Add BatchUploadResponse interface for multi-file upload response",
+    "steps": [
+      "Open app/api/case/[caseId]/upload/route.ts",
+      "Add interface BatchUploadResponse with: results array (fileName, success, chunksCreated?, analysisStatus?, error?), totalSuccess, totalFailed"
+    ],
+    "passes": false
+  },
+  {
+    "category": "api",
+    "description": "Wrap file processing in Promise.allSettled for parallel execution",
+    "steps": [
+      "Open app/api/case/[caseId]/upload/route.ts",
+      "Extract single-file processing logic into async function processFile(file: File)",
+      "Map files array through processFile",
+      "Wrap in Promise.allSettled() for parallel processing with error isolation"
+    ],
+    "passes": false
+  },
+  {
+    "category": "api",
+    "description": "Run incremental analysis per file and track status",
+    "steps": [
+      "In processFile function, call runIncrementalAnalysis after successful chunking",
+      "Track analysis status: 'queued', 'completed', 'failed'",
+      "Include analysisStatus in per-file result object"
+    ],
+    "passes": false
+  },
+  {
+    "category": "api",
+    "description": "Return batch response with per-file status from upload route",
+    "steps": [
+      "After Promise.allSettled completes, map results to BatchUploadResponse format",
+      "Count totalSuccess and totalFailed",
+      "Return NextResponse.json(batchResponse)",
+      "Use 207 Multi-Status if partial failures, 200 if all success, 400 if all fail"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Remove maxFiles constraint from upload-zone dropzone config",
+    "steps": [
+      "Open app/case/[caseId]/_components/upload-zone.tsx",
+      "Find useDropzone config",
+      "Change maxFiles: 1 to maxFiles: 10"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Add per-file state tracking for multi-file uploads",
+    "steps": [
+      "Open app/case/[caseId]/_components/upload-zone.tsx",
+      "Add interface FileUploadState: { file: File, status: 'pending'|'uploading'|'analyzing'|'success'|'error', progress: number, error?: string }",
+      "Add state: const [fileStates, setFileStates] = useState<FileUploadState[]>([])"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Update onDrop handler to queue multiple files",
+    "steps": [
+      "Modify onDrop callback to accept multiple files",
+      "Map acceptedFiles to initial FileUploadState objects with status: 'pending'",
+      "setFileStates with new array"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Create file list UI with individual progress indicators",
+    "steps": [
+      "Use frontend-design skill for polished UI",
+      "Render list of queued files",
+      "Show file name, size, status icon (spinner/check/x)",
+      "Show progress bar per file",
+      "Use color coding: gray=pending, blue=uploading, yellow=analyzing, green=success, red=error"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Add remove file button before upload starts",
+    "steps": [
+      "Add X button next to each pending file",
+      "onClick: filter file from fileStates array",
+      "Only show remove button when status is 'pending'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Handle batch upload response and update per-file states",
+    "steps": [
+      "Parse BatchUploadResponse from fetch",
+      "Map response.results to update fileStates",
+      "Match by fileName to update status and error fields",
+      "Call onUploadComplete only if totalSuccess > 0"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Display partial failure states gracefully",
+    "steps": [
+      "If some files failed, show success count and failure count summary",
+      "Keep failed files visible with error message",
+      "Allow retry button for failed files (optional enhancement)"
+    ],
+    "passes": false
+  },
+  {
     "category": "data",
-    "description": "Prisma schema changes: add enums (ChatPhase, TemplateType, DocumentType, DocumentSource, DocumentStatus), extend CaseStatus w/ EVIDENCE, add models (ApplicationType, CriteriaMapping, Template, Document), modify Case (criteriaThreshold, applicationTypeId), modify ChatMessage (phase). Run db:generate + db:push. Deps: none.",
+    "description": "Add xlsx npm dependency for Excel parsing",
     "steps": [
-      "Open prisma/schema.prisma and add enum ChatPhase { ANALYSIS EVIDENCE }",
-      "Add enum TemplateType { PERSONAL_STATEMENT RECOMMENDATION_LETTER PETITION USCIS_FORM OTHER }",
-      "Add enum DocumentType { MARKDOWN DOCX PDF }",
-      "Add enum DocumentSource { SYSTEM_GENERATED USER_UPLOADED }",
-      "Add enum DocumentStatus { DRAFT FINAL }",
-      "Add EVIDENCE to existing CaseStatus enum",
-      "Add ApplicationType model: id (cuid), code (String @unique), name (String), defaultThreshold (Int @default(3)), active (Boolean @default(true)), createdAt, updatedAt, relations to criteria/templates/cases",
-      "Add CriteriaMapping model: id (cuid), applicationTypeId, criterionKey, name, description, displayOrder (Int @default(0)), active (Boolean @default(true)), relation to ApplicationType, relation to Document[], @@unique([applicationTypeId, criterionKey])",
-      "Add Template model: id (cuid), name, type (TemplateType), applicationTypeId, content (String), version (Int @default(1)), active (Boolean @default(true)), createdAt, updatedAt, relation to ApplicationType, relation to Document[]",
-      "Add Document model: id (cuid), caseId, name, type (DocumentType), source (DocumentSource), s3Key (String?), s3Url (String?), criterionId (String?), templateId (String?), content (String?), status (DocumentStatus @default(DRAFT)), createdAt, updatedAt, relations to Case (onDelete: Cascade), CriteriaMapping?, Template?, @@index([caseId])",
-      "Modify Case model: add criteriaThreshold Int @default(3), applicationTypeId String?, relation to ApplicationType, relation to Document[]",
-      "Modify ChatMessage model: add phase ChatPhase @default(ANALYSIS)",
-      "Run pnpm db:generate && pnpm db:push"
+      "Run: pnpm add xlsx",
+      "Verify package added to package.json"
     ],
-    "passes": true
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Update SupportedFileType to include new formats",
+    "steps": [
+      "Open lib/file-parser.ts",
+      "Change: export type SupportedFileType = 'docx' | 'txt' | 'pdf' | 'md' | 'csv' | 'xlsx' | 'xls'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Add parseMarkdown function to file-parser.ts",
+    "steps": [
+      "Open lib/file-parser.ts",
+      "Add: export async function parseMarkdown(buffer: ArrayBuffer): Promise<string>",
+      "Implementation: new TextDecoder('utf-8').decode(buffer).trim()",
+      "Validate min 100 chars, throw FileParseError if empty"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Add parseCsv function with markdown table output",
+    "steps": [
+      "Open lib/file-parser.ts",
+      "Add: export async function parseCsv(buffer: ArrayBuffer): Promise<string>",
+      "Split by newlines, split rows by comma",
+      "Build markdown table: header row | separator row | data rows",
+      "Validate non-empty, throw FileParseError if empty"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Add parseExcel function with multi-sheet markdown table output",
+    "steps": [
+      "Open lib/file-parser.ts",
+      "Add: export async function parseExcel(buffer: ArrayBuffer): Promise<string>",
+      "Import xlsx: const XLSX = await import('xlsx')",
+      "Read workbook: XLSX.read(buffer, { type: 'array' })",
+      "Loop SheetNames, convert each sheet to markdown table with ## sheetName header",
+      "Validate non-empty output, throw FileParseError if empty"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Update parseFile switch to handle new file types",
+    "steps": [
+      "Open lib/file-parser.ts",
+      "Add case 'md': return parseMarkdown(buffer)",
+      "Add case 'csv': return parseCsv(buffer)",
+      "Add case 'xlsx': case 'xls': return parseExcel(buffer)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "api",
+    "description": "Add switch cases for new file types in upload route",
+    "steps": [
+      "Open app/api/case/[caseId]/upload/route.ts",
+      "Import parseMarkdown, parseCsv, parseExcel from lib/file-parser",
+      "Add case for .md extension: call parseMarkdown",
+      "Add case for .csv extension: call parseCsv",
+      "Add case for .xlsx, .xls extensions: call parseExcel"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Update accept MIME types in upload-zone.tsx",
+    "steps": [
+      "Open app/case/[caseId]/_components/upload-zone.tsx",
+      "Update accept object to include: text/markdown: ['.md'], text/csv: ['.csv'], application/vnd.ms-excel: ['.xls'], application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: ['.xlsx']"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Update accept MIME types in onboard dropzone.tsx",
+    "steps": [
+      "Open app/onboard/_components/dropzone.tsx",
+      "Update accept object to include same new MIME types as upload-zone"
+    ],
+    "passes": false
   },
   {
     "category": "data",
-    "description": "Seed script: prisma/seed.ts upserts EB-1A ApplicationType, 10 CriteriaMappings (from lib/eb1a-criteria.ts data), 4 Templates. Backfills existing cases w/ applicationTypeId. Add prisma.seed config to package.json. Deps: task 1.",
+    "description": "Add RelationshipType enum to Prisma schema",
     "steps": [
-      "Create prisma/seed.ts with imports for @prisma/client",
-      "Upsert ApplicationType for EB-1A: code='EB1A', name='EB-1A Extraordinary Ability', defaultThreshold=3",
-      "Upsert 10 CriteriaMapping rows matching lib/eb1a-criteria.ts: awards, membership, published_material, judging, original_contributions, scholarly_articles, exhibitions, leading_role, high_salary, commercial_success. Set displayOrder 0-9, criterionKey matching existing ids",
-      "Upsert 4 Template rows: Recommendation Letter (RECOMMENDATION_LETTER), Personal Statement (PERSONAL_STATEMENT), Petition (PETITION), USCIS Form (USCIS_FORM) -- each with placeholder instruction content tied to EB-1A ApplicationType",
-      "Backfill: update all existing Case records to set applicationTypeId to EB-1A's id where applicationTypeId is null",
-      "Add to package.json: \"prisma\": { \"seed\": \"tsx prisma/seed.ts\" }",
-      "Run pnpm db:seed to verify"
+      "Open prisma/schema.prisma",
+      "Add enum RelationshipType { ACADEMIC_ADVISOR, RESEARCH_COLLABORATOR, INDUSTRY_COLLEAGUE, SUPERVISOR, MENTEE, CLIENT, PEER_EXPERT, OTHER }"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "functional",
-    "description": "DB-driven criteria lib: new lib/criteria.ts w/ getCriteriaForCase(caseId) and getCriteriaForType(code). Migrate all consumers (case-agent.ts, eb1a-agent.ts, report-panel.tsx, results-modal.tsx, incremental-analysis.ts) off lib/eb1a-criteria.ts. Deps: tasks 1, 2.",
+    "category": "data",
+    "description": "Add Recommender model to Prisma schema",
     "steps": [
-      "Create lib/criteria.ts exporting getCriteriaForCase(caseId): joins Case -> ApplicationType -> CriteriaMapping, returns active criteria ordered by displayOrder. Fallback to EB-1A if case has no applicationTypeId",
-      "Export getCriteriaForType(code: string): fetches CriteriaMapping by ApplicationType.code, returns active criteria ordered by displayOrder",
-      "Update lib/case-agent.ts: replace import of EB1A_CRITERIA with getCriteriaForCase, pass dynamic criteria to buildSystemPrompt",
-      "Update lib/eb1a-agent.ts: replace EB1A_CRITERIA import with getCriteriaForType('EB1A') call in evaluateResume/evaluateResumePdf/stream functions",
-      "Update app/case/[caseId]/_components/report-panel.tsx: replace any EB1A_CRITERIA usage with criteria fetched from API or passed as prop",
-      "Update app/onboard/_components/results-modal.tsx: replace any EB1A_CRITERIA reference with dynamic criteria",
-      "Update lib/incremental-analysis.ts: replace EB1A_CRITERIA import with getCriteriaForCase call",
-      "Deprecate lib/eb1a-criteria.ts: add @deprecated comment, remove direct imports from all consumers"
+      "Open prisma/schema.prisma",
+      "Add model Recommender with: id (cuid), caseId, name, title, relationshipType, relationshipContext (required)",
+      "Add optional fields: email, phone, linkedIn, countryRegion, organization, bio, credentials, startDate, endDate, durationYears, contextNotes (Json?)",
+      "Add createdAt, updatedAt timestamps",
+      "Add relation: case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)",
+      "Add @@index([caseId])"
     ],
-    "passes": true
+    "passes": false
   },
   {
-    "category": "functional",
-    "description": "S3 utilities: new lib/s3.ts with uploadToS3, getSignedDownloadUrl, deleteFromS3. Install @aws-sdk/client-s3 and @aws-sdk/s3-request-presigner. Graceful degradation when env vars missing. Deps: none.",
+    "category": "data",
+    "description": "Add recommenders relation to Case model",
     "steps": [
-      "Run pnpm add @aws-sdk/client-s3 @aws-sdk/s3-request-presigner",
-      "Create lib/s3.ts with S3Client initialized from AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY env vars",
-      "Export uploadToS3(key: string, body: Buffer | ReadableStream, contentType: string): PutObjectCommand to S3_BUCKET, returns { key, url }",
-      "Export getSignedDownloadUrl(key: string, expiresIn?: number): GetObjectCommand + getSignedUrl from @aws-sdk/s3-request-presigner, default 1hr expiry",
-      "Export deleteFromS3(key: string): DeleteObjectCommand",
-      "Add isS3Configured() check: returns false if any env var missing. All exported functions throw descriptive error if not configured",
-      "Key convention: cases/{caseId}/documents/{documentId}/{filename}"
+      "Open prisma/schema.prisma",
+      "Find Case model",
+      "Add: recommenders Recommender[]"
     ],
-    "passes": true
+    "passes": false
+  },
+  {
+    "category": "data",
+    "description": "Add recommenderId foreign key to Document model",
+    "steps": [
+      "Open prisma/schema.prisma",
+      "Find Document model",
+      "Add: recommenderId String?",
+      "Add: recommender Recommender? @relation(fields: [recommenderId], references: [id])"
+    ],
+    "passes": false
+  },
+  {
+    "category": "data",
+    "description": "Add documents relation to Recommender model",
+    "steps": [
+      "Open prisma/schema.prisma",
+      "In Recommender model, add: documents Document[]"
+    ],
+    "passes": false
+  },
+  {
+    "category": "data",
+    "description": "Run Prisma migration for Recommender model",
+    "steps": [
+      "Run: npx prisma migrate dev --name add_recommender_model",
+      "Verify migration succeeds",
+      "Run: npx prisma generate"
+    ],
+    "passes": false
   },
   {
     "category": "api",
-    "description": "Threshold PATCH API: new route PATCH /api/case/[caseId]/threshold. Validates 1-10, auth check, updates Case.criteriaThreshold. Deps: task 1.",
+    "description": "Create GET /api/case/[caseId]/recommenders endpoint",
     "steps": [
-      "Create app/api/case/[caseId]/threshold/route.ts",
-      "Export async PATCH handler: extract caseId from params, parse { threshold } from JSON body",
-      "Auth check: getServerSession, verify user owns case (same pattern as app/api/case/[caseId]/analysis/route.ts)",
-      "Validate threshold: z.number().int().min(1).max(10), return 400 if invalid",
-      "Update case: db.case.update({ where: { id: caseId }, data: { criteriaThreshold: threshold } })",
-      "Return NextResponse.json({ success: true, criteriaThreshold: threshold })"
+      "Create file: app/api/case/[caseId]/recommenders/route.ts",
+      "Add GET handler with auth check and case ownership verification",
+      "Query: db.recommender.findMany({ where: { caseId }, orderBy: { createdAt: 'desc' } })",
+      "Return NextResponse.json(recommenders)"
     ],
-    "passes": true
+    "passes": false
   },
   {
     "category": "api",
-    "description": "Case status PATCH API: new route PATCH /api/case/[caseId]/route.ts for status updates. Used by evidence phase indicator to set status=EVIDENCE. Deps: task 1.",
+    "description": "Create POST /api/case/[caseId]/recommenders endpoint",
     "steps": [
-      "Create app/api/case/[caseId]/route.ts (or add PATCH to existing if present)",
-      "Export async PATCH handler: extract caseId from params, parse { status } from JSON body",
-      "Auth check: getServerSession, verify user owns case",
-      "Validate status against CaseStatus enum values (SCREENING, ACTIVE, EVIDENCE, CLOSED)",
-      "Update case: db.case.update({ where: { id: caseId }, data: { status } })",
-      "Return NextResponse.json({ success: true, status })"
+      "In app/api/case/[caseId]/recommenders/route.ts, add POST handler",
+      "Add Zod schema validating required fields: name, title, relationshipType, relationshipContext",
+      "All other fields optional",
+      "Create recommender with db.recommender.create({ data: { caseId, ...validatedData } })",
+      "Return 201 with created recommender"
     ],
-    "passes": true
+    "passes": false
+  },
+  {
+    "category": "api",
+    "description": "Create GET /api/case/[caseId]/recommenders/[recommenderId] endpoint",
+    "steps": [
+      "Create file: app/api/case/[caseId]/recommenders/[recommenderId]/route.ts",
+      "Add GET handler with auth check",
+      "Query: db.recommender.findUnique with caseId filter for security",
+      "Include documents relation in query",
+      "Return 404 if not found, otherwise return recommender"
+    ],
+    "passes": false
+  },
+  {
+    "category": "api",
+    "description": "Create PATCH /api/case/[caseId]/recommenders/[recommenderId] endpoint",
+    "steps": [
+      "In [recommenderId]/route.ts, add PATCH handler",
+      "Allow partial updates - all fields optional in Zod schema",
+      "Verify recommender exists and belongs to case",
+      "Update with db.recommender.update",
+      "Return updated recommender"
+    ],
+    "passes": false
+  },
+  {
+    "category": "api",
+    "description": "Create DELETE /api/case/[caseId]/recommenders/[recommenderId] endpoint",
+    "steps": [
+      "In [recommenderId]/route.ts, add DELETE handler",
+      "Verify recommender exists and belongs to case",
+      "Delete with db.recommender.delete",
+      "Return 204 No Content"
+    ],
+    "passes": false
   },
   {
     "category": "functional",
-    "description": "Agent threshold tool + dynamic prompt: add updateThreshold tool to case-agent.ts, make buildSystemPrompt use dynamic threshold from case.criteriaThreshold, fetch threshold in runCaseAgent. Deps: tasks 1, 3.",
+    "description": "Add saveRecommender tool to Evidence Agent",
     "steps": [
-      "In lib/case-agent.ts createCaseAgentTools(): add updateThreshold tool with z.object({ threshold: z.number().int().min(1).max(10) }), executes db.case.update, returns { success, newThreshold }",
-      "In lib/case-agent.ts runCaseAgent(): fetch case.criteriaThreshold alongside existing profile/analysis/rag queries (add to parallel Promise.all)",
-      "In lib/case-agent.ts buildSystemPrompt(): accept threshold param, replace hardcoded '3+ Strong' references with dynamic '{threshold}+ Strong' in system prompt text (around line 46)",
-      "Pass threshold to buildSystemPrompt in runCaseAgent"
+      "Open lib/evidence-agent.ts",
+      "Add saveRecommender tool to createEvidenceAgentTools",
+      "Schema: recommenderId (optional for update), name, title, relationshipType, relationshipContext (required), all others optional, contextNotes as Json",
+      "Execute: if recommenderId, update existing; else create new via db.recommender",
+      "Return { success: true, recommenderId, name }"
     ],
-    "passes": true
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Add listRecommenders tool to Evidence Agent",
+    "steps": [
+      "In createEvidenceAgentTools, add listRecommenders tool",
+      "Schema: empty object (no inputs)",
+      "Execute: db.recommender.findMany({ where: { caseId }, select: { id, name, title, relationshipType } })",
+      "Return { recommenders: [...] }"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Add getRecommender tool to Evidence Agent",
+    "steps": [
+      "In createEvidenceAgentTools, add getRecommender tool",
+      "Schema: z.object({ recommenderId: z.string() })",
+      "Execute: db.recommender.findUnique with all fields",
+      "Return full recommender object or null"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Update draftRecommendationLetter tool to support recommenderId",
+    "steps": [
+      "Find draftRecommendationLetter in evidence-agent.ts",
+      "Add optional recommenderId to input schema",
+      "If recommenderId provided, fetch recommender and use their data",
+      "When creating document, include recommenderId in db.document.create",
+      "Use contextNotes from recommender for richer personalization in generation"
+    ],
+    "passes": false
   },
   {
     "category": "ui",
-    "description": "Threshold UI: page.tsx fetches criteriaThreshold, client.tsx accepts + threads prop, report-panel.tsx replaces hardcoded 3 w/ prop + adds number stepper, results-modal.tsx replaces hardcoded 3. Deps: tasks 1, 5.",
+    "description": "Create RecommenderForm component with collapsible sections",
     "steps": [
-      "In app/case/[caseId]/page.tsx: include criteriaThreshold in case fetch (select or include), pass as prop to CasePageClient",
-      "In app/case/[caseId]/client.tsx: accept criteriaThreshold prop, add to state (to allow updates), thread to ReportPanel and any threshold-dependent UI",
-      "In app/case/[caseId]/_components/report-panel.tsx: accept threshold prop, replace hardcoded 3 on line 185 (threshold badge) and line 203 (comparison) with prop value",
-      "In report-panel.tsx: add number stepper control (+ / - buttons or input) next to threshold badge in header. On change, PATCH /api/case/[caseId]/threshold, update local state",
-      "In app/onboard/_components/results-modal.tsx: replace hardcoded 3 on line 214 with a threshold prop (default 3 for onboard context)"
+      "Create file: app/case/[caseId]/_components/recommender-form.tsx",
+      "Use frontend-design skill for polished form UI",
+      "Add sections: Contact Info (collapsible), Professional (collapsible), Relationship (collapsible)",
+      "Required fields: name, title, relationshipType (dropdown), relationshipContext (textarea)",
+      "All other fields optional with appropriate inputs",
+      "onSubmit: POST/PATCH to /api/case/{caseId}/recommenders[/{id}]",
+      "Props: caseId, recommender? (for edit mode), onSave, onCancel"
     ],
-    "passes": true
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Create RecommendersPanel component for listing recommenders",
+    "steps": [
+      "Create file: app/case/[caseId]/_components/recommenders-panel.tsx",
+      "Fetch recommenders from /api/case/{caseId}/recommenders",
+      "Display as cards: avatar (initials), name, title, relationship type badge",
+      "Add 'Add Recommender' button that opens RecommenderForm",
+      "Card actions: Edit (opens form), Delete (with confirm), Generate Letter"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Add Recommenders tab to documents-panel.tsx",
+    "steps": [
+      "Open app/case/[caseId]/_components/documents-panel.tsx",
+      "Add tab selector at top: Documents | Recommenders",
+      "Import and render RecommendersPanel when Recommenders tab active",
+      "Pass caseId prop to RecommendersPanel",
+      "Maintain existing documents list as default tab"
+    ],
+    "passes": false
   },
   {
     "category": "functional",
-    "description": "Auto-assign applicationTypeId: in /api/analyze/route.ts, lookup EB-1A ApplicationType and assign to new Case on creation. Deps: tasks 1, 2.",
+    "description": "Update Evidence Agent system prompt with recommender instructions",
     "steps": [
-      "In app/api/analyze/route.ts: before or after creating the Case record (around line 19-22), fetch ApplicationType where code='EB1A'",
-      "Set applicationTypeId on the Case create call: db.case.create({ data: { userId, status: 'SCREENING', applicationTypeId: eb1aType.id } })",
-      "Handle edge case: if EB-1A ApplicationType not found (seed not run), log warning and proceed without applicationTypeId"
+      "Open lib/evidence-agent.ts",
+      "In buildEvidenceSystemPrompt, add RECOMMENDER section",
+      "Instructions: proactively save recommender details when mentioned, use listRecommenders before drafting letters, link generated letters to recommenders",
+      "Mention: essential fields are name, title, type, context; store nuanced info in contextNotes (freeform JSON)"
     ],
-    "passes": true
-  },
-  {
-    "category": "ui",
-    "description": "Evidence phase indicator badge: in client.tsx, when strongCount >= criteriaThreshold, show floating badge. Clicking badge PATCHes status=EVIDENCE and switches to evidence tab. Deps: tasks 1, 8.",
-    "steps": [
-      "In app/case/[caseId]/client.tsx: compute strongCount from current analysis data (count criteria with strength='Strong')",
-      "When strongCount >= criteriaThreshold, render floating pill/chip badge positioned above ChatInput area: 'Start evidence phase'",
-      "Style badge: position absolute, z-10, pill shape, emerald background, hover effect",
-      "On badge click: PATCH /api/case/[caseId] with { status: 'EVIDENCE' }, then set activeTab to 'evidence' (relies on tab state from task 14)"
-    ],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Evidence agent: new lib/evidence-agent.ts with ToolLoopAgent (Claude Sonnet 4). Tools: draftRecommendationLetter, draftPersonalStatement, generateFromTemplate, listDocuments, getProfile, getAnalysis. System prompt focused on evidence gathering. Deps: tasks 1, 2, 3.",
-    "steps": [
-      "Create lib/evidence-agent.ts with MODEL = 'claude-sonnet-4-20250514' (same as case-agent.ts)",
-      "Build evidence-focused system prompt: role is evidence gathering specialist, knows about templates, document drafting, criteria context",
-      "Implement getProfile tool: fetches CaseProfile.data for case",
-      "Implement getAnalysis tool: fetches latest EB1AAnalysis for case, returns criteria w/ strengths",
-      "Implement listDocuments tool: queries Document where caseId, returns list w/ name/type/source/status",
-      "Implement draftRecommendationLetter tool: uses Template (RECOMMENDATION_LETTER) + profile + analysis context to generate letter. Saves as Document (MARKDOWN, SYSTEM_GENERATED, DRAFT). Upload to S3 if configured",
-      "Implement draftPersonalStatement tool: same pattern as rec letter but with PERSONAL_STATEMENT template",
-      "Implement generateFromTemplate tool: accepts templateId + variables object, fetches Template, replaces {{var}} mustache placeholders, generates doc via LLM, saves as Document",
-      "Export runEvidenceAgent(opts) following same ToolLoopAgent pattern as runCaseAgent: gathers context, builds prompt, returns streaming response"
-    ],
-    "passes": true
-  },
-  {
-    "category": "api",
-    "description": "Evidence chat API: new POST /api/case/[caseId]/evidence-chat/route.ts. Supports text + file uploads (same pattern as analysis chat). Filters ChatMessage by phase=EVIDENCE. Deps: tasks 1, 11.",
-    "steps": [
-      "Create app/api/case/[caseId]/evidence-chat/route.ts",
-      "Export async POST handler with same auth/ownership checks as existing chat/route.ts",
-      "Handle multipart (file upload) path: same pattern as chat/route.ts lines 103-130, but save ChatMessage with phase=EVIDENCE",
-      "Handle JSON (text message) path: same pattern as chat/route.ts lines 131-167, save ChatMessage with phase=EVIDENCE",
-      "Load message history filtered by phase=EVIDENCE (db.chatMessage.findMany where caseId AND phase='EVIDENCE')",
-      "Call runEvidenceAgent instead of runCaseAgent, pass evidence-phase messages",
-      "Save assistant response to ChatMessage with phase=EVIDENCE in onFinish callback",
-      "Return streaming response via result.toTextStreamResponse()"
-    ],
-    "passes": true
-  },
-  {
-    "category": "api",
-    "description": "Document CRUD API: POST (upload to S3), GET (list), GET detail (signed URL), PATCH (update), DELETE (S3 cleanup). All under /api/case/[caseId]/documents. Deps: tasks 1, 4.",
-    "steps": [
-      "Create app/api/case/[caseId]/documents/route.ts with POST and GET handlers",
-      "POST handler: accept multipart FormData with file, auth check, create Document record, upload to S3 via lib/s3.ts (key: cases/{caseId}/documents/{docId}/{filename}). If S3 not configured, store content inline for markdown. Return document record",
-      "GET handler: auth check, db.document.findMany where caseId, return list with id/name/type/source/status/createdAt",
-      "Create app/api/case/[caseId]/documents/[docId]/route.ts with GET, PATCH, DELETE handlers",
-      "GET [docId] handler: auth check, fetch document, if s3Key present generate signed download URL via getSignedDownloadUrl, return document detail + signedUrl",
-      "PATCH [docId] handler: auth check, accept { content?, status?, name? } in body, update Document record",
-      "DELETE [docId] handler: auth check, if s3Key present call deleteFromS3, then delete Document record, return success"
-    ],
-    "passes": true
-  },
-  {
-    "category": "ui",
-    "description": "Evidence tab UI: new phase-tabs.tsx (Analysis | Evidence toggle), client.tsx activeTab state + conditional rendering, page.tsx loads evidence messages separately, new evidence-chat-panel.tsx and documents-panel.tsx. Deps: tasks 1, 12, 13.",
-    "steps": [
-      "Create app/case/[caseId]/_components/phase-tabs.tsx: tab toggle component with 'Analysis' and 'Evidence' options. Style with existing shadcn patterns",
-      "In app/case/[caseId]/client.tsx: add activeTab state ('analysis' | 'evidence'), render PhaseTabs at top of content area",
-      "Conditional rendering: when activeTab='analysis', show existing ChatPanel + ReportPanel (60/40). When activeTab='evidence', show EvidenceChatPanel + DocumentsPanel (60/40)",
-      "In app/case/[caseId]/page.tsx: fetch evidence-phase ChatMessages separately (where phase='EVIDENCE'), pass as prop to client",
-      "Create app/case/[caseId]/_components/evidence-chat-panel.tsx: chat UI for evidence agent. New component (not reusing ChatPanel). POST to /api/case/[caseId]/evidence-chat, stream responses, display messages. Include file upload support (drag-drop)",
-      "Create app/case/[caseId]/_components/documents-panel.tsx: list view with name, type icon (MD/DOCX/PDF), source badge (System/Uploaded), status badge (Draft/Final), date. Preview: markdown rendered inline. Upload button (PDF/DOCX/MD). Download button (signed URL). Delete option. Fetches from /api/case/[caseId]/documents"
-    ],
-    "passes": true
-  },
-  {
-    "category": "ui",
-    "description": "Admin layout + dashboard: app/admin/layout.tsx (admin shell w/ sidebar), app/admin/page.tsx (counts dashboard for cases, criteria, templates). Deps: task 1.",
-    "steps": [
-      "Create app/admin/layout.tsx: admin shell with sidebar navigation (links to /admin, /admin/criteria, /admin/templates). Use existing shadcn sidebar patterns or simple flex layout",
-      "Create app/admin/page.tsx: server component that fetches counts (db.case.count(), db.criteriaMapping.count(), db.template.count()), renders dashboard cards with counts",
-      "No auth guard for v1 (open access per resolved decisions)"
-    ],
-    "passes": true
-  },
-  {
-    "category": "api",
-    "description": "Admin criteria API + UI: GET/POST /api/admin/criteria, PATCH/DELETE /api/admin/criteria/[id], app/admin/criteria/page.tsx with table grouped by app type and inline edit. Deps: tasks 1, 2.",
-    "steps": [
-      "Create app/api/admin/criteria/route.ts: GET returns all CriteriaMapping with ApplicationType included, ordered by applicationTypeId + displayOrder. POST creates new CriteriaMapping from { applicationTypeId, criterionKey, name, description, displayOrder }",
-      "Create app/api/admin/criteria/[id]/route.ts: PATCH updates CriteriaMapping fields (name, description, displayOrder, active). DELETE removes CriteriaMapping by id",
-      "Create app/admin/criteria/page.tsx: fetch criteria via GET /api/admin/criteria, render table grouped by ApplicationType. Columns: criterionKey, name, description, displayOrder, active. Inline edit for name/description/displayOrder/active fields, PATCH on change"
-    ],
-    "passes": true
-  },
-  {
-    "category": "api",
-    "description": "Admin templates API + UI: GET/POST /api/admin/templates, PATCH/DELETE /api/admin/templates/[id], app/admin/templates/page.tsx (list), app/admin/templates/[id]/page.tsx (edit form w/ textarea). Deps: tasks 1, 2.",
-    "steps": [
-      "Create app/api/admin/templates/route.ts: GET returns all Templates with ApplicationType included, ordered by type. POST creates new Template from { name, type, applicationTypeId, content }",
-      "Create app/api/admin/templates/[id]/route.ts: PATCH updates Template fields (name, type, content, active, version). DELETE removes Template by id",
-      "Create app/admin/templates/page.tsx: fetch templates via GET /api/admin/templates, render list view with name, type badge, applicationType name, version, active status. Link each row to /admin/templates/[id]",
-      "Create app/admin/templates/[id]/page.tsx: fetch template by id, render edit form with inputs for name/type/active and textarea for content (instruction text). Save via PATCH on submit"
-    ],
-    "passes": true
-  },
-  {
-    "category": "api",
-    "description": "Admin application-types API: GET/POST /api/admin/application-types. Deps: task 1.",
-    "steps": [
-      "Create app/api/admin/application-types/route.ts",
-      "GET handler: return all ApplicationTypes ordered by code, include _count of criteria and cases",
-      "POST handler: create new ApplicationType from { code, name, defaultThreshold, active }. Validate code is unique, return created record"
-    ],
-    "passes": true
+    "passes": false
   }
 ]
