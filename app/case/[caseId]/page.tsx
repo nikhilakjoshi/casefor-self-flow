@@ -7,6 +7,8 @@ interface Props {
   params: Promise<{ caseId: string }>
 }
 
+type ChatMsg = { id: string; role: string; content: string; metadata: unknown }
+
 export default async function CasePage({ params }: Props) {
   const session = await auth()
   if (!session?.user?.id) {
@@ -44,7 +46,7 @@ export default async function CasePage({ params }: Props) {
     take: 50,
   })
 
-  const initialEvidenceMessages = evidenceMessages.map((m) => ({
+  const initialEvidenceMessages = evidenceMessages.map((m: ChatMsg) => ({
     id: m.id,
     role: m.role.toLowerCase() as 'user' | 'assistant',
     content: m.content,
@@ -60,7 +62,7 @@ export default async function CasePage({ params }: Props) {
 
   const latestAnalysis = caseRecord.eb1aAnalyses[0] ?? null
 
-  const initialMessages = caseRecord.chatMessages.map((m) => ({
+  const initialMessages = caseRecord.chatMessages.map((m: ChatMsg) => ({
     id: m.id,
     role: m.role.toLowerCase() as 'user' | 'assistant',
     content: m.content,
