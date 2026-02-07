@@ -39,7 +39,7 @@ export async function PATCH(
   const parsed = UpdateSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json(
-      { error: parsed.error.errors[0]?.message || 'Invalid request' },
+      { error: parsed.error.issues[0]?.message || 'Invalid request' },
       { status: 400 }
     )
   }
