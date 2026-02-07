@@ -163,7 +163,7 @@
       "Run: pnpm add xlsx",
       "Verify package added to package.json"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -172,7 +172,7 @@
       "Open lib/file-parser.ts",
       "Change: export type SupportedFileType = 'docx' | 'txt' | 'pdf' | 'md' | 'csv' | 'xlsx' | 'xls'"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -183,7 +183,7 @@
       "Implementation: new TextDecoder('utf-8').decode(buffer).trim()",
       "Validate min 100 chars, throw FileParseError if empty"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -195,7 +195,7 @@
       "Build markdown table: header row | separator row | data rows",
       "Validate non-empty, throw FileParseError if empty"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -208,7 +208,7 @@
       "Loop SheetNames, convert each sheet to markdown table with ## sheetName header",
       "Validate non-empty output, throw FileParseError if empty"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -219,7 +219,7 @@
       "Add case 'csv': return parseCsv(buffer)",
       "Add case 'xlsx': case 'xls': return parseExcel(buffer)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",

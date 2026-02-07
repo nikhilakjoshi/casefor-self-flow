@@ -795,3 +795,28 @@
 - Generate Letter action not implemented in UI (agent handles letter gen via chat)
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2, etc.)
 - Next priority: Multi-file upload batch handling (tasks 4-8) or new file format parsers (tasks 16-22)
+
+## 2026-02-07: New File Format Parsers (PRD Tasks 16-21)
+
+### Completed
+
+- Added `xlsx` npm dependency (v0.18.5) for Excel parsing
+- Updated `SupportedFileType` to include: `'md' | 'csv' | 'xlsx' | 'xls'`
+- Updated `getFileType()` to recognize `.md`, `.markdown`, `.csv`, `.xlsx`, `.xls` extensions
+- Added `parseMarkdown(buffer)`: UTF-8 decode, 100 char min validation
+- Added `parseCsv(buffer)`: parses CSV w/ quote handling, outputs markdown table
+  - Handles quoted fields containing commas
+  - Pads rows to match header length
+- Added `parseExcel(buffer)`: dynamic xlsx import, multi-sheet support
+  - Each sheet rendered as `## SheetName` followed by markdown table
+  - Filters empty rows, validates non-empty output
+- Updated `parseFile()` switch to route new file types to correct parsers
+- Typecheck passes; no new lint issues (pre-existing unchanged)
+
+### Notes for Next Dev
+
+- `parseExcel` uses dynamic import (`await import('xlsx')`) to avoid bundling xlsx on all routes
+- CSV parser handles basic quoted field parsing but not escaped quotes within quoted fields
+- Empty sheets are skipped in Excel output; error thrown only if ALL sheets are empty
+- Pre-existing lint errors unchanged
+- Next priority: API/UI updates to accept new file types (tasks 22-24) or multi-file upload batch handling (tasks 4-8)

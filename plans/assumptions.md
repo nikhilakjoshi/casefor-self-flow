@@ -99,3 +99,8 @@
 - Generate Letter button not included in RecommendersPanel -- evidence agent handles letter generation via chat interaction
 - PanelTabs component is local to documents-panel.tsx (not extracted to shared component)
 - RecommendersPanel re-mounts when switching tabs (fresh state); initial data fetched on mount each time
+- `parseExcel` uses dynamic import to avoid bundling xlsx library on routes that don't need it
+- CSV parser uses simple quote-toggle logic for quoted fields; does not handle escaped quotes ("") within quoted fields
+- `.markdown` extension maps to 'md' file type (same as `.md`)
+- Empty Excel sheets are skipped silently; error only thrown if all sheets are empty
+- Markdown minimum length validation (100 chars) applies same as txt files; intended to catch corrupted/empty files
