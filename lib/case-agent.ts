@@ -2,7 +2,7 @@ import { ToolLoopAgent, tool, stepCountIs } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { db } from "./db";
-import { queryContext } from "./rag";
+import { queryContext, type RAGResult } from "./rag";
 import { getCriteriaForCase, type Criterion } from "./criteria";
 import { countCriteriaStrengths, type CriterionResult } from "./eb1a-agent";
 
@@ -312,7 +312,7 @@ export async function runCaseAgent(opts: {
     threshold,
     profile: (profile?.data as Record<string, unknown>) ?? null,
     analysis: analysis ? (analysis.criteria as CriterionResult[]) : null,
-    ragContext: ragResults.map((r) => r.text),
+    ragContext: ragResults.map((r: RAGResult) => r.text),
   });
 
   const tools = createCaseAgentTools(caseId, criteria);

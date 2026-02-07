@@ -2,7 +2,7 @@ import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import { db } from "./db";
-import { queryContext } from "./rag";
+import { queryContext, type RAGResult } from "./rag";
 import { getCriteriaForCase } from "./criteria";
 import {
   CriterionResultSchema,
@@ -70,7 +70,7 @@ Only list criteria that the new evidence DIRECTLY supports.`,
     newDocumentText.slice(0, 1000),
     10,
   );
-  const fullContext = contextResults.map((r) => r.text).join("\n\n");
+  const fullContext = contextResults.map((r: RAGResult) => r.text).join("\n\n");
 
   const affectedCriteriaDetails = dbCriteria.filter((c) =>
     affected.affectedCriterionIds.includes(c.key),
