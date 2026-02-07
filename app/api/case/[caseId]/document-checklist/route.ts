@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getCriteriaForCase } from "@/lib/criteria";
+import { getCriteriaForCase, type Criterion } from "@/lib/criteria";
 import { type CriterionResult } from "@/lib/eb1a-agent";
 
 type StrengthLevel = "missing" | "draft" | "weak" | "moderate" | "strong";
@@ -91,7 +91,7 @@ export async function GET(
   const strongCriteria = analysisCriteria.filter((c) => c.strength === "Strong");
 
   for (const criterion of strongCriteria) {
-    const criterionInfo = criteria.find((c) => c.key === criterion.criterionId);
+    const criterionInfo = criteria.find((c: Criterion) => c.key === criterion.criterionId);
     const recLetterDoc = documents.find(
       (d: DocRecord) =>
         d.name.toLowerCase().includes("recommendation") &&
@@ -105,7 +105,7 @@ export async function GET(
         (d: DocRecord) =>
           d.name.toLowerCase().includes("recommendation") &&
           d.criterionId &&
-          criteria.find((c) => c.id === d.criterionId)?.key === criterion.criterionId
+          criteria.find((c: Criterion) => c.id === d.criterionId)?.key === criterion.criterionId
       );
 
     const docVerification = verification?.assessments
@@ -131,11 +131,11 @@ export async function GET(
   const weakCriteria = analysisCriteria.filter((c) => c.strength === "Weak");
 
   for (const criterion of weakCriteria) {
-    const criterionInfo = criteria.find((c) => c.key === criterion.criterionId);
+    const criterionInfo = criteria.find((c: Criterion) => c.key === criterion.criterionId);
     const evidenceDoc = documents.find(
       (d: DocRecord) =>
         d.criterionId &&
-        criteria.find((c) => c.id === d.criterionId)?.key === criterion.criterionId
+        criteria.find((c: Criterion) => c.id === d.criterionId)?.key === criterion.criterionId
     );
 
     const docVerification = verification?.assessments
