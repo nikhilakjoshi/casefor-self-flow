@@ -1,0 +1,234 @@
+[
+  {
+    "category": "data",
+    "description": "Prisma schema changes: add enums (ChatPhase, TemplateType, DocumentType, DocumentSource, DocumentStatus), extend CaseStatus w/ EVIDENCE, add models (ApplicationType, CriteriaMapping, Template, Document), modify Case (criteriaThreshold, applicationTypeId), modify ChatMessage (phase). Run db:generate + db:push. Deps: none.",
+    "steps": [
+      "Open prisma/schema.prisma and add enum ChatPhase { ANALYSIS EVIDENCE }",
+      "Add enum TemplateType { PERSONAL_STATEMENT RECOMMENDATION_LETTER PETITION USCIS_FORM OTHER }",
+      "Add enum DocumentType { MARKDOWN DOCX PDF }",
+      "Add enum DocumentSource { SYSTEM_GENERATED USER_UPLOADED }",
+      "Add enum DocumentStatus { DRAFT FINAL }",
+      "Add EVIDENCE to existing CaseStatus enum",
+      "Add ApplicationType model: id (cuid), code (String @unique), name (String), defaultThreshold (Int @default(3)), active (Boolean @default(true)), createdAt, updatedAt, relations to criteria/templates/cases",
+      "Add CriteriaMapping model: id (cuid), applicationTypeId, criterionKey, name, description, displayOrder (Int @default(0)), active (Boolean @default(true)), relation to ApplicationType, relation to Document[], @@unique([applicationTypeId, criterionKey])",
+      "Add Template model: id (cuid), name, type (TemplateType), applicationTypeId, content (String), version (Int @default(1)), active (Boolean @default(true)), createdAt, updatedAt, relation to ApplicationType, relation to Document[]",
+      "Add Document model: id (cuid), caseId, name, type (DocumentType), source (DocumentSource), s3Key (String?), s3Url (String?), criterionId (String?), templateId (String?), content (String?), status (DocumentStatus @default(DRAFT)), createdAt, updatedAt, relations to Case (onDelete: Cascade), CriteriaMapping?, Template?, @@index([caseId])",
+      "Modify Case model: add criteriaThreshold Int @default(3), applicationTypeId String?, relation to ApplicationType, relation to Document[]",
+      "Modify ChatMessage model: add phase ChatPhase @default(ANALYSIS)",
+      "Run pnpm db:generate && pnpm db:push"
+    ],
+    "passes": true
+  },
+  {
+    "category": "data",
+    "description": "Seed script: prisma/seed.ts upserts EB-1A ApplicationType, 10 CriteriaMappings (from lib/eb1a-criteria.ts data), 4 Templates. Backfills existing cases w/ applicationTypeId. Add prisma.seed config to package.json. Deps: task 1.",
+    "steps": [
+      "Create prisma/seed.ts with imports for @prisma/client",
+      "Upsert ApplicationType for EB-1A: code='EB1A', name='EB-1A Extraordinary Ability', defaultThreshold=3",
+      "Upsert 10 CriteriaMapping rows matching lib/eb1a-criteria.ts: awards, membership, published_material, judging, original_contributions, scholarly_articles, exhibitions, leading_role, high_salary, commercial_success. Set displayOrder 0-9, criterionKey matching existing ids",
+      "Upsert 4 Template rows: Recommendation Letter (RECOMMENDATION_LETTER), Personal Statement (PERSONAL_STATEMENT), Petition (PETITION), USCIS Form (USCIS_FORM) -- each with placeholder instruction content tied to EB-1A ApplicationType",
+      "Backfill: update all existing Case records to set applicationTypeId to EB-1A's id where applicationTypeId is null",
+      "Add to package.json: \"prisma\": { \"seed\": \"tsx prisma/seed.ts\" }",
+      "Run pnpm db:seed to verify"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "DB-driven criteria lib: new lib/criteria.ts w/ getCriteriaForCase(caseId) and getCriteriaForType(code). Migrate all consumers (case-agent.ts, eb1a-agent.ts, report-panel.tsx, results-modal.tsx, incremental-analysis.ts) off lib/eb1a-criteria.ts. Deps: tasks 1, 2.",
+    "steps": [
+      "Create lib/criteria.ts exporting getCriteriaForCase(caseId): joins Case -> ApplicationType -> CriteriaMapping, returns active criteria ordered by displayOrder. Fallback to EB-1A if case has no applicationTypeId",
+      "Export getCriteriaForType(code: string): fetches CriteriaMapping by ApplicationType.code, returns active criteria ordered by displayOrder",
+      "Update lib/case-agent.ts: replace import of EB1A_CRITERIA with getCriteriaForCase, pass dynamic criteria to buildSystemPrompt",
+      "Update lib/eb1a-agent.ts: replace EB1A_CRITERIA import with getCriteriaForType('EB1A') call in evaluateResume/evaluateResumePdf/stream functions",
+      "Update app/case/[caseId]/_components/report-panel.tsx: replace any EB1A_CRITERIA usage with criteria fetched from API or passed as prop",
+      "Update app/onboard/_components/results-modal.tsx: replace any EB1A_CRITERIA reference with dynamic criteria",
+      "Update lib/incremental-analysis.ts: replace EB1A_CRITERIA import with getCriteriaForCase call",
+      "Deprecate lib/eb1a-criteria.ts: add @deprecated comment, remove direct imports from all consumers"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "S3 utilities: new lib/s3.ts with uploadToS3, getSignedDownloadUrl, deleteFromS3. Install @aws-sdk/client-s3 and @aws-sdk/s3-request-presigner. Graceful degradation when env vars missing. Deps: none.",
+    "steps": [
+      "Run pnpm add @aws-sdk/client-s3 @aws-sdk/s3-request-presigner",
+      "Create lib/s3.ts with S3Client initialized from AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY env vars",
+      "Export uploadToS3(key: string, body: Buffer | ReadableStream, contentType: string): PutObjectCommand to S3_BUCKET, returns { key, url }",
+      "Export getSignedDownloadUrl(key: string, expiresIn?: number): GetObjectCommand + getSignedUrl from @aws-sdk/s3-request-presigner, default 1hr expiry",
+      "Export deleteFromS3(key: string): DeleteObjectCommand",
+      "Add isS3Configured() check: returns false if any env var missing. All exported functions throw descriptive error if not configured",
+      "Key convention: cases/{caseId}/documents/{documentId}/{filename}"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Threshold PATCH API: new route PATCH /api/case/[caseId]/threshold. Validates 1-10, auth check, updates Case.criteriaThreshold. Deps: task 1.",
+    "steps": [
+      "Create app/api/case/[caseId]/threshold/route.ts",
+      "Export async PATCH handler: extract caseId from params, parse { threshold } from JSON body",
+      "Auth check: getServerSession, verify user owns case (same pattern as app/api/case/[caseId]/analysis/route.ts)",
+      "Validate threshold: z.number().int().min(1).max(10), return 400 if invalid",
+      "Update case: db.case.update({ where: { id: caseId }, data: { criteriaThreshold: threshold } })",
+      "Return NextResponse.json({ success: true, criteriaThreshold: threshold })"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Case status PATCH API: new route PATCH /api/case/[caseId]/route.ts for status updates. Used by evidence phase indicator to set status=EVIDENCE. Deps: task 1.",
+    "steps": [
+      "Create app/api/case/[caseId]/route.ts (or add PATCH to existing if present)",
+      "Export async PATCH handler: extract caseId from params, parse { status } from JSON body",
+      "Auth check: getServerSession, verify user owns case",
+      "Validate status against CaseStatus enum values (SCREENING, ACTIVE, EVIDENCE, CLOSED)",
+      "Update case: db.case.update({ where: { id: caseId }, data: { status } })",
+      "Return NextResponse.json({ success: true, status })"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Agent threshold tool + dynamic prompt: add updateThreshold tool to case-agent.ts, make buildSystemPrompt use dynamic threshold from case.criteriaThreshold, fetch threshold in runCaseAgent. Deps: tasks 1, 3.",
+    "steps": [
+      "In lib/case-agent.ts createCaseAgentTools(): add updateThreshold tool with z.object({ threshold: z.number().int().min(1).max(10) }), executes db.case.update, returns { success, newThreshold }",
+      "In lib/case-agent.ts runCaseAgent(): fetch case.criteriaThreshold alongside existing profile/analysis/rag queries (add to parallel Promise.all)",
+      "In lib/case-agent.ts buildSystemPrompt(): accept threshold param, replace hardcoded '3+ Strong' references with dynamic '{threshold}+ Strong' in system prompt text (around line 46)",
+      "Pass threshold to buildSystemPrompt in runCaseAgent"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Threshold UI: page.tsx fetches criteriaThreshold, client.tsx accepts + threads prop, report-panel.tsx replaces hardcoded 3 w/ prop + adds number stepper, results-modal.tsx replaces hardcoded 3. Deps: tasks 1, 5.",
+    "steps": [
+      "In app/case/[caseId]/page.tsx: include criteriaThreshold in case fetch (select or include), pass as prop to CasePageClient",
+      "In app/case/[caseId]/client.tsx: accept criteriaThreshold prop, add to state (to allow updates), thread to ReportPanel and any threshold-dependent UI",
+      "In app/case/[caseId]/_components/report-panel.tsx: accept threshold prop, replace hardcoded 3 on line 185 (threshold badge) and line 203 (comparison) with prop value",
+      "In report-panel.tsx: add number stepper control (+ / - buttons or input) next to threshold badge in header. On change, PATCH /api/case/[caseId]/threshold, update local state",
+      "In app/onboard/_components/results-modal.tsx: replace hardcoded 3 on line 214 with a threshold prop (default 3 for onboard context)"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Auto-assign applicationTypeId: in /api/analyze/route.ts, lookup EB-1A ApplicationType and assign to new Case on creation. Deps: tasks 1, 2.",
+    "steps": [
+      "In app/api/analyze/route.ts: before or after creating the Case record (around line 19-22), fetch ApplicationType where code='EB1A'",
+      "Set applicationTypeId on the Case create call: db.case.create({ data: { userId, status: 'SCREENING', applicationTypeId: eb1aType.id } })",
+      "Handle edge case: if EB-1A ApplicationType not found (seed not run), log warning and proceed without applicationTypeId"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Evidence phase indicator badge: in client.tsx, when strongCount >= criteriaThreshold, show floating badge. Clicking badge PATCHes status=EVIDENCE and switches to evidence tab. Deps: tasks 1, 8.",
+    "steps": [
+      "In app/case/[caseId]/client.tsx: compute strongCount from current analysis data (count criteria with strength='Strong')",
+      "When strongCount >= criteriaThreshold, render floating pill/chip badge positioned above ChatInput area: 'Start evidence phase'",
+      "Style badge: position absolute, z-10, pill shape, emerald background, hover effect",
+      "On badge click: PATCH /api/case/[caseId] with { status: 'EVIDENCE' }, then set activeTab to 'evidence' (relies on tab state from task 14)"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Evidence agent: new lib/evidence-agent.ts with ToolLoopAgent (Claude Sonnet 4). Tools: draftRecommendationLetter, draftPersonalStatement, generateFromTemplate, listDocuments, getProfile, getAnalysis. System prompt focused on evidence gathering. Deps: tasks 1, 2, 3.",
+    "steps": [
+      "Create lib/evidence-agent.ts with MODEL = 'claude-sonnet-4-20250514' (same as case-agent.ts)",
+      "Build evidence-focused system prompt: role is evidence gathering specialist, knows about templates, document drafting, criteria context",
+      "Implement getProfile tool: fetches CaseProfile.data for case",
+      "Implement getAnalysis tool: fetches latest EB1AAnalysis for case, returns criteria w/ strengths",
+      "Implement listDocuments tool: queries Document where caseId, returns list w/ name/type/source/status",
+      "Implement draftRecommendationLetter tool: uses Template (RECOMMENDATION_LETTER) + profile + analysis context to generate letter. Saves as Document (MARKDOWN, SYSTEM_GENERATED, DRAFT). Upload to S3 if configured",
+      "Implement draftPersonalStatement tool: same pattern as rec letter but with PERSONAL_STATEMENT template",
+      "Implement generateFromTemplate tool: accepts templateId + variables object, fetches Template, replaces {{var}} mustache placeholders, generates doc via LLM, saves as Document",
+      "Export runEvidenceAgent(opts) following same ToolLoopAgent pattern as runCaseAgent: gathers context, builds prompt, returns streaming response"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Evidence chat API: new POST /api/case/[caseId]/evidence-chat/route.ts. Supports text + file uploads (same pattern as analysis chat). Filters ChatMessage by phase=EVIDENCE. Deps: tasks 1, 11.",
+    "steps": [
+      "Create app/api/case/[caseId]/evidence-chat/route.ts",
+      "Export async POST handler with same auth/ownership checks as existing chat/route.ts",
+      "Handle multipart (file upload) path: same pattern as chat/route.ts lines 103-130, but save ChatMessage with phase=EVIDENCE",
+      "Handle JSON (text message) path: same pattern as chat/route.ts lines 131-167, save ChatMessage with phase=EVIDENCE",
+      "Load message history filtered by phase=EVIDENCE (db.chatMessage.findMany where caseId AND phase='EVIDENCE')",
+      "Call runEvidenceAgent instead of runCaseAgent, pass evidence-phase messages",
+      "Save assistant response to ChatMessage with phase=EVIDENCE in onFinish callback",
+      "Return streaming response via result.toTextStreamResponse()"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Document CRUD API: POST (upload to S3), GET (list), GET detail (signed URL), PATCH (update), DELETE (S3 cleanup). All under /api/case/[caseId]/documents. Deps: tasks 1, 4.",
+    "steps": [
+      "Create app/api/case/[caseId]/documents/route.ts with POST and GET handlers",
+      "POST handler: accept multipart FormData with file, auth check, create Document record, upload to S3 via lib/s3.ts (key: cases/{caseId}/documents/{docId}/{filename}). If S3 not configured, store content inline for markdown. Return document record",
+      "GET handler: auth check, db.document.findMany where caseId, return list with id/name/type/source/status/createdAt",
+      "Create app/api/case/[caseId]/documents/[docId]/route.ts with GET, PATCH, DELETE handlers",
+      "GET [docId] handler: auth check, fetch document, if s3Key present generate signed download URL via getSignedDownloadUrl, return document detail + signedUrl",
+      "PATCH [docId] handler: auth check, accept { content?, status?, name? } in body, update Document record",
+      "DELETE [docId] handler: auth check, if s3Key present call deleteFromS3, then delete Document record, return success"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Evidence tab UI: new phase-tabs.tsx (Analysis | Evidence toggle), client.tsx activeTab state + conditional rendering, page.tsx loads evidence messages separately, new evidence-chat-panel.tsx and documents-panel.tsx. Deps: tasks 1, 12, 13.",
+    "steps": [
+      "Create app/case/[caseId]/_components/phase-tabs.tsx: tab toggle component with 'Analysis' and 'Evidence' options. Style with existing shadcn patterns",
+      "In app/case/[caseId]/client.tsx: add activeTab state ('analysis' | 'evidence'), render PhaseTabs at top of content area",
+      "Conditional rendering: when activeTab='analysis', show existing ChatPanel + ReportPanel (60/40). When activeTab='evidence', show EvidenceChatPanel + DocumentsPanel (60/40)",
+      "In app/case/[caseId]/page.tsx: fetch evidence-phase ChatMessages separately (where phase='EVIDENCE'), pass as prop to client",
+      "Create app/case/[caseId]/_components/evidence-chat-panel.tsx: chat UI for evidence agent. New component (not reusing ChatPanel). POST to /api/case/[caseId]/evidence-chat, stream responses, display messages. Include file upload support (drag-drop)",
+      "Create app/case/[caseId]/_components/documents-panel.tsx: list view with name, type icon (MD/DOCX/PDF), source badge (System/Uploaded), status badge (Draft/Final), date. Preview: markdown rendered inline. Upload button (PDF/DOCX/MD). Download button (signed URL). Delete option. Fetches from /api/case/[caseId]/documents"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Admin layout + dashboard: app/admin/layout.tsx (admin shell w/ sidebar), app/admin/page.tsx (counts dashboard for cases, criteria, templates). Deps: task 1.",
+    "steps": [
+      "Create app/admin/layout.tsx: admin shell with sidebar navigation (links to /admin, /admin/criteria, /admin/templates). Use existing shadcn sidebar patterns or simple flex layout",
+      "Create app/admin/page.tsx: server component that fetches counts (db.case.count(), db.criteriaMapping.count(), db.template.count()), renders dashboard cards with counts",
+      "No auth guard for v1 (open access per resolved decisions)"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Admin criteria API + UI: GET/POST /api/admin/criteria, PATCH/DELETE /api/admin/criteria/[id], app/admin/criteria/page.tsx with table grouped by app type and inline edit. Deps: tasks 1, 2.",
+    "steps": [
+      "Create app/api/admin/criteria/route.ts: GET returns all CriteriaMapping with ApplicationType included, ordered by applicationTypeId + displayOrder. POST creates new CriteriaMapping from { applicationTypeId, criterionKey, name, description, displayOrder }",
+      "Create app/api/admin/criteria/[id]/route.ts: PATCH updates CriteriaMapping fields (name, description, displayOrder, active). DELETE removes CriteriaMapping by id",
+      "Create app/admin/criteria/page.tsx: fetch criteria via GET /api/admin/criteria, render table grouped by ApplicationType. Columns: criterionKey, name, description, displayOrder, active. Inline edit for name/description/displayOrder/active fields, PATCH on change"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Admin templates API + UI: GET/POST /api/admin/templates, PATCH/DELETE /api/admin/templates/[id], app/admin/templates/page.tsx (list), app/admin/templates/[id]/page.tsx (edit form w/ textarea). Deps: tasks 1, 2.",
+    "steps": [
+      "Create app/api/admin/templates/route.ts: GET returns all Templates with ApplicationType included, ordered by type. POST creates new Template from { name, type, applicationTypeId, content }",
+      "Create app/api/admin/templates/[id]/route.ts: PATCH updates Template fields (name, type, content, active, version). DELETE removes Template by id",
+      "Create app/admin/templates/page.tsx: fetch templates via GET /api/admin/templates, render list view with name, type badge, applicationType name, version, active status. Link each row to /admin/templates/[id]",
+      "Create app/admin/templates/[id]/page.tsx: fetch template by id, render edit form with inputs for name/type/active and textarea for content (instruction text). Save via PATCH on submit"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Admin application-types API: GET/POST /api/admin/application-types. Deps: task 1.",
+    "steps": [
+      "Create app/api/admin/application-types/route.ts",
+      "GET handler: return all ApplicationTypes ordered by code, include _count of criteria and cases",
+      "POST handler: create new ApplicationType from { code, name, defaultThreshold, active }. Validate code is unique, return created record"
+    ],
+    "passes": true
+  }
+]
