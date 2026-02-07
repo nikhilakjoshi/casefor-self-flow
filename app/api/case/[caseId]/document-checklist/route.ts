@@ -2,9 +2,10 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getCriteriaForCase } from "@/lib/criteria";
 import { type CriterionResult } from "@/lib/eb1a-agent";
-import type { Document } from "@prisma/client";
 
 type StrengthLevel = "missing" | "draft" | "weak" | "moderate" | "strong";
+
+type DocRecord = { id: string; name: string; criterionId: string | null };
 
 interface ChecklistItem {
   id: string;
@@ -66,7 +67,7 @@ export async function GET(
   const items: ChecklistItem[] = [];
 
   // 1. Personal Statement (always required)
-  const personalStatementDoc = documents.find((d: Document) =>
+  const personalStatementDoc = documents.find((d: DocRecord) =>
     d.name.toLowerCase().includes("personal statement")
   );
   const psVerification = verification?.assessments
@@ -92,7 +93,7 @@ export async function GET(
   for (const criterion of strongCriteria) {
     const criterionInfo = criteria.find((c) => c.key === criterion.criterionId);
     const recLetterDoc = documents.find(
-      (d: Document) =>
+      (d: DocRecord) =>
         d.name.toLowerCase().includes("recommendation") &&
         d.name.toLowerCase().includes(criterionInfo?.name.toLowerCase().slice(0, 10) ?? "")
     );
@@ -101,7 +102,7 @@ export async function GET(
     const linkedRecLetter =
       recLetterDoc ??
       documents.find(
-        (d: Document) =>
+        (d: DocRecord) =>
           d.name.toLowerCase().includes("recommendation") &&
           d.criterionId &&
           criteria.find((c) => c.id === d.criterionId)?.key === criterion.criterionId
@@ -132,7 +133,7 @@ export async function GET(
   for (const criterion of weakCriteria) {
     const criterionInfo = criteria.find((c) => c.key === criterion.criterionId);
     const evidenceDoc = documents.find(
-      (d: Document) =>
+      (d: DocRecord) =>
         d.criterionId &&
         criteria.find((c) => c.id === d.criterionId)?.key === criterion.criterionId
     );
