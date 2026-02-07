@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CaseFor AI
 
-## Getting Started
+AI-powered EB-1A visa case builder. Upload your resume, get instant eligibility analysis, and build your evidence portfolio with AI assistance.
 
-First, run the development server:
+## Features
+
+- **Resume Analysis**: Upload PDF/DOCX/TXT, get AI evaluation against all 10 EB-1A criteria
+- **Case Management**: Track multiple cases with rename/delete support
+- **AI Chat**: Conversational interface for case building and evidence gathering
+- **Document Management**: Upload, organize, and verify supporting documents
+- **Evidence Phase**: AI-guided evidence collection once eligibility threshold is met
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Database**: PostgreSQL + Prisma ORM
+- **Auth**: NextAuth v5
+- **AI**: Anthropic Claude, Google Gemini
+- **Vector DB**: Pinecone
+- **Storage**: AWS S3
+- **UI**: Tailwind CSS, Radix UI, TipTap
+
+## Setup
+
+### Prerequisites
+
+- Node.js 20+
+- pnpm
+- PostgreSQL database
+- Pinecone account
+- AWS S3 bucket
+- Anthropic API key
+- Google AI API key
+
+### Environment Variables
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Database
+DATABASE_URL="postgresql://..."
+
+# Auth
+AUTH_SECRET="..."
+AUTH_GOOGLE_ID="..."
+AUTH_GOOGLE_SECRET="..."
+
+# AI
+ANTHROPIC_API_KEY="..."
+GOOGLE_GENERATIVE_AI_API_KEY="..."
+
+# Vector DB
+PINECONE_API_KEY="..."
+PINECONE_INDEX="..."
+
+# Storage
+AWS_ACCESS_KEY_ID="..."
+AWS_SECRET_ACCESS_KEY="..."
+AWS_REGION="..."
+S3_BUCKET="..."
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Install & Run
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+pnpm db:generate
+pnpm db:push
+pnpm db:seed
+pnpm dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open [http://localhost:3000](http://localhost:3000)
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start dev server |
+| `pnpm build` | Production build |
+| `pnpm db:generate` | Generate Prisma client |
+| `pnpm db:push` | Push schema to database |
+| `pnpm db:seed` | Seed database with initial data |
+| `pnpm typecheck` | Run TypeScript checks |
+| `pnpm lint` | Run ESLint |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+app/
+  (auth)/          # Login/register pages
+  api/             # API routes
+  case/[caseId]/   # Case detail pages
+  onboard/         # Resume upload flow
+  dashboard/       # Case list
+components/
+  ui/              # Reusable UI components
+lib/
+  auth.ts          # NextAuth config
+  db.ts            # Prisma client
+  eb1a-agent.ts    # AI evaluation logic
+  embeddings.ts    # Vector embeddings
+  pinecone.ts      # Vector DB client
+prisma/
+  schema.prisma    # Database schema
+```
