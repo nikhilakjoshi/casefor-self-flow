@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { parseFile, parseDocx, parseTxt } from "@/lib/file-parser";
+import { parseDocx, parseTxt, parseMarkdown, parseCsv, parseExcel } from "@/lib/file-parser";
 import { chunkText } from "@/lib/chunker";
 import { upsertChunks } from "@/lib/pinecone";
 import { runIncrementalAnalysis } from "@/lib/incremental-analysis";
@@ -75,6 +75,12 @@ export async function POST(
       text = await parseDocx(buffer);
     } else if (ext === "txt") {
       text = await parseTxt(buffer);
+    } else if (ext === "md" || ext === "markdown") {
+      text = await parseMarkdown(buffer);
+    } else if (ext === "csv") {
+      text = await parseCsv(buffer);
+    } else if (ext === "xlsx" || ext === "xls") {
+      text = await parseExcel(buffer);
     } else {
       return NextResponse.json(
         { error: "Unsupported file type" },

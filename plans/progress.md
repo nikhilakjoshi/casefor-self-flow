@@ -820,3 +820,18 @@
 - Empty sheets are skipped in Excel output; error thrown only if ALL sheets are empty
 - Pre-existing lint errors unchanged
 - Next priority: API/UI updates to accept new file types (tasks 22-24) or multi-file upload batch handling (tasks 4-8)
+
+## 2026-02-07: Upload Route New File Types (PRD Task 22)
+
+### Completed
+
+- Updated `app/api/case/[caseId]/upload/route.ts` to handle new file types
+- Imported `parseMarkdown`, `parseCsv`, `parseExcel` from `lib/file-parser`
+- Added cases for `.md`/`.markdown` (parseMarkdown), `.csv` (parseCsv), `.xlsx`/`.xls` (parseExcel)
+- Typecheck passes; no new lint issues (pre-existing unchanged)
+
+### Notes for Next Dev
+
+- Upload route now supports: pdf, docx, txt, md, markdown, csv, xlsx, xls
+- Removed unused `parseFile` import (route uses individual parser functions)
+- Next priority: UI updates to accept new MIME types (tasks 23-24) or multi-file batch upload (tasks 4-8)

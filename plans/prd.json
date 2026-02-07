@@ -231,7 +231,7 @@
       "Add case for .csv extension: call parseCsv",
       "Add case for .xlsx, .xls extensions: call parseExcel"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
