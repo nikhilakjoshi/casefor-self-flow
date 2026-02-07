@@ -855,3 +855,27 @@
 - Both dropzones now accept: PDF, DOC, DOCX, TXT, MD, CSV, XLS, XLSX
 - onboard dropzone validates by both MIME type and file extension (fallback for browsers that don't report correct MIME)
 - Next priority: Multi-file batch upload (API tasks 4-8, UI tasks 9-14)
+
+## 2026-02-07: Multi-File Upload Batch API (PRD Tasks 4-8)
+
+### Completed
+
+- Updated `app/api/case/[caseId]/upload/route.ts` for multi-file batch uploads
+- Changed `formData.get('file')` to `formData.getAll('files')` for multi-file input
+- Added validation: max 10 files, reject if no files provided
+- Added `FileResult` and `BatchUploadResponse` interfaces
+  - FileResult: fileName, success, chunksCreated?, analysisStatus?, error?
+  - BatchUploadResponse: results[], totalSuccess, totalFailed
+- Extracted `processFile(file, caseId)` async function for single-file processing
+- Wrapped file processing in `Promise.allSettled()` for parallel execution with error isolation
+- Incremental analysis runs per file with status tracking: 'queued', 'completed', 'failed'
+- HTTP status codes: 200 (all success), 207 (partial failure), 400 (all fail)
+- Typecheck passes; no new lint issues (pre-existing unchanged)
+
+### Notes for Next Dev
+
+- API now expects FormData with 'files' key (plural), not 'file'
+- Existing UI uses 'file' key -- UI tasks 9-14 must update to match
+- processFile runs analysis synchronously (awaits) to capture status; not fire-and-forget
+- Pre-existing lint errors unchanged
+- Next priority: Multi-file upload UI (tasks 9-14)

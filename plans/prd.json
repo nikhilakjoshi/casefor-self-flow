@@ -40,7 +40,7 @@
       "Add validation: max 10 files",
       "Add validation: reject if no files provided"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
@@ -49,7 +49,7 @@
       "Open app/api/case/[caseId]/upload/route.ts",
       "Add interface BatchUploadResponse with: results array (fileName, success, chunksCreated?, analysisStatus?, error?), totalSuccess, totalFailed"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
@@ -60,7 +60,7 @@
       "Map files array through processFile",
       "Wrap in Promise.allSettled() for parallel processing with error isolation"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
@@ -70,7 +70,7 @@
       "Track analysis status: 'queued', 'completed', 'failed'",
       "Include analysisStatus in per-file result object"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
@@ -81,7 +81,7 @@
       "Return NextResponse.json(batchResponse)",
       "Use 207 Multi-Status if partial failures, 200 if all success, 400 if all fail"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",

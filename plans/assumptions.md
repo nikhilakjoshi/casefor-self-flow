@@ -104,3 +104,6 @@
 - `.markdown` extension maps to 'md' file type (same as `.md`)
 - Empty Excel sheets are skipped silently; error only thrown if all sheets are empty
 - Markdown minimum length validation (100 chars) applies same as txt files; intended to catch corrupted/empty files
+- Multi-file upload API expects FormData key 'files' (plural); single-file 'file' key is deprecated
+- processFile runs incremental analysis synchronously (awaits completion) to capture accurate status; differs from old fire-and-forget pattern
+- MAX_FILES=10 is a constant in upload route; not configurable via env var
