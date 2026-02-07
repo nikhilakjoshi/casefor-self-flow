@@ -77,3 +77,7 @@
 - POST /api/admin/application-types catches Prisma P2002 for duplicate code uniqueness constraint (same pattern as criteria API)
 - GET includes `_count` for criteria and cases only (not templates); PRD specified "criteria and cases"
 - defaultThreshold on POST validated 1-10, consistent with threshold PATCH API (task 5)
+- Recommender.durationYears is Float (not Int) to support partial years like 2.5
+- Recommender.contextNotes is optional Json for freeform storage of nuanced relationship details
+- Documents can be linked to recommenders via recommenderId FK; allows tracking which recommendation letters belong to which recommender
+- Used `prisma db push` instead of `prisma migrate dev` for schema sync (faster, no migration file needed in dev)

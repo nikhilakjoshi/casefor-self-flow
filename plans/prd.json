@@ -258,7 +258,7 @@
       "Open prisma/schema.prisma",
       "Add enum RelationshipType { ACADEMIC_ADVISOR, RESEARCH_COLLABORATOR, INDUSTRY_COLLEAGUE, SUPERVISOR, MENTEE, CLIENT, PEER_EXPERT, OTHER }"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "data",
@@ -271,7 +271,7 @@
       "Add relation: case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)",
       "Add @@index([caseId])"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "data",
@@ -281,7 +281,7 @@
       "Find Case model",
       "Add: recommenders Recommender[]"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "data",
@@ -292,7 +292,7 @@
       "Add: recommenderId String?",
       "Add: recommender Recommender? @relation(fields: [recommenderId], references: [id])"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "data",
@@ -301,7 +301,7 @@
       "Open prisma/schema.prisma",
       "In Recommender model, add: documents Document[]"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "data",
@@ -311,7 +311,7 @@
       "Verify migration succeeds",
       "Run: npx prisma generate"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",

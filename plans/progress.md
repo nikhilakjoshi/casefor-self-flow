@@ -666,3 +666,26 @@
 - Results include `text` (chunk content) and `score` (similarity score)
 - Agent prompt instructs to use searchDocuments before drafting to ground docs in real materials
 - Pre-existing lint errors unchanged
+
+## 2026-02-07: Recommender Model Schema (PRD Tasks 19-24)
+
+### Completed
+
+- Added `RelationshipType` enum: ACADEMIC_ADVISOR, RESEARCH_COLLABORATOR, INDUSTRY_COLLEAGUE, SUPERVISOR, MENTEE, CLIENT, PEER_EXPERT, OTHER
+- Added `Recommender` model with:
+  - Required: id, caseId, name, title, relationshipType, relationshipContext
+  - Optional: email, phone, linkedIn, countryRegion, organization, bio, credentials, startDate, endDate, durationYears, contextNotes (Json)
+  - Timestamps: createdAt, updatedAt
+  - Relation: case Case (onDelete: Cascade), documents Document[]
+  - Index: @@index([caseId])
+- Added `recommenders Recommender[]` relation to Case model
+- Added `recommenderId String?` and `recommender Recommender?` relation to Document model
+- Ran `prisma db push` and `prisma generate` successfully
+
+### Notes for Next Dev
+
+- Recommender model supports linking documents (recommendation letters) to specific recommenders
+- `contextNotes` field is freeform Json for storing nuanced relationship context the agent discovers
+- `durationYears` is Float to support partial years (e.g., 2.5 years)
+- Next priority: Recommender CRUD APIs (tasks 25-29) or Recommender agent tools (tasks 30-33)
+- Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, etc.)
