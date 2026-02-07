@@ -689,3 +689,21 @@
 - `durationYears` is Float to support partial years (e.g., 2.5 years)
 - Next priority: Recommender CRUD APIs (tasks 25-29) or Recommender agent tools (tasks 30-33)
 - Pre-existing lint errors unchanged (case-agent.ts x4 no-explicit-any, results-modal.tsx x2 unescaped entities + 1 unused caseId, etc.)
+
+## 2026-02-07: Recommender GET/POST API (PRD Tasks 25-26)
+
+### Completed
+
+- Created `app/api/case/[caseId]/recommenders/route.ts` with GET and POST handlers
+- GET: auth check, case ownership verification, returns all recommenders ordered by createdAt desc
+- POST: Zod schema validating required fields (name, title, relationshipType, relationshipContext)
+- POST: all optional fields supported (email, phone, linkedIn, countryRegion, organization, bio, credentials, startDate, endDate, durationYears, contextNotes)
+- Returns 201 with created recommender on success
+- Typecheck passes
+
+### Notes for Next Dev
+
+- `contextNotes` uses spread conditional to avoid Prisma nullable Json type issues: `...(data.contextNotes && { contextNotes: data.contextNotes as Prisma.InputJsonValue })`
+- Date fields (startDate, endDate) accept ISO datetime strings, converted to Date objects
+- Next priority: GET/PATCH/DELETE /api/case/[caseId]/recommenders/[recommenderId] (tasks 27-29)
+- Pre-existing lint errors unchanged

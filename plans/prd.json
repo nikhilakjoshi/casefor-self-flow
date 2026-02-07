@@ -322,7 +322,7 @@
       "Query: db.recommender.findMany({ where: { caseId }, orderBy: { createdAt: 'desc' } })",
       "Return NextResponse.json(recommenders)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
@@ -334,7 +334,7 @@
       "Create recommender with db.recommender.create({ data: { caseId, ...validatedData } })",
       "Return 201 with created recommender"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",

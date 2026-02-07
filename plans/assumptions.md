@@ -81,3 +81,5 @@
 - Recommender.contextNotes is optional Json for freeform storage of nuanced relationship details
 - Documents can be linked to recommenders via recommenderId FK; allows tracking which recommendation letters belong to which recommender
 - Used `prisma db push` instead of `prisma migrate dev` for schema sync (faster, no migration file needed in dev)
+- Recommender API POST uses spread conditional for contextNotes to avoid Prisma nullable Json type issues: `...(data.contextNotes && { contextNotes: data.contextNotes as Prisma.InputJsonValue })`
+- Recommender API validates date strings as ISO datetime format via `z.string().datetime()` before converting to Date objects
