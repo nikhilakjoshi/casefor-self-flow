@@ -143,7 +143,7 @@ export async function POST(
         take: 50,
       });
 
-      messages = dbMessages.map((m) => ({
+      messages = dbMessages.map((m: { role: string; content: string }) => ({
         role: m.role.toLowerCase() as "user" | "assistant",
         content: m.content,
       }));
