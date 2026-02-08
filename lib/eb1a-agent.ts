@@ -1,185 +1,295 @@
-import { generateText, streamText, Output } from "ai";
-import { google } from "@ai-sdk/google";
-import { z } from "zod";
-import { getCriteriaForType, type Criterion } from "./criteria";
+import { generateText, streamText, Output } from "ai"
+import { anthropic } from "@ai-sdk/anthropic"
+import { z } from "zod"
+import { getCriteriaForType, type Criterion } from "./criteria"
+import {
+  DetailedExtractionSchema,
+  type DetailedExtraction,
+  type CriteriaSummaryItem,
+  CRITERIA_METADATA,
+} from "./eb1a-extraction-schema"
 
-// Zod schema for individual criterion evaluation
+// Legacy schema for backward compatibility
 export const CriterionResultSchema = z.object({
   criterionId: z.string().describe("ID of the criterion being evaluated"),
   strength: z
     .enum(["Strong", "Weak", "None"])
     .describe(
-      "Strength of evidence: Strong (clear evidence), Weak (some evidence), None (no evidence)",
+      "Strength of evidence: Strong (clear evidence), Weak (some evidence), None (no evidence)"
     ),
   reason: z.string().describe("Brief explanation of the evaluation"),
   evidence: z
     .array(z.string())
     .describe("Direct quotes from resume supporting this evaluation"),
-});
+})
 
-// Zod schema for full EB-1A evaluation
 export const EB1AEvaluationSchema = z.object({
   criteria: z
     .array(CriterionResultSchema)
     .describe("Evaluation for each of the 10 EB-1A criteria"),
-});
+})
 
-// Inferred types from schemas
-export type CriterionResult = z.infer<typeof CriterionResultSchema>;
-export type EB1AEvaluation = z.infer<typeof EB1AEvaluationSchema>;
+export type CriterionResult = z.infer<typeof CriterionResultSchema>
+export type EB1AEvaluation = z.infer<typeof EB1AEvaluationSchema>
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = "claude-sonnet-4-20250514"
 
-function buildSystemPrompt(criteria: Criterion[]): string {
-  const criteriaList = criteria
-    .map((c) => `- ${c.key}: ${c.name} - ${c.description}`)
-    .join("\n");
-
-  return `You are an experienced immigration attorney specializing in EB-1A Extraordinary Ability visas.
-
-Your task is to evaluate a resume/CV against the 10 EB-1A criteria. For each criterion, determine:
-1. Strength: "Strong" (clear, compelling evidence), "Weak" (some evidence but needs strengthening), or "None" (no evidence found)
-2. Reason: A brief explanation of your assessment
-3. Evidence: Direct quotes from the resume that support your evaluation (empty array if None)
-
-Be thorough but realistic. USCIS requires meeting at least 3 criteria with strong evidence.
+const EXTRACTION_SYSTEM_PROMPT = `You are an EB-1A immigration expert. Extract ALL structured information from this resume/CV and map each item to the relevant EB-1A criteria.
 
 THE 10 EB-1A CRITERIA:
-${criteriaList}
+C1: Awards - nationally/internationally recognized prizes for excellence
+C2: Membership - selective associations requiring outstanding achievement as judged by recognized experts
+C3: Published material - about the person in professional/major trade publications or media
+C4: Judging - participation as judge of others' work in the same or allied field
+C5: Original contributions - of major significance to the field
+C6: Scholarly articles - authorship of scholarly articles in professional journals or other major media
+C7: Artistic exhibitions - display of work at artistic exhibitions or showcases
+C8: Leading/critical role - for organizations/establishments with distinguished reputation
+C9: High salary - commanding a high salary or significantly high remuneration relative to others in the field
+C10: Commercial success - in performing arts, commercial success
 
-IMPORTANT GUIDELINES:
-- Only cite evidence that actually appears in the resume
-- Be conservative - "Weak" if evidence is tangential or needs more documentation
-- "None" is appropriate when a criterion simply doesn't apply to the candidate's background
-- Provide specific quotes, not paraphrases`;
+EXTRACTION GUIDELINES:
+- Extract EVERYTHING you can find - be thorough
+- For publications: identify venue_tier as "top_tier" for Nature/Science/Cell/CVPR/NeurIPS/ICML/ICLR/ACL/EMNLP/SIGGRAPH/CHI/OSDI/SOSP and similar top venues
+- For awards: classify scope as international/national/regional/local based on the awarding body
+- For judging: include peer review, editorial boards, grant panels, thesis committees, competition judging
+- For memberships: note any selectivity criteria or requirements mentioned
+- Map each item to ALL applicable criteria (some items may map to multiple)
+- Include original_contributions for significant work not captured elsewhere
+- Generate a criteria_summary aggregating all evidence per criterion with strength assessment
+
+STRENGTH ASSESSMENT GUIDELINES:
+- Strong: Clear, compelling evidence that meets USCIS standards (3+ strong items for that criterion)
+- Weak: Some evidence but needs strengthening or documentation (1-2 items or unclear significance)
+- None: No evidence found for this criterion
+
+Be thorough and extract everything. Missing evidence is worse than over-extraction.`
+
+// Schema for PDF extraction that includes extracted text
+const PdfExtractionSchema = z.object({
+  extracted_text: z.string().describe("The full text content extracted from the PDF"),
+  ...DetailedExtractionSchema.omit({ extracted_text: true }).shape,
+})
+
+// New detailed extraction functions
+export async function extractAndEvaluate(
+  resumeText: string,
+  surveyData?: Record<string, unknown>
+): Promise<DetailedExtraction> {
+  const surveyContext = surveyData
+    ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
+    : ""
+
+  const { output } = await generateText({
+    model: anthropic(MODEL),
+    output: Output.object({ schema: DetailedExtractionSchema }),
+    system: EXTRACTION_SYSTEM_PROMPT,
+    prompt: `Extract all structured information from this resume and evaluate against EB-1A criteria:\n\n${resumeText}${surveyContext}`,
+  })
+
+  return output!
 }
 
+export async function extractAndEvaluateFromPdf(
+  pdfBuffer: ArrayBuffer,
+  surveyData?: Record<string, unknown>
+): Promise<{ extraction: DetailedExtraction; extractedText: string }> {
+  const surveyContext = surveyData
+    ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
+    : ""
+
+  const { output } = await generateText({
+    model: anthropic(MODEL),
+    output: Output.object({ schema: PdfExtractionSchema }),
+    system: EXTRACTION_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `First extract all text from this PDF resume, then extract structured information and evaluate against EB-1A criteria.${surveyContext}`,
+          },
+          {
+            type: "file",
+            data: Buffer.from(pdfBuffer),
+            mediaType: "application/pdf",
+          },
+        ],
+      },
+    ],
+  })
+
+  const extractedText = output!.extracted_text
+  return {
+    extraction: { ...output!, extracted_text: extractedText },
+    extractedText,
+  }
+}
+
+export async function streamExtractAndEvaluate(
+  resumeText: string,
+  surveyData?: Record<string, unknown>
+) {
+  const surveyContext = surveyData
+    ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
+    : ""
+
+  return streamText({
+    model: anthropic(MODEL),
+    output: Output.object({ schema: DetailedExtractionSchema }),
+    system: EXTRACTION_SYSTEM_PROMPT,
+    prompt: `Extract all structured information from this resume and evaluate against EB-1A criteria:\n\n${resumeText}${surveyContext}`,
+  })
+}
+
+export async function streamExtractAndEvaluateFromPdf(
+  pdfBuffer: ArrayBuffer,
+  surveyData?: Record<string, unknown>
+) {
+  const surveyContext = surveyData
+    ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
+    : ""
+
+  return streamText({
+    model: anthropic(MODEL),
+    output: Output.object({ schema: PdfExtractionSchema }),
+    system: EXTRACTION_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `First extract all text from this PDF resume, then extract structured information and evaluate against EB-1A criteria.${surveyContext}`,
+          },
+          {
+            type: "file",
+            data: Buffer.from(pdfBuffer),
+            mediaType: "application/pdf",
+          },
+        ],
+      },
+    ],
+  })
+}
+
+// Convert detailed extraction to legacy format
+export function extractionToLegacyFormat(extraction: DetailedExtraction): EB1AEvaluation {
+  const criteriaMap: Record<string, CriterionResult> = {}
+
+  // Initialize all criteria
+  const allCriteria = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]
+  for (const id of allCriteria) {
+    const meta = CRITERIA_METADATA[id as keyof typeof CRITERIA_METADATA]
+    criteriaMap[id] = {
+      criterionId: id,
+      strength: "None",
+      reason: `No evidence found for ${meta.name.toLowerCase()}`,
+      evidence: [],
+    }
+  }
+
+  // Use criteria_summary if available
+  if (extraction.criteria_summary && extraction.criteria_summary.length > 0) {
+    for (const summary of extraction.criteria_summary) {
+      criteriaMap[summary.criterion_id] = {
+        criterionId: summary.criterion_id,
+        strength: summary.strength,
+        reason: summary.summary,
+        evidence: summary.key_evidence,
+      }
+    }
+  }
+
+  return {
+    criteria: allCriteria.map((id) => criteriaMap[id]),
+  }
+}
+
+// Legacy wrapper functions for backward compatibility
 async function loadCriteria(criteria?: Criterion[]): Promise<Criterion[]> {
-  if (criteria && criteria.length > 0) return criteria;
-  return getCriteriaForType("EB1A");
+  if (criteria && criteria.length > 0) return criteria
+  return getCriteriaForType("EB1A")
 }
 
 export async function evaluateResume(
   resumeText: string,
-  criteria?: Criterion[],
+  criteria?: Criterion[]
 ): Promise<EB1AEvaluation> {
-  const resolved = await loadCriteria(criteria);
-  const systemPrompt = buildSystemPrompt(resolved);
-
-  const { output } = await generateText({
-    model: google(MODEL),
-    output: Output.object({ schema: EB1AEvaluationSchema }),
-    system: systemPrompt,
-    prompt: `Evaluate the following resume against all 10 EB-1A criteria:\n\n${resumeText}`,
-  });
-
-  return output!;
+  const extraction = await extractAndEvaluate(resumeText)
+  return extractionToLegacyFormat(extraction)
 }
-
-const PdfEvaluationSchema = z.object({
-  extractedText: z
-    .string()
-    .describe("The full text content extracted from the PDF resume"),
-  criteria: z
-    .array(CriterionResultSchema)
-    .describe("Evaluation for each of the 10 EB-1A criteria"),
-});
 
 export async function evaluateResumePdf(
   pdfBuffer: ArrayBuffer,
-  criteria?: Criterion[],
+  criteria?: Criterion[]
 ): Promise<{ evaluation: EB1AEvaluation; extractedText: string }> {
-  const resolved = await loadCriteria(criteria);
-  const systemPrompt = buildSystemPrompt(resolved);
-
-  const { output } = await generateText({
-    model: google(MODEL),
-    output: Output.object({ schema: PdfEvaluationSchema }),
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "First extract all text from this PDF resume, then evaluate it against all 10 EB-1A criteria.",
-          },
-          {
-            type: "file",
-            data: Buffer.from(pdfBuffer),
-            mediaType: "application/pdf",
-          },
-        ],
-      },
-    ],
-  });
-
+  const { extraction, extractedText } = await extractAndEvaluateFromPdf(pdfBuffer)
   return {
-    evaluation: { criteria: output!.criteria },
-    extractedText: output!.extractedText,
-  };
+    evaluation: extractionToLegacyFormat(extraction),
+    extractedText,
+  }
 }
 
-// Streaming version for PDF evaluation
+// Legacy streaming - now returns detailed extraction stream
 export async function streamEvaluateResumePdf(
   pdfBuffer: ArrayBuffer,
-  criteria?: Criterion[],
+  criteria?: Criterion[]
 ) {
-  const resolved = await loadCriteria(criteria);
-  const systemPrompt = buildSystemPrompt(resolved);
-
-  return streamText({
-    model: google(MODEL),
-    output: Output.object({ schema: PdfEvaluationSchema }),
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "First extract all text from this PDF resume, then evaluate it against all 10 EB-1A criteria.",
-          },
-          {
-            type: "file",
-            data: Buffer.from(pdfBuffer),
-            mediaType: "application/pdf",
-          },
-        ],
-      },
-    ],
-  });
+  return streamExtractAndEvaluateFromPdf(pdfBuffer)
 }
 
-// Streaming version for text evaluation
 export async function streamEvaluateResume(
   resumeText: string,
-  criteria?: Criterion[],
+  criteria?: Criterion[]
 ) {
-  const resolved = await loadCriteria(criteria);
-  const systemPrompt = buildSystemPrompt(resolved);
-
-  return streamText({
-    model: google(MODEL),
-    output: Output.object({ schema: EB1AEvaluationSchema }),
-    system: systemPrompt,
-    prompt: `Evaluate the following resume against all 10 EB-1A criteria:\n\n${resumeText}`,
-  });
+  return streamExtractAndEvaluate(resumeText)
 }
 
 // Helper to count strong/weak criteria
 export function countCriteriaStrengths(evaluation: EB1AEvaluation): {
-  strong: number;
-  weak: number;
-  none: number;
+  strong: number
+  weak: number
+  none: number
 } {
   return evaluation.criteria.reduce(
     (acc, c) => {
-      if (c.strength === "Strong") acc.strong++;
-      else if (c.strength === "Weak") acc.weak++;
-      else acc.none++;
-      return acc;
+      if (c.strength === "Strong") acc.strong++
+      else if (c.strength === "Weak") acc.weak++
+      else acc.none++
+      return acc
     },
-    { strong: 0, weak: 0, none: 0 },
-  );
+    { strong: 0, weak: 0, none: 0 }
+  )
 }
+
+// Count from detailed extraction
+export function countExtractionStrengths(extraction: DetailedExtraction): {
+  strong: number
+  weak: number
+  none: number
+} {
+  if (!extraction.criteria_summary || extraction.criteria_summary.length === 0) {
+    return { strong: 0, weak: 0, none: 10 }
+  }
+
+  const counts = { strong: 0, weak: 0, none: 0 }
+  const foundCriteria = new Set<string>()
+
+  for (const summary of extraction.criteria_summary) {
+    foundCriteria.add(summary.criterion_id)
+    if (summary.strength === "Strong") counts.strong++
+    else if (summary.strength === "Weak") counts.weak++
+    else counts.none++
+  }
+
+  // Count criteria not in summary as None
+  const allCriteria = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]
+  counts.none += allCriteria.filter((c) => !foundCriteria.has(c)).length
+
+  return counts
+}
+
+// Re-export types and schemas from extraction schema
+export { DetailedExtractionSchema, type DetailedExtraction, type CriteriaSummaryItem }

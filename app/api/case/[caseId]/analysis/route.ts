@@ -1,6 +1,7 @@
-import { auth } from '@/lib/auth'
-import { db } from '@/lib/db'
-import { NextResponse } from 'next/server'
+import { auth } from "@/lib/auth"
+import { db } from "@/lib/db"
+import { NextResponse } from "next/server"
+import type { DetailedExtraction } from "@/lib/eb1a-extraction-schema"
 
 export async function GET(
   request: Request,
@@ -8,7 +9,7 @@ export async function GET(
 ) {
   const session = await auth()
   if (!session?.user?.id) {
-    return new Response('Unauthorized', { status: 401 })
+    return new Response("Unauthorized", { status: 401 })
   }
 
   const { caseId } = await params
@@ -19,12 +20,12 @@ export async function GET(
   })
 
   if (!caseRecord || caseRecord.userId !== session.user.id) {
-    return new Response('Not found', { status: 404 })
+    return new Response("Not found", { status: 404 })
   }
 
   const analysis = await db.eB1AAnalysis.findFirst({
     where: { caseId },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: "desc" },
   })
 
   if (!analysis) {
@@ -41,13 +42,21 @@ export async function GET(
     for (const m of mappings) criteriaNames[m.criterionKey] = m.name
   }
 
+  // Extract criteria_summary from the full extraction if available
+  const extraction = analysis.extraction as DetailedExtraction | null
+  const criteriaSummary = extraction?.criteria_summary ?? []
+
   return NextResponse.json({
     id: analysis.id,
     criteria: analysis.criteria,
+    extraction: extraction,
+    criteria_summary: criteriaSummary,
     strongCount: analysis.strongCount,
     weakCount: analysis.weakCount,
     createdAt: analysis.createdAt,
     version: analysis.version,
+    mergedWithSurvey: analysis.mergedWithSurvey,
+    surveyVersion: analysis.surveyVersion,
     criteriaNames,
     criteriaThreshold: caseRecord.criteriaThreshold ?? 3,
   })

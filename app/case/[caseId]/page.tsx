@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { CasePageClient } from './client'
+import type { DetailedExtraction } from '@/lib/eb1a-extraction-schema'
 
 interface Props {
   params: Promise<{ caseId: string }>
@@ -19,7 +20,12 @@ export default async function CasePage({ params }: Props) {
 
   const caseRecord = await db.case.findUnique({
     where: { id: caseId },
-    include: {
+    select: {
+      id: true,
+      userId: true,
+      intakeStatus: true,
+      skippedSections: true,
+      criteriaThreshold: true,
       profile: true,
       eb1aAnalyses: {
         orderBy: { createdAt: 'desc' },
@@ -79,8 +85,11 @@ export default async function CasePage({ params }: Props) {
         }>,
         strongCount: latestAnalysis.strongCount,
         weakCount: latestAnalysis.weakCount,
+        extraction: latestAnalysis.extraction as DetailedExtraction | null,
       }
     : null
+
+  const profileData = (caseRecord.profile?.data ?? {}) as Record<string, unknown>
 
   return (
     <CasePageClient
@@ -91,6 +100,8 @@ export default async function CasePage({ params }: Props) {
       initialAnalysisVersion={latestAnalysis?.version ?? 0}
       initialThreshold={criteriaThreshold}
       initialEvidenceMessages={initialEvidenceMessages}
+      initialIntakeStatus={caseRecord.intakeStatus}
+      initialProfileData={profileData}
     />
   )
 }

@@ -70,6 +70,13 @@ enum ChatPhase {
   EVIDENCE
 }
 
+enum IntakeStatus {
+  PENDING
+  PARTIAL
+  COMPLETED
+  SKIPPED
+}
+
 enum TemplateType {
   PERSONAL_STATEMENT
   RECOMMENDATION_LETTER
@@ -106,14 +113,16 @@ enum RelationshipType {
 }
 
 model Case {
-  id                 String     @id @default(cuid())
+  id                 String       @id @default(cuid())
   userId             String?
   name               String?
-  status             CaseStatus @default(SCREENING)
-  criteriaThreshold  Int        @default(3)
+  status             CaseStatus   @default(SCREENING)
+  intakeStatus       IntakeStatus @default(PENDING)
+  skippedSections    String[]     @default([])
+  criteriaThreshold  Int          @default(3)
   applicationTypeId  String?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   user            User?            @relation(fields: [userId], references: [id])
   applicationType ApplicationType? @relation(fields: [applicationTypeId], references: [id])
@@ -129,6 +138,7 @@ model CaseProfile {
   id        String   @id @default(cuid())
   caseId    String   @unique
   data      Json     @default("{}")
+  version   Int      @default(1)
   updatedAt DateTime @updatedAt
 
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
@@ -165,13 +175,16 @@ model ResumeUpload {
 }
 
 model EB1AAnalysis {
-  id          String   @id @default(cuid())
-  caseId      String
-  version     Int      @default(1)
-  criteria    Json
-  strongCount Int
-  weakCount   Int
-  createdAt   DateTime @default(now())
+  id               String   @id @default(cuid())
+  caseId           String
+  version          Int      @default(1)
+  criteria         Json
+  extraction       Json?
+  mergedWithSurvey Boolean  @default(false)
+  surveyVersion    Int?
+  strongCount      Int
+  weakCount        Int
+  createdAt        DateTime @default(now())
 
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
 }

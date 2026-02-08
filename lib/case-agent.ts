@@ -15,6 +15,7 @@ function buildSystemPrompt(opts: {
   profile: Record<string, unknown> | null;
   analysis: CriterionResult[] | null;
   ragContext: string[];
+  skippedSections: string[];
 }): string {
   const criteriaListFull = opts.criteria
     .map((c) => `- ${c.key}: ${c.name} -- ${c.description}`)
@@ -32,6 +33,11 @@ function buildSystemPrompt(opts: {
       ? `RELEVANT DOCUMENT EXCERPTS:\n${opts.ragContext.join("\n---\n")}`
       : "";
 
+  const skippedContext =
+    opts.skippedSections.length > 0
+      ? `\nSKIPPED INTAKE SECTIONS: ${opts.skippedSections.join(", ")}. The user skipped these during intake. When relevant information is needed from these sections, use the emitIntakeForm tool to ask the user to fill in the missing info.`
+      : "";
+
   return `You are an expert EB-1A immigration paralegal assistant. You help applicants build strong Extraordinary Ability visa cases.
 
 YOUR BEHAVIOR:
@@ -41,6 +47,7 @@ YOUR BEHAVIOR:
 - After tool calls, respond conversationally: acknowledge what you learned, explain how it impacts the case, then ask for the next piece of evidence or suggest what would strengthen weak criteria.
 - Be specific about USCIS requirements. Cite which criteria benefit from the evidence.
 - When suggesting next steps, be concrete: "Do you have a letter from Dr. X confirming your contribution?" not just "get recommendation letters."
+${skippedContext}
 
 THE 10 EB-1A CRITERIA (need ${opts.threshold}+ Strong):
 ${criteriaListFull}
@@ -55,7 +62,8 @@ TOOL USAGE RULES:
 - Call updateProfile with a merge object. Existing fields are preserved; new fields are added/overwritten.
 - When the user provides new evidence, uploads a document, or shares information that could affect any criterion: first call getLatestAnalysis to see the current state, then call updateAnalysis with the criteria that should be upgraded based on the new evidence.
 - Call updateAnalysis with an array of all criteria that changed. Only include criteria whose strength should increase. Include specific evidence quotes for each.
-- For the initial greeting (no user messages yet), introduce yourself and summarize the current case state, then ask what the applicant wants to work on first.`;
+- For the initial greeting (no user messages yet), introduce yourself and summarize the current case state, then ask what the applicant wants to work on first.
+- Use emitIntakeForm when you need information from a skipped intake section. The form will be rendered as an interactive card in the chat.`;
 }
 
 export function createCaseAgentTools(caseId: string, criteria: Criterion[]) {
@@ -276,6 +284,39 @@ export function createCaseAgentTools(caseId: string, criteria: Criterion[]) {
         return result;
       },
     }),
+
+    emitIntakeForm: tool({
+      description:
+        "Emit a structured form card in the chat for the user to fill in missing intake information. Use this when you need info from a skipped intake section. The form will be rendered as an interactive card.",
+      inputSchema: z.object({
+        section: z
+          .enum(["background", "achievements", "immigration", "preferences"])
+          .describe("The intake section to collect info for"),
+        fields: z
+          .array(
+            z.object({
+              key: z.string().describe("Field identifier"),
+              label: z.string().describe("Display label for the field"),
+              type: z
+                .enum(["text", "number", "boolean", "textarea"])
+                .describe("Input type"),
+              placeholder: z.string().optional().describe("Placeholder text"),
+            })
+          )
+          .describe("Fields to include in the form"),
+        prompt: z.string().optional().describe("Optional message to show with the form"),
+      }),
+      execute: async ({ section, fields, prompt }) => {
+        console.log(`${logPrefix} [emitIntakeForm] Emitting form for section:`, section);
+        // Return the form spec - the frontend will render it as an interactive card
+        return {
+          type: "intake_form",
+          section,
+          fields,
+          prompt: prompt ?? `Please fill in the following ${section} information:`,
+        };
+      },
+    }),
   };
 }
 
@@ -293,7 +334,10 @@ export async function runCaseAgent(opts: {
   // Gather context
   const [criteria, caseRecord, profile, analysis, ragResults] = await Promise.all([
     getCriteriaForCase(caseId),
-    db.case.findUnique({ where: { id: caseId }, select: { criteriaThreshold: true } }),
+    db.case.findUnique({
+      where: { id: caseId },
+      select: { criteriaThreshold: true, skippedSections: true },
+    }),
     db.caseProfile.findUnique({ where: { caseId } }),
     db.eB1AAnalysis.findFirst({
       where: { caseId },
@@ -305,7 +349,8 @@ export async function runCaseAgent(opts: {
   ]);
 
   const threshold = caseRecord?.criteriaThreshold ?? 3;
-  log("context gathered - criteria:", criteria.length, "threshold:", threshold, "profile:", !!profile, "analysis:", !!analysis, "ragResults:", ragResults.length);
+  const skippedSections = caseRecord?.skippedSections ?? [];
+  log("context gathered - criteria:", criteria.length, "threshold:", threshold, "profile:", !!profile, "analysis:", !!analysis, "ragResults:", ragResults.length, "skippedSections:", skippedSections);
 
   const instructions = buildSystemPrompt({
     criteria,
@@ -313,6 +358,7 @@ export async function runCaseAgent(opts: {
     profile: (profile?.data as Record<string, unknown>) ?? null,
     analysis: analysis ? (analysis.criteria as CriterionResult[]) : null,
     ragContext: ragResults.map((r: RAGResult) => r.text),
+    skippedSections,
   });
 
   const tools = createCaseAgentTools(caseId, criteria);

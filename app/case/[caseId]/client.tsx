@@ -7,7 +7,10 @@ import { ReportPanel } from './_components/report-panel'
 import { PhaseTabs } from './_components/phase-tabs'
 import { EvidenceChatPanel } from './_components/evidence-chat-panel'
 import { DocumentsPanel } from './_components/documents-panel'
-import { Upload } from 'lucide-react'
+import { IntakeSheet } from './_components/intake-sheet'
+import { Upload, MessageSquare, X } from 'lucide-react'
+import type { IntakeData } from './_lib/intake-schema'
+import type { DetailedExtraction } from '@/lib/eb1a-extraction-schema'
 
 interface Message {
   id: string
@@ -28,11 +31,14 @@ interface CasePageClientProps {
     }>
     strongCount: number
     weakCount: number
+    extraction?: DetailedExtraction | null
   } | null
   hasExistingMessages: boolean
   initialAnalysisVersion: number
   initialThreshold?: number
   initialEvidenceMessages?: Message[]
+  initialIntakeStatus?: 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'SKIPPED'
+  initialProfileData?: Record<string, unknown>
 }
 
 export function CasePageClient({
@@ -43,6 +49,8 @@ export function CasePageClient({
   initialAnalysisVersion,
   initialThreshold = 3,
   initialEvidenceMessages = [],
+  initialIntakeStatus = 'PENDING',
+  initialProfileData = {},
 }: CasePageClientProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
@@ -53,6 +61,8 @@ export function CasePageClient({
   const [strongCount, setStrongCount] = useState(initialAnalysis?.strongCount ?? 0)
   const [badgeDismissed, setBadgeDismissed] = useState(false)
   const [isEvidenceLoading, setIsEvidenceLoading] = useState(false)
+  const [intakeOpen, setIntakeOpen] = useState(initialIntakeStatus === 'PENDING')
+  const [chatOpen, setChatOpen] = useState(true)
   const initiatedRef = useRef(false)
 
   const showEvidenceBadge = activeTab === 'analysis' && strongCount >= threshold && !badgeDismissed
@@ -312,6 +322,15 @@ export function CasePageClient({
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Intake Sheet */}
+      <IntakeSheet
+        open={intakeOpen}
+        onOpenChange={setIntakeOpen}
+        caseId={caseId}
+        initialData={initialProfileData as IntakeData}
+        onComplete={() => setIntakeOpen(false)}
+      />
+
       {/* Phase tabs */}
       <div className="shrink-0 px-4 py-2 border-b border-border">
         <PhaseTabs activeTab={activeTab} onTabChange={setActiveTab} />
@@ -337,21 +356,8 @@ export function CasePageClient({
             </div>
           )}
 
-          {/* Chat Panel - 50% */}
-          <div className="w-[50%] flex flex-col overflow-hidden border-r border-stone-200 dark:border-stone-700 relative">
-            <ChatPanel
-              messages={messages}
-              isLoading={isLoading}
-              onSend={sendMessage}
-              onFileSelect={onFileSelect}
-              onClear={clearHistory}
-              showEvidenceAction={showEvidenceBadge}
-              onStartEvidence={handleStartEvidence}
-            />
-          </div>
-
-          {/* Report Panel - 50% */}
-          <div className="w-[50%] bg-muted/50">
+          {/* Report Panel - fills remaining space */}
+          <div className="flex-1 bg-muted/50 overflow-hidden">
             <ReportPanel
               caseId={caseId}
               initialAnalysis={initialAnalysis}
@@ -361,22 +367,74 @@ export function CasePageClient({
               onStrongCountChange={setStrongCount}
             />
           </div>
+
+          {/* Chat Panel - right side, closable */}
+          {chatOpen ? (
+            <div className="w-[400px] flex flex-col overflow-hidden border-l border-stone-200 dark:border-stone-700 relative">
+              <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-border bg-background">
+                <span className="text-sm font-medium">Chat</span>
+                <button
+                  onClick={() => setChatOpen(false)}
+                  className="p-1 rounded hover:bg-muted transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <ChatPanel
+                messages={messages}
+                isLoading={isLoading}
+                onSend={sendMessage}
+                onFileSelect={onFileSelect}
+                onClear={clearHistory}
+                showEvidenceAction={showEvidenceBadge}
+                onStartEvidence={handleStartEvidence}
+                caseId={caseId}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setChatOpen(true)}
+              className="absolute bottom-4 right-4 z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="text-sm font-medium">Chat</span>
+            </button>
+          )}
         </div>
       ) : (
-        <div className="flex flex-1 overflow-hidden">
-          {/* Evidence Chat - 50% */}
-          <div className="w-[50%] flex flex-col overflow-hidden border-r border-stone-200 dark:border-stone-700">
-            <EvidenceChatPanel
-              caseId={caseId}
-              initialMessages={initialEvidenceMessages}
-              onLoadingChange={setIsEvidenceLoading}
-            />
-          </div>
-
-          {/* Documents Panel - 50% */}
-          <div className="w-[50%] bg-muted/50">
+        <div className="flex flex-1 overflow-hidden relative">
+          {/* Documents Panel - fills remaining space */}
+          <div className="flex-1 bg-muted/50 overflow-hidden">
             <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} />
           </div>
+
+          {/* Evidence Chat - right side, closable */}
+          {chatOpen ? (
+            <div className="w-[400px] flex flex-col overflow-hidden border-l border-stone-200 dark:border-stone-700">
+              <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-border bg-background">
+                <span className="text-sm font-medium">Evidence Chat</span>
+                <button
+                  onClick={() => setChatOpen(false)}
+                  className="p-1 rounded hover:bg-muted transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <EvidenceChatPanel
+                caseId={caseId}
+                initialMessages={initialEvidenceMessages}
+                onLoadingChange={setIsEvidenceLoading}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setChatOpen(true)}
+              className="absolute bottom-4 right-4 z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="text-sm font-medium">Chat</span>
+            </button>
+          )}
         </div>
       )}
     </div>

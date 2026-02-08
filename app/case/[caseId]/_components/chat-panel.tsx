@@ -22,9 +22,10 @@ interface ChatPanelProps {
   onClear?: () => void
   showEvidenceAction?: boolean
   onStartEvidence?: () => void
+  caseId?: string
 }
 
-export function ChatPanel({ messages, isLoading, onSend, onFileSelect, onClear, showEvidenceAction, onStartEvidence }: ChatPanelProps) {
+export function ChatPanel({ messages, isLoading, onSend, onFileSelect, onClear, showEvidenceAction, onStartEvidence, caseId }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -70,6 +71,8 @@ export function ChatPanel({ messages, isLoading, onSend, onFileSelect, onClear, 
                 role={m.role}
                 content={m.content}
                 isFileUpload={m.metadata?.type === 'file_upload'}
+                metadata={m.metadata}
+                caseId={caseId}
               />
             ))
           )}

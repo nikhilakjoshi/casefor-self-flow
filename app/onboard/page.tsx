@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Dropzone } from "./_components/dropzone";
 import { ResultsModal, type Strength } from "./_components/results-modal";
+import { SurveyModal } from "./_components/survey-modal";
+import type { SurveyData } from "./_lib/survey-schema";
 
 interface CriterionResultData {
   criterionId: string;
@@ -28,6 +30,32 @@ function countStrengths(criteria: CriterionResultData[]) {
   );
 }
 
+// Convert new extraction format to legacy criteria format
+function extractionToCriteria(data: Record<string, unknown>): CriterionResultData[] {
+  const criteriaSummary = data.criteria_summary as Array<{
+    criterion_id: string;
+    strength: Strength;
+    summary: string;
+    key_evidence: string[];
+  }> | undefined;
+
+  if (criteriaSummary && criteriaSummary.length > 0) {
+    return criteriaSummary.map((s) => ({
+      criterionId: s.criterion_id,
+      strength: s.strength,
+      reason: s.summary,
+      evidence: s.key_evidence ?? [],
+    }));
+  }
+
+  // Fallback to legacy format if available
+  if (data.criteria) {
+    return data.criteria as CriterionResultData[];
+  }
+
+  return [];
+}
+
 export default function OnboardPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,18 +65,21 @@ export default function OnboardPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [caseId, setCaseId] = useState<string | null>(null);
 
-  const handleFileSelect = useCallback(async (file: File) => {
-    setError(null);
-    setSelectedFile(file);
-    setIsLoading(true);
+  // Survey state
+  const [surveyOpen, setSurveyOpen] = useState(false);
+  const [surveyData, setSurveyData] = useState<SurveyData>({});
+  const fileRef = useRef<File | null>(null);
+
+  const startAnalysis = useCallback(async (file: File, targetCaseId: string) => {
     setIsStreaming(true);
     setAnalysisResult(null);
+    setIsModalOpen(true);
 
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/analyze", {
+      const response = await fetch(`/api/case/${targetCaseId}/analyze`, {
         method: "POST",
         body: formData,
       });
@@ -56,20 +87,9 @@ export default function OnboardPage() {
       if (!response.ok) {
         const errorData = await response.json();
         setError(errorData.error ?? "Analysis failed");
-        setIsLoading(false);
         setIsStreaming(false);
         return;
       }
-
-      // Capture case ID from response header
-      const responseCaseId = response.headers.get("X-Case-Id");
-      if (responseCaseId) {
-        setCaseId(responseCaseId);
-      }
-
-      // Open modal immediately to show streaming results
-      setIsModalOpen(true);
-      setIsLoading(false);
 
       const reader = response.body?.getReader();
       if (!reader) {
@@ -93,10 +113,12 @@ export default function OnboardPage() {
           if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6));
-              if (data?.criteria) {
-                const counts = countStrengths(data.criteria);
+              // Handle new extraction format (criteria_summary) or legacy (criteria)
+              const criteria = extractionToCriteria(data);
+              if (criteria.length > 0) {
+                const counts = countStrengths(criteria);
                 setAnalysisResult({
-                  criteria: data.criteria,
+                  criteria,
                   strongCount: counts.strong,
                   weakCount: counts.weak,
                 });
@@ -111,10 +133,52 @@ export default function OnboardPage() {
       setIsStreaming(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
-      setIsLoading(false);
       setIsStreaming(false);
     }
   }, []);
+
+  const handleFileSelect = useCallback(async (file: File) => {
+    setError(null);
+    setSelectedFile(file);
+    setIsLoading(true);
+    fileRef.current = file;
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Phase 1: Quick extraction
+      const response = await fetch("/api/extract", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.error ?? "Extraction failed");
+        setIsLoading(false);
+        return;
+      }
+
+      const { caseId: newCaseId, surveyData: extractedSurvey } = await response.json();
+      setCaseId(newCaseId);
+      setSurveyData(extractedSurvey || {});
+      setIsLoading(false);
+
+      // Open survey modal
+      setSurveyOpen(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleSurveyComplete = useCallback(() => {
+    setSurveyOpen(false);
+    if (caseId && fileRef.current) {
+      startAnalysis(fileRef.current, caseId);
+    }
+  }, [caseId, startAnalysis]);
 
   const handleError = (errorMsg: string) => {
     setError(errorMsg);
@@ -125,6 +189,7 @@ export default function OnboardPage() {
     setError(null);
     setAnalysisResult(null);
     setCaseId(null);
+    setSurveyData({});
   };
 
   const handleBuildCase = () => {
@@ -138,6 +203,31 @@ export default function OnboardPage() {
       window.location.href = `/case/${caseId}`;
     }
   };
+
+  const handleCriterionUpdate = useCallback((criterionId: string, data: CriterionResultData) => {
+    setAnalysisResult((prev) => {
+      if (!prev || !prev.criteria || prev.criteria.length === 0) {
+        console.warn("No existing analysis to update");
+        return prev;
+      }
+
+      // Create new criteria array with the updated criterion
+      const updatedCriteria = prev.criteria.map((c) => {
+        if (c.criterionId === criterionId) {
+          return { ...data, criterionId }; // Ensure criterionId is preserved
+        }
+        return { ...c }; // Clone each criterion
+      });
+
+      const counts = countStrengths(updatedCriteria);
+
+      return {
+        criteria: updatedCriteria,
+        strongCount: counts.strong,
+        weakCount: counts.weak,
+      };
+    });
+  }, []);
 
 
   return (
@@ -175,6 +265,14 @@ export default function OnboardPage() {
         </div>
       </main>
 
+      <SurveyModal
+        open={surveyOpen}
+        onOpenChange={setSurveyOpen}
+        caseId={caseId ?? ""}
+        initialData={surveyData}
+        onComplete={handleSurveyComplete}
+      />
+
       <ResultsModal
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
@@ -185,6 +283,7 @@ export default function OnboardPage() {
         caseId={caseId ?? undefined}
         onBuildCase={handleBuildCase}
         onAddMoreInfo={handleAddMoreInfo}
+        onCriterionUpdate={handleCriterionUpdate}
       />
     </div>
   );

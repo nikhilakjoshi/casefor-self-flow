@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useCallback } from "react";
+import { useDropzone } from "react-dropzone";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +34,7 @@ interface ResultsModalProps {
   onAddMoreInfo?: () => void;
   criteriaNames?: Record<string, string>;
   threshold?: number;
+  onCriterionUpdate?: (criterionId: string, data: CriterionResultData) => void;
 }
 
 function getCriterionName(criterionId: string, names?: Record<string, string>): string {
@@ -82,32 +85,134 @@ function getStrengthConfig(strength: Strength) {
 }
 
 function CriterionCardEnhanced({
+  criterionId,
   criterionName,
   strength,
   reason,
   evidence,
   index,
+  caseId,
+  onUpdate,
 }: {
+  criterionId: string;
   criterionName: string;
   strength: Strength;
   reason: string;
   evidence?: string[];
   index: number;
+  caseId?: string;
+  onUpdate?: (data: CriterionResultData) => void;
 }) {
   const config = getStrengthConfig(strength);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [additionalContext, setAdditionalContext] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const analyzeWithContext = useCallback(async (context: string, file?: File) => {
+    if (!caseId) return;
+    setIsAnalyzing(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("criterionId", criterionId);
+      if (context) formData.append("context", context);
+      if (file) formData.append("file", file);
+
+      const res = await fetch(`/api/case/${caseId}/criterion`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Ensure we use the local criterionId, not from response
+        onUpdate?.({
+          criterionId: criterionId,
+          strength: data.strength as Strength,
+          reason: data.reason,
+          evidence: data.evidence ?? [],
+        });
+        setAdditionalContext("");
+        setIsExpanded(false);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Analysis failed:", errorData);
+      }
+    } catch (err) {
+      console.error("Analysis failed:", err);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [caseId, criterionId, onUpdate]);
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    setIsDragOver(false);
+    if (acceptedFiles.length > 0) {
+      analyzeWithContext(additionalContext, acceptedFiles[0]);
+    }
+  }, [additionalContext, analyzeWithContext]);
+
+  const { getRootProps, getInputProps, open } = useDropzone({
+    onDrop,
+    onDragEnter: () => setIsDragOver(true),
+    onDragLeave: () => setIsDragOver(false),
+    accept: {
+      "application/pdf": [".pdf"],
+      "application/msword": [".doc"],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+      "text/plain": [".txt"],
+    },
+    maxFiles: 1,
+    noClick: true,
+    noKeyboard: true,
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (additionalContext.trim()) {
+      analyzeWithContext(additionalContext.trim());
+    }
+  };
 
   return (
     <div
+      {...getRootProps()}
       className={cn(
         "group relative rounded-xl border p-5 transition-all duration-300",
-        "hover:shadow-md hover:-translate-y-0.5",
+        "hover:shadow-md",
+        isDragOver ? "ring-2 ring-primary ring-offset-2" : "",
+        isAnalyzing ? "opacity-70" : "",
         config.bg,
         config.border
       )}
-      style={{
-        animationDelay: `${index * 50}ms`,
-      }}
+      style={{ animationDelay: `${index * 50}ms` }}
     >
+      <input {...getInputProps()} />
+
+      {/* Loading overlay */}
+      {isAnalyzing && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-xl z-10">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-background shadow-sm">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-medium">Analyzing...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Drop overlay */}
+      {isDragOver && (
+        <div className="absolute inset-0 flex items-center justify-center bg-primary/10 rounded-xl z-10 border-2 border-dashed border-primary">
+          <div className="text-center">
+            <svg className="w-8 h-8 mx-auto text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <p className="mt-2 text-sm font-medium text-primary">Drop to add evidence</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-2">
@@ -122,14 +227,16 @@ function CriterionCardEnhanced({
             {reason}
           </p>
         </div>
-        <span
-          className={cn(
-            "shrink-0 px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full",
-            config.badge
-          )}
-        >
-          {strength}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "shrink-0 px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full",
+              config.badge
+            )}
+          >
+            {strength}
+          </span>
+        </div>
       </div>
 
       {evidence && evidence.length > 0 && (
@@ -149,6 +256,68 @@ function CriterionCardEnhanced({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Add evidence section */}
+      {caseId && (
+        <div className="mt-4 pt-4 border-t border-stone-200/60 dark:border-stone-700/40">
+          {!isExpanded ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+              className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14m-7-7h14" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Add evidence for this criterion
+            </button>
+          ) : (
+            <form onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()} className="space-y-3">
+              <textarea
+                value={additionalContext}
+                onChange={(e) => setAdditionalContext(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="Describe additional evidence, achievements, or context for this criterion..."
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+                rows={3}
+                autoFocus
+              />
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); open(); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border hover:bg-muted transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Upload file
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsExpanded(false);
+                      setAdditionalContext("");
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium rounded-md hover:bg-muted transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!additionalContext.trim() || isAnalyzing}
+                    onClick={(e) => e.stopPropagation()}
+                    className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    Analyze
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
         </div>
       )}
     </div>
@@ -212,9 +381,14 @@ export function ResultsModal({
   onAddMoreInfo,
   criteriaNames,
   threshold = 3,
+  onCriterionUpdate,
 }: ResultsModalProps) {
   const meetsThreshold = strongCount >= threshold;
   const noneCount = criteria.length - strongCount - weakCount;
+
+  const handleCriterionUpdate = useCallback((data: CriterionResultData) => {
+    onCriterionUpdate?.(data.criterionId, data);
+  }, [onCriterionUpdate]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -312,12 +486,15 @@ export function ResultsModal({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {criteria.map((c, idx) => (
               <CriterionCardEnhanced
-                key={idx}
+                key={c.criterionId}
+                criterionId={c.criterionId}
                 criterionName={getCriterionName(c.criterionId, criteriaNames)}
                 strength={c.strength}
                 reason={c.reason}
                 evidence={c.evidence}
                 index={idx}
+                caseId={caseId}
+                onUpdate={handleCriterionUpdate}
               />
             ))}
             {isStreaming && (

@@ -1,54 +1,63 @@
-import { auth } from '@/lib/auth'
-import { db } from '@/lib/db'
-import { parseFile } from '@/lib/file-parser'
-import { chunkText } from '@/lib/chunker'
-import { upsertChunks } from '@/lib/pinecone'
-import { streamEvaluateResume, streamEvaluateResumePdf, countCriteriaStrengths } from '@/lib/eb1a-agent'
+import { auth } from "@/lib/auth"
+import { db } from "@/lib/db"
+import { parseFile } from "@/lib/file-parser"
+import { chunkText } from "@/lib/chunker"
+import { upsertChunks } from "@/lib/pinecone"
+import {
+  streamExtractAndEvaluate,
+  streamExtractAndEvaluateFromPdf,
+  extractionToLegacyFormat,
+  countExtractionStrengths,
+  type DetailedExtraction,
+} from "@/lib/eb1a-agent"
+import { extractProfile, extractProfileFromPdf } from "@/lib/profile-extractor"
 
 export async function POST(request: Request) {
   const session = await auth()
   if (!session?.user?.id) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { "Content-Type": "application/json" },
     })
   }
 
   const formData = await request.formData()
-  const file = formData.get('file') as File | null
+  const file = formData.get("file") as File | null
 
   if (!file) {
-    return new Response(JSON.stringify({ error: 'No file provided' }), {
+    return new Response(JSON.stringify({ error: "No file provided" }), {
       status: 400,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { "Content-Type": "application/json" },
     })
   }
 
   try {
     // Lookup EB-1A ApplicationType for auto-assignment
     const eb1aType = await db.applicationType.findUnique({
-      where: { code: 'EB1A' },
+      where: { code: "EB1A" },
     })
     if (!eb1aType) {
-      console.warn('EB-1A ApplicationType not found (seed not run?), proceeding without applicationTypeId')
+      console.warn(
+        "EB-1A ApplicationType not found (seed not run?), proceeding without applicationTypeId"
+      )
     }
 
     // Create Case record
     const caseRecord = await db.case.create({
       data: {
         userId: session.user.id,
-        status: 'SCREENING',
+        status: "SCREENING",
         ...(eb1aType && { applicationTypeId: eb1aType.id }),
       },
     })
 
-    const isPdf = file.name.toLowerCase().endsWith('.pdf')
+    const isPdf = file.name.toLowerCase().endsWith(".pdf")
     const buffer = await file.arrayBuffer()
 
-    // Get the streaming response
+    // Get the streaming response - now returns detailed extraction
     const streamResult = isPdf
-      ? await streamEvaluateResumePdf(buffer)
-      : await streamEvaluateResume(await parseFile(file))
+      ? await streamExtractAndEvaluateFromPdf(buffer)
+      : await streamExtractAndEvaluate(await parseFile(file))
 
     const encoder = new TextEncoder()
 
@@ -72,30 +81,54 @@ export async function POST(request: Request) {
     streamResult.output.then(async (output) => {
       if (!output) return
 
-      const extractedText = 'extractedText' in output ? output.extractedText : ''
-      const criteria = output.criteria
+      const extraction = output as DetailedExtraction
+      const extractedText = extraction.extracted_text ?? ""
+      const textToChunk = extractedText || (isPdf ? "" : await parseFile(file))
 
-      // Chunk and embed
-      const textToChunk = extractedText || (isPdf ? '' : await parseFile(file))
-      if (textToChunk) {
-        const chunks = chunkText(textToChunk)
-        const { vectorIds } = await upsertChunks(chunks, caseRecord.id)
+      // Convert to legacy format for backward compatibility
+      const legacyFormat = extractionToLegacyFormat(extraction)
+      const counts = countExtractionStrengths(extraction)
 
-        await db.resumeUpload.create({
-          data: {
-            caseId: caseRecord.id,
-            fileName: file.name,
-            fileSize: file.size,
-            pineconeVectorIds: vectorIds,
-          },
+      // Run chunking/embedding and profile extraction in parallel
+      const [, profileData] = await Promise.all([
+        // Chunk and embed
+        textToChunk
+          ? (async () => {
+              const chunks = chunkText(textToChunk)
+              const { vectorIds } = await upsertChunks(chunks, caseRecord.id)
+              await db.resumeUpload.create({
+                data: {
+                  caseId: caseRecord.id,
+                  fileName: file.name,
+                  fileSize: file.size,
+                  pineconeVectorIds: vectorIds,
+                },
+              })
+            })()
+          : Promise.resolve(),
+        // Extract profile
+        isPdf
+          ? extractProfileFromPdf(buffer)
+          : textToChunk
+            ? extractProfile(textToChunk)
+            : Promise.resolve(null),
+      ])
+
+      // Create/update CaseProfile with extracted data
+      if (profileData) {
+        await db.caseProfile.upsert({
+          where: { caseId: caseRecord.id },
+          create: { caseId: caseRecord.id, data: profileData },
+          update: { data: profileData },
         })
       }
 
-      const counts = countCriteriaStrengths({ criteria })
+      // Save EB1A analysis with full extraction
       await db.eB1AAnalysis.create({
         data: {
           caseId: caseRecord.id,
-          criteria,
+          criteria: legacyFormat.criteria,
+          extraction: JSON.parse(JSON.stringify(extraction)),
           strongCount: counts.strong,
           weakCount: counts.weak,
         },
@@ -104,20 +137,22 @@ export async function POST(request: Request) {
 
     const response = new Response(stream, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-        'X-Case-Id': caseRecord.id,
-        'Set-Cookie': `pendingCaseId=${caseRecord.id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Case-Id": caseRecord.id,
+        "Set-Cookie": `pendingCaseId=${caseRecord.id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`,
       },
     })
 
     return response
   } catch (err) {
-    console.error('Analyze error:', err)
+    console.error("Analyze error:", err)
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : 'Analysis failed' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        error: err instanceof Error ? err.message : "Analysis failed",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     )
   }
 }
