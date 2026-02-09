@@ -6,6 +6,7 @@ import {
   uploadToS3,
   buildDocumentKey,
 } from '@/lib/s3'
+import { classifyDocument } from '@/lib/document-classifier'
 
 export async function GET(
   _request: Request,
@@ -34,6 +35,8 @@ export async function GET(
       type: true,
       source: true,
       status: true,
+      category: true,
+      classificationConfidence: true,
       createdAt: true,
     },
     orderBy: { createdAt: 'desc' },
@@ -119,6 +122,8 @@ export async function POST(
       },
     })
 
+    classifyDocument(document.id, file.name, context).catch(() => {})
+
     return NextResponse.json({
       ...document,
       s3Key: key,
@@ -135,6 +140,8 @@ export async function POST(
       data: { content: fullContent },
     })
 
+    classifyDocument(document.id, file.name, fullContent).catch(() => {})
+
     return NextResponse.json({ ...document, content: fullContent })
   }
 
@@ -145,6 +152,8 @@ export async function POST(
       data: { content: `[User context]: ${context}` },
     })
   }
+
+  classifyDocument(document.id, file.name, context).catch(() => {})
 
   return NextResponse.json(document)
 }

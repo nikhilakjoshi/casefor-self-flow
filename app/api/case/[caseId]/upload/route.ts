@@ -6,6 +6,7 @@ import { chunkText } from "@/lib/chunker";
 import { upsertChunks } from "@/lib/pinecone";
 import { runIncrementalAnalysis } from "@/lib/incremental-analysis";
 import { extractPdfText } from "@/lib/pdf-extractor";
+import { classifyDocument } from "@/lib/document-classifier";
 
 const MAX_FILES = 10;
 
@@ -67,7 +68,7 @@ async function processFile(
 
     // Create upload + document records
     const docType = ext === "pdf" ? "PDF" : ext === "docx" ? "DOCX" : "MARKDOWN" as const;
-    await Promise.all([
+    const [, doc] = await Promise.all([
       db.resumeUpload.create({
         data: {
           caseId,
@@ -86,6 +87,8 @@ async function processFile(
         },
       }),
     ]);
+
+    classifyDocument(doc.id, file.name, text).catch(() => {});
 
     // Run incremental analysis
     let analysisStatus: "queued" | "completed" | "failed" = "queued";

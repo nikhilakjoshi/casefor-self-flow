@@ -654,46 +654,59 @@ export function ReportPanel({
 
         {/* Tabs */}
         {hasExtraction && (
-          <div className="flex gap-1 mt-3">
-            <button
-              onClick={() => setActiveTab("summary")}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                activeTab === "summary"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Criteria
-            </button>
-            <button
-              onClick={() => setActiveTab("strength")}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                activeTab === "strength"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Strength Eval
-            </button>
-            <button
-              onClick={() => setActiveTab("gap")}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                activeTab === "gap"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Gap Analysis
-            </button>
+          <div className="flex items-end gap-3 mt-3">
+            {/* Phase 1 group */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
+                Phase 1
+              </span>
+              <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
+                <button
+                  onClick={() => setActiveTab("summary")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                    activeTab === "summary"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                  )}
+                >
+                  Criteria
+                </button>
+                <button
+                  onClick={() => setActiveTab("strength")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                    activeTab === "strength"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                  )}
+                >
+                  Strength Eval
+                </button>
+                <button
+                  onClick={() => setActiveTab("gap")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                    activeTab === "gap"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                  )}
+                >
+                  Gap Analysis
+                </button>
+              </div>
+            </div>
+
+            {/* Separator */}
+            <div className="h-8 w-px bg-border/50 shrink-0 mb-1" />
+
+            {/* Raw Data - outside phase group */}
             <button
               onClick={() => setActiveTab("raw")}
               className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors mb-1",
                 activeTab === "raw"
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-muted text-muted-foreground hover:text-foreground"
               )}
             >

@@ -55,6 +55,7 @@ interface DocumentItem {
   type: 'MARKDOWN' | 'DOCX' | 'PDF'
   source: 'SYSTEM_GENERATED' | 'USER_UPLOADED'
   status: 'DRAFT' | 'FINAL'
+  category?: string | null
   createdAt: string
 }
 
@@ -182,6 +183,32 @@ function TypeBadge({ type }: { type: string }) {
         colors[type as keyof typeof colors] || 'bg-muted text-muted-foreground border-border'
       )}
     >
+      {label}
+    </span>
+  )
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  RESUME_CV: 'Resume',
+  AWARD_CERTIFICATE: 'Award',
+  PUBLICATION: 'Publication',
+  MEDIA_COVERAGE: 'Media',
+  PATENT: 'Patent',
+  RECOMMENDATION_LETTER: 'Rec Letter',
+  MEMBERSHIP_CERTIFICATE: 'Membership',
+  EMPLOYMENT_VERIFICATION: 'Employment',
+  SALARY_DOCUMENTATION: 'Salary',
+  CITATION_REPORT: 'Citations',
+  JUDGING_EVIDENCE: 'Judging',
+  PASSPORT_ID: 'ID',
+  DEGREE_CERTIFICATE: 'Degree',
+  OTHER: 'Other',
+}
+
+function CategoryBadge({ category }: { category: string }) {
+  const label = CATEGORY_LABELS[category] || category
+  return (
+    <span className="text-[9px] font-medium tracking-wide px-1.5 py-0.5 rounded border bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20">
       {label}
     </span>
   )
@@ -1004,6 +1031,7 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists }: Documen
                           </p>
                           <StatusDot status={group.latestDoc.status} />
                           {strength && <StrengthBadge strength={strength} />}
+                          {group.latestDoc.category && <CategoryBadge category={group.latestDoc.category} />}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <TypeBadge type={group.latestDoc.type} />
