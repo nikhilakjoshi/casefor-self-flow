@@ -4,6 +4,7 @@ import { runEvidenceAgent } from "@/lib/evidence-agent";
 import { chunkText } from "@/lib/chunker";
 import { upsertChunks } from "@/lib/pinecone";
 import { parseDocx, parseTxt } from "@/lib/file-parser";
+import { classifyDocument } from "@/lib/document-classifier";
 import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
@@ -64,7 +65,7 @@ async function processUploadedFile(
 
   const docType = ext === "pdf" ? "PDF" : ext === "docx" ? "DOCX" : "MARKDOWN" as const;
 
-  await Promise.all([
+  const [, doc] = await Promise.all([
     db.resumeUpload.create({
       data: {
         caseId,
@@ -83,6 +84,8 @@ async function processUploadedFile(
       },
     }),
   ]);
+
+  classifyDocument(doc.id, file.name, text).catch(() => {});
 
   return text;
 }

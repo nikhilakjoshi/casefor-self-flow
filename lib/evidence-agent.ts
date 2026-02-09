@@ -8,6 +8,7 @@ import { isS3Configured, uploadToS3, buildDocumentKey } from "./s3";
 import { queryContext } from "./rag";
 import { Prisma, RelationshipType } from "@prisma/client";
 import { resolveVariation } from "./template-resolver";
+import { classifyDocument } from "./document-classifier";
 
 const MODEL = "claude-sonnet-4-20250514";
 const GENERATION_MODEL = "claude-sonnet-4-20250514";
@@ -691,6 +692,8 @@ The letter should address these EB-1A criteria: ${criterionKeys.join(", ")}
 Write in first person from the recommender's perspective. The recommender is vouching for the applicant's extraordinary ability based on their professional relationship.`,
         });
 
+        classifyDocument(doc.id, doc.name, finalContent).catch(() => {});
+
         if (isS3Configured()) {
           try {
             const key = buildDocumentKey(
@@ -814,6 +817,8 @@ Write in first person from the recommender's perspective. The recommender is vou
             ? `Focus especially on these criteria: ${focusCriteria.join(", ")}`
             : undefined,
         });
+
+        classifyDocument(doc.id, doc.name, finalContent).catch(() => {});
 
         if (isS3Configured()) {
           try {
@@ -966,6 +971,8 @@ Write in first person from the recommender's perspective. The recommender is vou
             ? `Focus on these criteria: ${criterionKeys.join(", ")}`
             : undefined,
         });
+
+        classifyDocument(doc.id, doc.name, finalContent).catch(() => {});
 
         if (isS3Configured()) {
           try {

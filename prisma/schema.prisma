@@ -111,6 +111,23 @@ enum DocumentStatus {
   FINAL
 }
 
+enum DocumentCategory {
+  RESUME_CV
+  AWARD_CERTIFICATE
+  PUBLICATION
+  MEDIA_COVERAGE
+  PATENT
+  RECOMMENDATION_LETTER
+  MEMBERSHIP_CERTIFICATE
+  EMPLOYMENT_VERIFICATION
+  SALARY_DOCUMENTATION
+  CITATION_REPORT
+  JUDGING_EVIDENCE
+  PASSPORT_ID
+  DEGREE_CERTIFICATE
+  OTHER
+}
+
 enum RelationshipType {
   ACADEMIC_ADVISOR
   RESEARCH_COLLABORATOR
@@ -276,9 +293,11 @@ model Document {
   templateId    String?
   recommenderId String?
   content       String?
-  status        DocumentStatus @default(DRAFT)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  status                   DocumentStatus @default(DRAFT)
+  category                 DocumentCategory?
+  classificationConfidence Float?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
 
   case        Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
   criterion   CriteriaMapping? @relation(fields: [criterionId], references: [id])

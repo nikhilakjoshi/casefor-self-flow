@@ -7,6 +7,7 @@ import {
   getSignedDownloadUrl,
   deleteFromS3,
 } from '@/lib/s3'
+import { classifyDocument } from '@/lib/document-classifier'
 
 type Params = { params: Promise<{ caseId: string; docId: string }> }
 
@@ -95,6 +96,10 @@ export async function PATCH(request: Request, { params }: Params) {
     where: { id: docId },
     data: parsed.data,
   })
+
+  if (parsed.data.content) {
+    classifyDocument(docId, updated.name, parsed.data.content).catch(() => {})
+  }
 
   return NextResponse.json(updated)
 }
