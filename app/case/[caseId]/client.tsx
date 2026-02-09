@@ -12,6 +12,7 @@ import { Upload, MessageSquare, X } from 'lucide-react'
 import type { IntakeData } from './_lib/intake-schema'
 import type { DetailedExtraction } from '@/lib/eb1a-extraction-schema'
 import type { StrengthEvaluation } from '@/lib/strength-evaluation-schema'
+import type { GapAnalysis } from '@/lib/gap-analysis-schema'
 
 interface Message {
   id: string
@@ -42,6 +43,7 @@ interface CasePageClientProps {
   initialIntakeStatus?: 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'SKIPPED'
   initialProfileData?: Record<string, unknown>
   initialStrengthEvaluation?: StrengthEvaluation | null
+  initialGapAnalysis?: GapAnalysis | null
 }
 
 export function CasePageClient({
@@ -56,6 +58,7 @@ export function CasePageClient({
   initialIntakeStatus = 'PENDING',
   initialProfileData = {},
   initialStrengthEvaluation,
+  initialGapAnalysis,
 }: CasePageClientProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
@@ -364,6 +367,7 @@ export function CasePageClient({
               onThresholdChange={setThreshold}
               onStrongCountChange={setStrongCount}
               initialStrengthEvaluation={initialStrengthEvaluation}
+              initialGapAnalysis={initialGapAnalysis}
             />
           </div>
 

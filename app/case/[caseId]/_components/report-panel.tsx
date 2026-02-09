@@ -4,9 +4,11 @@ import { useEffect, useState, useCallback } from "react"
 import { cn } from "@/lib/utils"
 import { ExtractionRawPanel } from "./extraction-raw-panel"
 import { StrengthEvaluationPanel } from "./strength-evaluation-panel"
+import { GapAnalysisPanel } from "./gap-analysis-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
 import { CRITERIA_METADATA } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
+import type { GapAnalysis } from "@/lib/gap-analysis-schema"
 import {
   FileText,
   Award,
@@ -52,6 +54,7 @@ interface ReportPanelProps {
   onThresholdChange?: (threshold: number) => void
   onStrongCountChange?: (count: number) => void
   initialStrengthEvaluation?: StrengthEvaluation | null
+  initialGapAnalysis?: GapAnalysis | null
 }
 
 function getStrengthConfig(strength: Strength) {
@@ -471,7 +474,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "strength" | "raw"
+type ReportTab = "summary" | "strength" | "gap" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -481,6 +484,7 @@ export function ReportPanel({
   onThresholdChange,
   onStrongCountChange,
   initialStrengthEvaluation,
+  initialGapAnalysis,
 }: ReportPanelProps) {
   const [analysis, setAnalysis] = useState<Analysis | null>(initialAnalysis ?? null)
   const [activeTab, setActiveTab] = useState<ReportTab>("summary")
@@ -674,6 +678,17 @@ export function ReportPanel({
               Strength Eval
             </button>
             <button
+              onClick={() => setActiveTab("gap")}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                activeTab === "gap"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Gap Analysis
+            </button>
+            <button
               onClick={() => setActiveTab("raw")}
               className={cn(
                 "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
@@ -712,6 +727,12 @@ export function ReportPanel({
         <StrengthEvaluationPanel
           caseId={caseId}
           initialData={initialStrengthEvaluation}
+        />
+      ) : activeTab === "gap" ? (
+        <GapAnalysisPanel
+          caseId={caseId}
+          initialData={initialGapAnalysis}
+          hasStrengthEval={!!initialStrengthEvaluation}
         />
       ) : (
         <ExtractionRawPanel extraction={analysis.extraction ?? null} />

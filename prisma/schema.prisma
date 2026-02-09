@@ -143,6 +143,7 @@ model Case {
   documents       Document[]
   recommenders           Recommender[]
   strengthEvaluations    StrengthEvaluation[]
+  gapAnalyses            GapAnalysis[]
 }
 
 model CaseProfile {
@@ -326,6 +327,18 @@ model Recommender {
 }
 
 model StrengthEvaluation {
+  id        String   @id @default(cuid())
+  caseId    String
+  version   Int      @default(1)
+  data      Json
+  createdAt DateTime @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, createdAt])
+}
+
+model GapAnalysis {
   id        String   @id @default(cuid())
   caseId    String
   version   Int      @default(1)
