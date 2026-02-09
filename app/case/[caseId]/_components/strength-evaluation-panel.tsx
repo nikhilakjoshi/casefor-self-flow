@@ -52,6 +52,7 @@ function getRfeColor(rfe: string) {
 }
 
 function ScoreBar({ score, max = 10 }: { score: number; max?: number }) {
+  if (score == null) return null
   const pct = (score / max) * 100
   const color = score >= 7 ? "bg-emerald-500" : score >= 5 ? "bg-amber-500" : score >= 3 ? "bg-orange-500" : "bg-red-500"
   return (
@@ -65,7 +66,8 @@ function ScoreBar({ score, max = 10 }: { score: number; max?: number }) {
 }
 
 function CriterionCard({ criterionKey, data }: { criterionKey: CriterionKey; data: StrengthEvaluation["criteria_evaluations"][CriterionKey] }) {
-  const tier = getTierColor(data.tier)
+  if (!data) return null
+  const tier = getTierColor(data.tier ?? 0)
   const label = CRITERION_LABELS[criterionKey] ?? criterionKey
 
   // Check if N/A
@@ -203,7 +205,6 @@ export function StrengthEvaluationPanel({ caseId, initialData }: StrengthEvaluat
         if (done) break
         buffer += decoder.decode(value, { stream: true })
 
-        // Parse SSE events
         const lines = buffer.split("\n")
         buffer = lines.pop() ?? ""
 
@@ -300,7 +301,7 @@ export function StrengthEvaluationPanel({ caseId, initialData }: StrengthEvaluat
               <span className={cn("px-2 py-0.5 rounded text-xs font-bold", getStrengthColor(overall.petition_strength))}>
                 {overall.petition_strength}
               </span>
-              {overall.overall_score > 0 && (
+              {overall.overall_score != null && overall.overall_score > 0 && (
                 <span className="text-xs font-mono text-muted-foreground">
                   {overall.overall_score.toFixed(1)}/10
                 </span>
@@ -532,7 +533,8 @@ export function StrengthEvaluationPanel({ caseId, initialData }: StrengthEvaluat
         {/* Metadata */}
         {metadata && (
           <div className="text-[10px] text-muted-foreground pt-2 border-t border-border">
-            Data completeness: {metadata.data_completeness} | Confidence: {((metadata.confidence_level ?? 0) * 100).toFixed(0)}%
+            {metadata.data_completeness && <>Data completeness: {metadata.data_completeness}</>}
+            {metadata.confidence_level != null && <> | Confidence: {(metadata.confidence_level * 100).toFixed(0)}%</>}
             {metadata.notes && <span> | {metadata.notes}</span>}
           </div>
         )}
