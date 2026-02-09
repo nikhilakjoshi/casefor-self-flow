@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import Link from "next/link";
 import { Dropzone } from "./_components/dropzone";
 import { ResultsModal, type Strength } from "./_components/results-modal";
 import { SurveyModal } from "./_components/survey-modal";
@@ -55,6 +56,13 @@ function extractionToCriteria(data: Record<string, unknown>): CriterionResultDat
 
   return [];
 }
+
+const STEPS = [
+  { number: "01", label: "Upload your resume or CV", detail: "We accept PDF, DOCX, TXT, and more" },
+  { number: "02", label: "Quick intake survey", detail: "Pre-filled from your resume, confirm details" },
+  { number: "03", label: "AI evaluates 10 criteria", detail: "Each criterion rated Strong, Weak, or None" },
+  { number: "04", label: "Review results and build case", detail: "Strengthen weak areas with guidance" },
+];
 
 export default function OnboardPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -231,39 +239,134 @@ export default function OnboardPage() {
 
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
-      <main className="w-full max-w-xl">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
-            EB-1A Eligibility Screening
-          </h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            Upload your resume to analyze your eligibility for the EB-1A visa category
-          </p>
-        </div>
+    <div className="min-h-screen bg-background text-foreground overflow-hidden">
+      {/* Grid background */}
+      <div
+        className="fixed inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
+        }}
+      />
 
-        <div className="rounded-lg border border-border bg-card p-8">
-          <Dropzone
-            onFileSelect={handleFileSelect}
-            onError={handleError}
-            selectedFile={selectedFile}
-            isLoading={isLoading}
-          />
+      {/* Nav */}
+      <nav className="relative z-10 flex items-center justify-between px-6 sm:px-10 lg:px-16 py-5">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
+            <svg className="w-4 h-4 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M4.5 12.75l6 6 9-13.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <span className="text-lg font-semibold tracking-tight">CaseFor</span>
+        </Link>
+        <Link
+          href="/login"
+          className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
+        >
+          Sign In
+        </Link>
+      </nav>
 
-          {error && (
-            <div className="mt-4 flex items-center justify-between rounded-md bg-destructive/10 px-3 py-2">
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-              <button
-                type="button"
-                onClick={handleRetry}
-                className="ml-4 text-sm font-medium text-red-700 underline hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-              >
-                Try again
-              </button>
+      {/* Main content */}
+      <div className="relative z-10 px-6 sm:px-10 lg:px-16 pt-12 sm:pt-20 lg:pt-28 pb-20">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-start">
+
+            {/* Left: copy */}
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-muted/50 mb-6">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
+                  Eligibility Screening
+                </span>
+              </div>
+
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight leading-[1.15] text-foreground">
+                Start your EB-1A
+                <br />
+                <span className="text-primary">case evaluation</span>
+              </h1>
+
+              <p className="mt-4 text-base text-muted-foreground max-w-md leading-relaxed">
+                Upload your resume and we will extract your profile, walk you through
+                a quick intake survey, then evaluate your eligibility across all 10 criteria.
+              </p>
+
+              {/* Steps */}
+              <div className="mt-10 space-y-6">
+                {STEPS.map((step, i) => (
+                  <div key={step.number} className="flex gap-4">
+                    <span className="text-2xl font-bold text-primary/20 font-[family-name:var(--font-jetbrains-mono)] leading-none pt-0.5 shrink-0 w-8">
+                      {step.number}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{step.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{step.detail}</p>
+                      {i === 0 && (
+                        <div className="mt-1.5 flex items-center gap-1">
+                          <span className="w-1 h-1 rounded-full bg-primary/40" />
+                          <span className="text-[10px] text-primary/60 font-medium">You are here</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
+
+            {/* Right: dropzone card */}
+            <div className="lg:pt-8">
+              <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
+                <div className="mb-5">
+                  <h2 className="text-sm font-semibold text-foreground">Upload your resume</h2>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your data is processed securely and never shared
+                  </p>
+                </div>
+
+                <Dropzone
+                  onFileSelect={handleFileSelect}
+                  onError={handleError}
+                  selectedFile={selectedFile}
+                  isLoading={isLoading}
+                />
+
+                {error && (
+                  <div className="mt-4 flex items-center justify-between rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2.5">
+                    <p className="text-sm text-destructive">{error}</p>
+                    <button
+                      type="button"
+                      onClick={handleRetry}
+                      className="ml-4 text-sm font-medium text-destructive underline underline-offset-2 hover:text-destructive/80 shrink-0"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Trust indicators */}
+          <div className="mt-20 pt-10 border-t border-border">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl">
+              {[
+                { value: "10", label: "EB-1A criteria analyzed" },
+                { value: "< 2min", label: "Initial screening" },
+                { value: "Free", label: "To get started" },
+              ].map((stat) => (
+                <div key={stat.label} className="flex items-center gap-3">
+                  <span className="text-lg font-bold text-primary font-[family-name:var(--font-jetbrains-mono)]">
+                    {stat.value}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{stat.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </main>
+      </div>
 
       <SurveyModal
         open={surveyOpen}

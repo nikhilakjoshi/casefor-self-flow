@@ -2,6 +2,7 @@
 
 import { useDropzone } from "react-dropzone";
 import { useCallback } from "react";
+import { cn } from "@/lib/utils";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_TYPES = {
@@ -78,60 +79,78 @@ export function Dropzone({ onFileSelect, onError, selectedFile, isLoading }: Dro
   return (
     <div
       {...getRootProps()}
-      className={`flex min-h-[200px] items-center justify-center rounded-md border-2 border-dashed transition-colors ${
+      className={cn(
+        "relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-all duration-200 min-h-[260px] p-8",
         isLoading
-          ? "cursor-wait border-zinc-300 dark:border-zinc-700"
+          ? "cursor-wait border-border bg-muted/30"
           : isDragActive
-            ? "cursor-pointer border-foreground bg-muted"
-            : "cursor-pointer border-zinc-300 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-600"
-      }`}
+            ? "cursor-copy border-primary bg-primary/5"
+            : "cursor-pointer border-border hover:border-primary/40 hover:bg-muted/20"
+      )}
     >
       <input {...getInputProps()} />
-      <div className="text-center px-4">
-        {isLoading ? (
-          <div className="flex flex-col items-center gap-2">
-            <svg
-              className="h-6 w-6 animate-spin text-zinc-500"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
+
+      {isLoading ? (
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative w-12 h-12">
+            <svg className="w-12 h-12 animate-spin" viewBox="0 0 48 48" fill="none">
+              <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="3" className="text-border" />
               <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                d="M44 24c0-11.046-8.954-20-20-20"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                className="text-primary"
               />
             </svg>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Analyzing {selectedFile?.name}...
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-foreground">
+              Extracting profile data...
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground font-[family-name:var(--font-jetbrains-mono)]">
+              {selectedFile?.name}
             </p>
           </div>
-        ) : selectedFile ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            <span className="font-medium">{selectedFile.name}</span>
-            <br />
-            <span className="text-xs">Drop a new file to replace</span>
-          </p>
-        ) : isDragActive ? (
-          <p className="text-sm font-medium text-black dark:text-white">
-            Drop your file here
-          </p>
-        ) : (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Drag and drop your file here, or click to browse
-            <br />
-            <span className="text-xs">PDF, DOCX, TXT, MD, CSV, XLS, XLSX (max 10MB)</span>
-          </p>
-        )}
-      </div>
+        </div>
+      ) : selectedFile ? (
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+            <svg className="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-foreground">{selectedFile.name}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Drop a new file to replace</p>
+          </div>
+        </div>
+      ) : isDragActive ? (
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
+            <svg className="w-7 h-7 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <p className="text-sm font-semibold text-primary">Drop your file here</p>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center">
+            <svg className="w-7 h-7 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-foreground">
+              <span className="font-medium">Drop your file here</span> or click to browse
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              PDF, DOCX, TXT, MD, CSV, XLS, XLSX -- max 10MB
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

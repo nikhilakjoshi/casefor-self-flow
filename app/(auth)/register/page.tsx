@@ -63,24 +63,24 @@ export default function RegisterPage() {
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-foreground">
           Create account
         </h1>
-        <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
+        <p className="mt-1 text-sm text-muted-foreground">
           Start building your EB-1A case
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+          <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
             {error}
           </div>
         )}
 
-        <div className="space-y-2">
-          <label htmlFor="name" className="text-sm font-medium text-stone-700 dark:text-stone-300">
+        <div className="space-y-1.5">
+          <label htmlFor="name" className="text-sm font-medium text-foreground">
             Name
           </label>
           <Input
@@ -92,8 +92,8 @@ export default function RegisterPage() {
           />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium text-stone-700 dark:text-stone-300">
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="text-sm font-medium text-foreground">
             Email
           </label>
           <Input
@@ -106,8 +106,8 @@ export default function RegisterPage() {
           />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="password" className="text-sm font-medium text-stone-700 dark:text-stone-300">
+        <div className="space-y-1.5">
+          <label htmlFor="password" className="text-sm font-medium text-foreground">
             Password
           </label>
           <Input
@@ -128,10 +128,10 @@ export default function RegisterPage() {
 
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-stone-200 dark:border-stone-700" />
+          <div className="w-full border-t border-border" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">
+          <span className="bg-card px-2 text-muted-foreground">
             or
           </span>
         </div>
@@ -164,9 +164,9 @@ export default function RegisterPage() {
         Continue with Google
       </Button>
 
-      <p className="text-center text-sm text-stone-500 dark:text-stone-400">
+      <p className="text-center text-sm text-muted-foreground">
         Already have an account?{' '}
-        <Link href="/login" className="font-medium text-stone-900 dark:text-stone-100 hover:underline">
+        <Link href="/login" className="font-medium text-foreground hover:underline underline-offset-2">
           Sign in
         </Link>
       </p>
