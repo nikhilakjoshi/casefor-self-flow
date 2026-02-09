@@ -4,8 +4,8 @@ const RfeRisk = z.enum(["LOW", "MODERATE", "HIGH", "VERY_HIGH", "N_A"])
 const ComparisonLevel = z.enum(["ABOVE", "AT", "BELOW"])
 
 const BaseCriterionSchema = z.object({
-  tier: z.number().min(0).max(5),
-  score: z.number().min(0).max(10),
+  tier: z.number(),
+  score: z.number(),
   satisfied: z.boolean(),
   evidence_count: z.number(),
   rfe_risk: RfeRisk,
@@ -29,9 +29,9 @@ const C5Schema = BaseCriterionSchema.extend({
 
 const C6Schema = BaseCriterionSchema.extend({
   metrics: z.object({
-    total_publications: z.number().nullable(),
-    total_citations: z.number().nullable(),
-    h_index: z.number().nullable(),
+    total_publications: z.number(),
+    total_citations: z.number(),
+    h_index: z.number(),
     top_venue_count: z.number(),
     vs_median: ComparisonLevel,
   }),
@@ -47,7 +47,7 @@ const C8Schema = BaseCriterionSchema.extend({
 })
 
 const C9Schema = BaseCriterionSchema.extend({
-  estimated_percentile: z.number().nullable(),
+  estimated_percentile: z.number(),
 })
 
 const C10Schema = BaseCriterionSchema.extend({
@@ -85,7 +85,7 @@ export const StrengthEvaluationSchema = z.object({
   }),
 
   step2_assessment: z.object({
-    sustained_acclaim_years: z.number().nullable(),
+    sustained_acclaim_years: z.number(),
     geographic_reach: z.enum(["INTERNATIONAL", "NATIONAL", "REGIONAL", "INSTITUTIONAL"]),
     independence_level: z.enum(["STRONG", "MODERATE", "WEAK"]),
     recent_achievements: z.boolean(),

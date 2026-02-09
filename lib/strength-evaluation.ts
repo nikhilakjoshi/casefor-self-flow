@@ -1,9 +1,9 @@
 import { streamText, Output } from "ai"
-import { google } from "@ai-sdk/google"
+import { anthropic } from "@ai-sdk/anthropic"
 import { db } from "./db"
 import { StrengthEvaluationSchema } from "./strength-evaluation-schema"
 
-const MODEL = "gemini-2.5-flash"
+const MODEL = "claude-sonnet-4-20250514"
 
 const SYSTEM_PROMPT = `You are a Criteria Strength Evaluator Agent for an EB-1A (Extraordinary Ability) immigration visa platform. Do not use emojis in any output.
 
@@ -289,7 +289,7 @@ export async function streamStrengthEvaluation(caseId: string) {
   const context = await buildEvaluationContext(caseId)
 
   return streamText({
-    model: google(MODEL),
+    model: anthropic(MODEL),
     output: Output.object({ schema: StrengthEvaluationSchema }),
     system: SYSTEM_PROMPT,
     prompt: `Evaluate the following applicant data:\n\n${context}`,

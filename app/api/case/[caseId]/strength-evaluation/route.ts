@@ -71,7 +71,7 @@ export async function POST(
   streamResult.output.then(async (output) => {
     if (!output) return
     try {
-      const latest = await db.strengthEvaluation.findFirst({
+      const latestVersion = await db.strengthEvaluation.findFirst({
         where: { caseId },
         orderBy: { version: "desc" },
         select: { version: true },
@@ -79,7 +79,7 @@ export async function POST(
       await db.strengthEvaluation.create({
         data: {
           caseId,
-          version: (latest?.version ?? 0) + 1,
+          version: (latestVersion?.version ?? 0) + 1,
           data: JSON.parse(JSON.stringify(output)),
         },
       })
