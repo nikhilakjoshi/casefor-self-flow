@@ -1,16 +1,17 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { useDropzone } from 'react-dropzone'
 import { ChatPanel } from './_components/chat-panel'
 import { ReportPanel } from './_components/report-panel'
 import { PhaseTabs } from './_components/phase-tabs'
 import { EvidenceChatPanel } from './_components/evidence-chat-panel'
+import { DocumentChatPanel } from './_components/document-chat-panel'
 import { DocumentsPanel } from './_components/documents-panel'
 import { IntakeSheet } from './_components/intake-sheet'
 import { Upload, MessageSquare, X } from 'lucide-react'
 import type { IntakeData } from './_lib/intake-schema'
 import type { DetailedExtraction } from '@/lib/eb1a-extraction-schema'
+import type { StrengthEvaluation } from '@/lib/strength-evaluation-schema'
 
 interface Message {
   id: string
@@ -37,8 +38,10 @@ interface CasePageClientProps {
   initialAnalysisVersion: number
   initialThreshold?: number
   initialEvidenceMessages?: Message[]
+  initialDocumentMessages?: Message[]
   initialIntakeStatus?: 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'SKIPPED'
   initialProfileData?: Record<string, unknown>
+  initialStrengthEvaluation?: StrengthEvaluation | null
 }
 
 export function CasePageClient({
@@ -49,18 +52,21 @@ export function CasePageClient({
   initialAnalysisVersion,
   initialThreshold = 3,
   initialEvidenceMessages = [],
+  initialDocumentMessages = [],
   initialIntakeStatus = 'PENDING',
   initialProfileData = {},
+  initialStrengthEvaluation,
 }: CasePageClientProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
-  const [isDragOver, setIsDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [analysisVersion, setAnalysisVersion] = useState(initialAnalysisVersion)
   const [threshold, setThreshold] = useState(initialThreshold)
-  const [activeTab, setActiveTab] = useState<'analysis' | 'evidence'>('analysis')
+  const [activeTab, setActiveTab] = useState<'analysis' | 'evidence' | 'documents'>('analysis')
   const [strongCount, setStrongCount] = useState(initialAnalysis?.strongCount ?? 0)
   const [badgeDismissed, setBadgeDismissed] = useState(false)
   const [isEvidenceLoading, setIsEvidenceLoading] = useState(false)
+  const [isDocumentLoading, setIsDocumentLoading] = useState(false)
   const [intakeOpen, setIntakeOpen] = useState(initialIntakeStatus === 'PENDING')
   const [chatOpen, setChatOpen] = useState(true)
   const initiatedRef = useRef(false)
@@ -206,7 +212,6 @@ export function CasePageClient({
   // Handle file drop
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
-      setIsDragOver(false)
       if (acceptedFiles.length === 0 || isLoading) return
 
       const file = acceptedFiles[0]
@@ -303,22 +308,14 @@ export function CasePageClient({
     }
   }, [caseId, isLoading])
 
-  const { getRootProps, getInputProps } = useDropzone({
-    onDrop,
-    onDragEnter: () => setIsDragOver(true),
-    onDragLeave: () => setIsDragOver(false),
-    accept: {
-      'application/pdf': ['.pdf'],
-      'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [
-        '.docx',
-      ],
-      'text/plain': ['.txt'],
+  const handleFileInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (file) onDrop([file])
+      e.target.value = ''
     },
-    maxFiles: 1,
-    noClick: true,
-    noKeyboard: true,
-  })
+    [onDrop]
+  )
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -332,29 +329,30 @@ export function CasePageClient({
       />
 
       {/* Phase tabs */}
-      <div className="shrink-0 px-4 py-2 border-b border-border">
+      <div className="shrink-0 px-4 py-2 border-b border-border flex items-center justify-between">
         <PhaseTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        {activeTab === 'analysis' && (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Upload
+          </button>
+        )}
       </div>
 
       {/* Tab content */}
       {activeTab === 'analysis' ? (
-        <div
-          {...getRootProps()}
-          className="flex flex-1 overflow-hidden relative"
-        >
-          <input {...getInputProps()} />
-
-          {isDragOver && (
-            <div className="absolute inset-0 z-50 bg-foreground/60 backdrop-blur-sm flex items-center justify-center">
-              <div className="flex flex-col items-center gap-3 text-background">
-                <div className="w-16 h-16 rounded-2xl bg-background/20 flex items-center justify-center">
-                  <Upload className="w-8 h-8" />
-                </div>
-                <p className="text-lg font-medium">Drop file to upload</p>
-                <p className="text-sm text-white/70">PDF, DOC, DOCX, or TXT</p>
-              </div>
-            </div>
-          )}
+        <div className="flex flex-1 overflow-hidden relative">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.txt"
+            className="hidden"
+            onChange={handleFileInputChange}
+          />
 
           {/* Report Panel - fills remaining space */}
           <div className="flex-1 bg-muted/50 overflow-hidden">
@@ -365,6 +363,7 @@ export function CasePageClient({
               threshold={threshold}
               onThresholdChange={setThreshold}
               onStrongCountChange={setStrongCount}
+              initialStrengthEvaluation={initialStrengthEvaluation}
             />
           </div>
 
@@ -401,7 +400,7 @@ export function CasePageClient({
             </button>
           )}
         </div>
-      ) : (
+      ) : activeTab === 'evidence' ? (
         <div className="flex flex-1 overflow-hidden relative">
           {/* Documents Panel - fills remaining space */}
           <div className="flex-1 bg-muted/50 overflow-hidden">
@@ -424,6 +423,41 @@ export function CasePageClient({
                 caseId={caseId}
                 initialMessages={initialEvidenceMessages}
                 onLoadingChange={setIsEvidenceLoading}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setChatOpen(true)}
+              className="absolute bottom-4 right-4 z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="text-sm font-medium">Chat</span>
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-1 overflow-hidden relative">
+          {/* Documents Panel */}
+          <div className="flex-1 bg-muted/50 overflow-hidden">
+            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists />
+          </div>
+
+          {/* Document Chat - right side, closable */}
+          {chatOpen ? (
+            <div className="w-[400px] flex flex-col overflow-hidden border-l border-stone-200 dark:border-stone-700">
+              <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-border bg-background">
+                <span className="text-sm font-medium">Document Review</span>
+                <button
+                  onClick={() => setChatOpen(false)}
+                  className="p-1 rounded hover:bg-muted transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <DocumentChatPanel
+                caseId={caseId}
+                initialMessages={initialDocumentMessages}
+                onLoadingChange={setIsDocumentLoading}
               />
             </div>
           ) : (
