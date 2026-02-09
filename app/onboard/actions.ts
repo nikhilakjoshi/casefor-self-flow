@@ -1,6 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
+import { generateCaseName } from '@/lib/case-name'
 import { parseFile, FileParseError } from '@/lib/file-parser'
 import { chunkText } from '@/lib/chunker'
 import { upsertChunks } from '@/lib/pinecone'
@@ -25,7 +26,7 @@ export async function processResume(formData: FormData): Promise<ProcessResumeRe
   try {
     // 1. Create Case record
     const caseRecord = await db.case.create({
-      data: { status: 'SCREENING' },
+      data: { status: 'SCREENING', name: generateCaseName() },
     })
 
     // 2. Check if PDF (handle separately via Gemini)

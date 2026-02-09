@@ -5,11 +5,8 @@ import { parseDocx, parseTxt, parseMarkdown, parseCsv, parseExcel } from "@/lib/
 import { chunkText } from "@/lib/chunker";
 import { upsertChunks } from "@/lib/pinecone";
 import { runIncrementalAnalysis } from "@/lib/incremental-analysis";
-import { generateText, Output } from "ai";
-import { google } from "@ai-sdk/google";
-import { z } from "zod";
+import { extractPdfText } from "@/lib/pdf-extractor";
 
-const MODEL = "gemini-2.5-flash";
 const MAX_FILES = 10;
 
 interface FileResult {
@@ -24,31 +21,6 @@ interface BatchUploadResponse {
   results: FileResult[];
   totalSuccess: number;
   totalFailed: number;
-}
-
-const PdfTextSchema = z.object({
-  extractedText: z.string().describe("Full text extracted from the PDF"),
-});
-
-async function extractPdfText(pdfBuffer: ArrayBuffer): Promise<string> {
-  const { output } = await generateText({
-    model: google(MODEL),
-    output: Output.object({ schema: PdfTextSchema }),
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: "Extract all text from this PDF document." },
-          {
-            type: "file",
-            data: Buffer.from(pdfBuffer),
-            mediaType: "application/pdf",
-          },
-        ],
-      },
-    ],
-  });
-  return output?.extractedText ?? "";
 }
 
 async function processFile(
@@ -93,15 +65,27 @@ async function processFile(
     const chunks = chunkText(text);
     const { vectorIds } = await upsertChunks(chunks, caseId);
 
-    // Create upload record
-    await db.resumeUpload.create({
-      data: {
-        caseId,
-        fileName: file.name,
-        fileSize: file.size,
-        pineconeVectorIds: vectorIds,
-      },
-    });
+    // Create upload + document records
+    const docType = ext === "pdf" ? "PDF" : ext === "docx" ? "DOCX" : "MARKDOWN" as const;
+    await Promise.all([
+      db.resumeUpload.create({
+        data: {
+          caseId,
+          fileName: file.name,
+          fileSize: file.size,
+          pineconeVectorIds: vectorIds,
+        },
+      }),
+      db.document.create({
+        data: {
+          caseId,
+          name: file.name,
+          type: docType,
+          source: "USER_UPLOADED",
+          status: "DRAFT",
+        },
+      }),
+    ]);
 
     // Run incremental analysis
     let analysisStatus: "queued" | "completed" | "failed" = "queued";

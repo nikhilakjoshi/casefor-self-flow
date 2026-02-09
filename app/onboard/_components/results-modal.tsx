@@ -431,44 +431,26 @@ export function ResultsModal({
               <ScoreRing value={noneCount} max={10} label="None" color="text-stone-400" />
             </div>
 
-            {/* Threshold Status */}
-            <div className={cn(
-              "flex-1 max-w-md p-4 rounded-xl border",
-              meetsThreshold
-                ? "bg-emerald-500/10 border-emerald-500/30"
-                : "bg-amber-500/10 border-amber-500/30"
-            )}>
-              <div className="flex items-start gap-3">
-                <div className={cn(
-                  "shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-                  meetsThreshold ? "bg-emerald-500/20" : "bg-amber-500/20"
-                )}>
-                  {meetsThreshold ? (
+            {/* Threshold Status - only shown when met */}
+            {meetsThreshold && (
+              <div className="flex-1 max-w-md p-4 rounded-xl border bg-emerald-500/10 border-emerald-500/30">
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-emerald-500/20">
                     <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-                  ) : (
-                    <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M12 9v4m0 4h.01" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </div>
-                <div>
-                  <p className={cn(
-                    "text-sm font-semibold",
-                    meetsThreshold ? "text-emerald-800 dark:text-emerald-300" : "text-amber-800 dark:text-amber-300"
-                  )}>
-                    {meetsThreshold ? "Threshold Met" : "Below Threshold"}
-                  </p>
-                  <p className="text-xs text-stone-600 dark:text-stone-400 mt-0.5">
-                    {meetsThreshold
-                      ? `You demonstrate strong evidence in ${threshold}+ criteria`
-                      : `Consider strengthening ${threshold - strongCount} more ${threshold - strongCount === 1 ? "criterion" : "criteria"}`
-                    }
-                  </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                      Threshold Met
+                    </p>
+                    <p className="text-xs text-stone-600 dark:text-stone-400 mt-0.5">
+                      You demonstrate strong evidence in {threshold}+ criteria
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {isStreaming && (
               <div className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-full bg-muted">

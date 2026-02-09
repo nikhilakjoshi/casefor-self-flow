@@ -7,6 +7,7 @@ import { type CriterionResult } from "./eb1a-agent";
 import { isS3Configured, uploadToS3, buildDocumentKey } from "./s3";
 import { queryContext } from "./rag";
 import { Prisma, RelationshipType } from "@prisma/client";
+import { resolveVariation } from "./template-resolver";
 
 const MODEL = "claude-sonnet-4-20250514";
 const GENERATION_MODEL = "claude-sonnet-4-20250514";
@@ -15,6 +16,7 @@ const STREAM_UPDATE_INTERVAL_MS = 500;
 interface GenerateDocumentOpts {
   documentId: string;
   documentType: string;
+  systemInstruction: string | null;
   templateContent: string | null;
   templateName: string | null;
   profile: Record<string, unknown>;
@@ -27,6 +29,7 @@ async function streamDocumentContent(opts: GenerateDocumentOpts): Promise<string
   const {
     documentId,
     documentType,
+    systemInstruction,
     templateContent,
     profile,
     criteria,
@@ -44,6 +47,12 @@ async function streamDocumentContent(opts: GenerateDocumentOpts): Promise<string
     )
     .join("\n");
 
+  const systemInstructionSection = systemInstruction
+    ? `## SYSTEM INSTRUCTION
+
+${systemInstruction}`
+    : "";
+
   const templateSection = templateContent
     ? `## TEMPLATE TO FOLLOW
 
@@ -58,7 +67,9 @@ Use this template as a guide for structure and style. Replace placeholder conten
 
 Generate a professional ${documentType} appropriate for an EB-1A immigration petition.`;
 
-  const prompt = `You are an expert immigration document writer specializing in EB-1A extraordinary ability petitions.
+  const prompt = `You are an expert immigration document writer specializing in EB-1A extraordinary ability petitions. Do not use emojis.
+
+${systemInstructionSection}
 
 ${templateSection}
 
@@ -151,6 +162,8 @@ function buildEvidenceSystemPrompt(opts: {
       : "";
 
   return `You are an expert EB-1A immigration evidence gathering specialist. You help applicants compile and draft the evidence documents needed for a strong petition.
+
+FORMATTING: Do not use emojis in any responses or generated documents.
 
 YOUR ROLE:
 - You focus on the EVIDENCE GATHERING phase, after initial criteria analysis is complete.
@@ -304,8 +317,13 @@ function createEvidenceAgentTools(caseId: string) {
             id: true,
             name: true,
             type: true,
-            content: true,
+            systemInstruction: true,
             version: true,
+            variations: {
+              where: { active: true },
+              select: { id: true, label: true, matchField: true, matchValue: true, isDefault: true },
+              orderBy: { createdAt: "asc" },
+            },
           },
           orderBy: { name: "asc" },
         });
@@ -316,7 +334,8 @@ function createEvidenceAgentTools(caseId: string) {
             name: t.name,
             type: t.type,
             version: t.version,
-            content: t.content,
+            systemInstruction: t.systemInstruction,
+            variations: t.variations,
           })),
         };
       },
@@ -620,6 +639,11 @@ function createEvidenceAgentTools(caseId: string) {
             })
           : null;
 
+        // Resolve variation for this template
+        const variation = template
+          ? await resolveVariation(template.id, profileData)
+          : null;
+
         // Build richer context from recommender data
         const recommenderContext = recommenderData.contextNotes
           ? `\nAdditional context about this recommender: ${JSON.stringify(recommenderData.contextNotes)}`
@@ -655,7 +679,8 @@ function createEvidenceAgentTools(caseId: string) {
         const finalContent = await streamDocumentContent({
           documentId: doc.id,
           documentType: "Recommendation Letter",
-          templateContent: template?.content ?? null,
+          systemInstruction: template?.systemInstruction ?? null,
+          templateContent: variation?.content ?? null,
           templateName: template?.name ?? null,
           profile: profileData,
           criteria: relevantCriteria.length > 0 ? relevantCriteria : analysisCriteria,
@@ -752,6 +777,11 @@ Write in first person from the recommender's perspective. The recommender is vou
           ? analysisCriteria.filter((c) => focusOn.includes(c.criterionId))
           : analysisCriteria;
 
+        // Resolve variation for this template
+        const variation = template
+          ? await resolveVariation(template.id, profileData)
+          : null;
+
         const applicantName =
           (profileData.name as string) ?? "the applicant";
 
@@ -774,7 +804,8 @@ Write in first person from the recommender's perspective. The recommender is vou
         const finalContent = await streamDocumentContent({
           documentId: doc.id,
           documentType: "Personal Statement",
-          templateContent: template?.content ?? null,
+          systemInstruction: template?.systemInstruction ?? null,
+          templateContent: variation?.content ?? null,
           templateName: template?.name ?? null,
           profile: profileData,
           criteria: relevantCriteria,
@@ -872,8 +903,11 @@ Write in first person from the recommender's perspective. The recommender is vou
           ? (analysis.criteria as CriterionResult[])
           : [];
 
-        // Replace {{var}} placeholders in template content before passing to LLM
-        let processedTemplate = template.content;
+        // Resolve variation for this template
+        const variation = await resolveVariation(template.id, profileData);
+
+        // Replace {{var}} placeholders in variation content before passing to LLM
+        let processedTemplate = variation?.content ?? "";
         if (variables) {
           for (const [key, value] of Object.entries(variables)) {
             processedTemplate = processedTemplate.replace(
@@ -922,7 +956,8 @@ Write in first person from the recommender's perspective. The recommender is vou
         const finalContent = await streamDocumentContent({
           documentId: doc.id,
           documentType: template.name,
-          templateContent: processedTemplate,
+          systemInstruction: template.systemInstruction,
+          templateContent: processedTemplate || null,
           templateName: template.name,
           profile: profileData,
           criteria: relevantCriteria.length > 0 ? relevantCriteria : analysisCriteria,

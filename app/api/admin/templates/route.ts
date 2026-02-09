@@ -4,7 +4,10 @@ import { z } from 'zod'
 
 export async function GET() {
   const templates = await db.template.findMany({
-    include: { applicationType: { select: { id: true, code: true, name: true } } },
+    include: {
+      applicationType: { select: { id: true, code: true, name: true } },
+      _count: { select: { variations: true } },
+    },
     orderBy: [{ type: 'asc' }, { name: 'asc' }],
   })
 
@@ -15,7 +18,8 @@ const CreateSchema = z.object({
   name: z.string().min(1),
   type: z.enum(['PERSONAL_STATEMENT', 'RECOMMENDATION_LETTER', 'PETITION', 'USCIS_FORM', 'OTHER']),
   applicationTypeId: z.string().min(1),
-  content: z.string().min(1),
+  systemInstruction: z.string().min(1),
+  description: z.string().optional(),
 })
 
 export async function POST(request: Request) {
@@ -34,7 +38,6 @@ export async function POST(request: Request) {
     )
   }
 
-  // Verify application type exists
   const appType = await db.applicationType.findUnique({
     where: { id: parsed.data.applicationTypeId },
   })
@@ -44,7 +47,10 @@ export async function POST(request: Request) {
 
   const template = await db.template.create({
     data: parsed.data,
-    include: { applicationType: { select: { id: true, code: true, name: true } } },
+    include: {
+      applicationType: { select: { id: true, code: true, name: true } },
+      _count: { select: { variations: true } },
+    },
   })
 
   return NextResponse.json(template, { status: 201 })

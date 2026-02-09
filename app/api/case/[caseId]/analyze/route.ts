@@ -174,10 +174,23 @@ async function handleFileAnalysis(
       if (textToChunk) {
         const chunks = chunkText(textToChunk)
         const { vectorIds } = await upsertChunks(chunks, caseId)
-        await db.resumeUpload.updateMany({
-          where: { caseId, fileName: file.name },
-          data: { pineconeVectorIds: vectorIds },
-        })
+        const ext = file.name.toLowerCase().split('.').pop()
+        const docType = ext === 'pdf' ? 'PDF' : ext === 'docx' ? 'DOCX' : 'MARKDOWN' as const
+        await Promise.all([
+          db.resumeUpload.updateMany({
+            where: { caseId, fileName: file.name },
+            data: { pineconeVectorIds: vectorIds },
+          }),
+          db.document.create({
+            data: {
+              caseId,
+              name: file.name,
+              type: docType,
+              source: 'USER_UPLOADED',
+              status: 'DRAFT',
+            },
+          }),
+        ])
       }
 
       // Convert to legacy format

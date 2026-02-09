@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useDropzone } from 'react-dropzone'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -44,6 +45,7 @@ import {
   Shield,
   Users,
 } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
 import { RecommendersPanel } from './recommenders-panel'
 
 // Types
@@ -64,6 +66,7 @@ interface DocumentDetail extends DocumentItem {
 interface DocumentsPanelProps {
   caseId: string
   isChatActive?: boolean
+  hideChecklists?: boolean
 }
 
 interface DocumentGroup {
@@ -490,7 +493,7 @@ function PanelTabs({
   )
 }
 
-export function DocumentsPanel({ caseId, isChatActive }: DocumentsPanelProps) {
+export function DocumentsPanel({ caseId, isChatActive, hideChecklists }: DocumentsPanelProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>('documents')
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [selectedDoc, setSelectedDoc] = useState<DocumentDetail | null>(null)
@@ -500,6 +503,33 @@ export function DocumentsPanel({ caseId, isChatActive }: DocumentsPanelProps) {
   const [isStreaming, setIsStreaming] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DocumentItem | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Upload modal + dropzone state
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [uploadContext, setUploadContext] = useState('')
+  const [isDragOver, setIsDragOver] = useState(false)
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    setIsDragOver(false)
+    if (acceptedFiles.length === 0) return
+    setPendingFile(acceptedFiles[0])
+    setUploadContext('')
+  }, [])
+
+  const { getRootProps, getInputProps: getDropzoneInputProps } = useDropzone({
+    onDrop,
+    onDragEnter: () => setIsDragOver(true),
+    onDragLeave: () => setIsDragOver(false),
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'text/plain': ['.txt'],
+      'text/markdown': ['.md', '.markdown'],
+    },
+    maxFiles: 1,
+    noClick: true,
+    noKeyboard: true,
+  })
 
   // Checklist state
   const [checklist, setChecklist] = useState<DocumentChecklist | null>(null)
@@ -682,15 +712,27 @@ export function DocumentsPanel({ caseId, isChatActive }: DocumentsPanelProps) {
     }
   }
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
+    setPendingFile(file)
+    setUploadContext('')
+  }
 
+  async function confirmUpload() {
+    if (!pendingFile) return
+
+    const file = pendingFile
+    const context = uploadContext.trim()
+    setPendingFile(null)
+    setUploadContext('')
     setIsUploading(true)
+
     try {
       const formData = new FormData()
       formData.append('file', file)
+      if (context) formData.append('context', context)
 
       const res = await fetch(`/api/case/${caseId}/documents`, {
         method: 'POST',
@@ -837,7 +879,7 @@ export function DocumentsPanel({ caseId, isChatActive }: DocumentsPanelProps) {
   }
 
   // Recommenders tab
-  if (activeTab === 'recommenders') {
+  if (!hideChecklists && activeTab === 'recommenders') {
     return (
       <div className="h-full flex flex-col overflow-hidden">
         {/* Tab selector */}
@@ -855,21 +897,38 @@ export function DocumentsPanel({ caseId, isChatActive }: DocumentsPanelProps) {
   // List view (documents tab)
   return (
     <>
-      <div className="h-full flex flex-col p-4 overflow-hidden">
-        {/* Tab selector */}
-        <div className="shrink-0 mb-4">
-          <PanelTabs activeTab={activeTab} onTabChange={setActiveTab} />
-        </div>
+      <div {...getRootProps()} className="h-full flex flex-col p-4 overflow-hidden relative">
+        <input {...getDropzoneInputProps()} />
 
-        {/* Checklist section */}
-        <DocumentChecklist
-          caseId={caseId}
-          checklist={checklist}
-          isLoading={isLoadingChecklist}
-          isVerifying={isVerifying}
-          onVerify={verifyDocuments}
-          onViewDocument={viewDocument}
-        />
+        {isDragOver && (
+          <div className="absolute inset-0 z-50 bg-foreground/60 backdrop-blur-sm flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-background">
+              <div className="w-16 h-16 rounded-2xl bg-background/20 flex items-center justify-center">
+                <Upload className="w-8 h-8" />
+              </div>
+              <p className="text-lg font-medium">Drop file to upload</p>
+              <p className="text-sm text-white/70">PDF, DOCX, TXT, or Markdown</p>
+            </div>
+          </div>
+        )}
+        {/* Tab selector -- hide when in documents-only mode */}
+        {!hideChecklists && (
+          <div className="shrink-0 mb-4">
+            <PanelTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          </div>
+        )}
+
+        {/* Checklist section -- hide when in documents-only mode */}
+        {!hideChecklists && (
+          <DocumentChecklist
+            caseId={caseId}
+            checklist={checklist}
+            isLoading={isLoadingChecklist}
+            isVerifying={isVerifying}
+            onVerify={verifyDocuments}
+            onViewDocument={viewDocument}
+          />
+        )}
 
         {/* Header */}
         <div className="shrink-0 mb-4 flex items-center justify-between">
@@ -1038,6 +1097,32 @@ export function DocumentsPanel({ caseId, isChatActive }: DocumentsPanelProps) {
               disabled={isDeleting}
             >
               {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload context modal */}
+      <Dialog open={!!pendingFile} onOpenChange={(open) => { if (!open) { setPendingFile(null); setUploadContext('') } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload {pendingFile?.name}</DialogTitle>
+            <DialogDescription>
+              Add optional context to help the AI understand this document.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="e.g. This is my citation report from Google Scholar, covering publications from 2019-2024..."
+            value={uploadContext}
+            onChange={(e) => setUploadContext(e.target.value)}
+            rows={4}
+          />
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => { setPendingFile(null); setUploadContext('') }}>
+              Cancel
+            </Button>
+            <Button onClick={confirmUpload}>
+              Upload
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -50,7 +50,7 @@ export async function runIncrementalAnalysis(
   const { output: affected } = await generateText({
     model: google(MODEL),
     output: Output.object({ schema: AffectedCriteriaSchema }),
-    system: `You analyze new documents for EB-1A visa cases.
+    system: `You analyze new documents for EB-1A visa cases. Do not use emojis.
 Given new evidence, identify which of the 10 criteria might be strengthened.
 
 CRITERIA:
@@ -81,7 +81,7 @@ Only list criteria that the new evidence DIRECTLY supports.`,
   const { output: reeval } = await generateText({
     model: google(MODEL),
     output: Output.object({ schema: PartialEvaluationSchema }),
-    system: `You are an immigration attorney. Re-evaluate these specific EB-1A criteria based on all available evidence.
+    system: `You are an immigration attorney. Re-evaluate these specific EB-1A criteria based on all available evidence. Do not use emojis.
 
 CRITERIA TO EVALUATE:
 ${affectedCriteriaDetails}

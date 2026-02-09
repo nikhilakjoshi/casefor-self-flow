@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { generateCaseName } from "@/lib/case-name"
 import { parseFile } from "@/lib/file-parser"
 import { chunkText } from "@/lib/chunker"
 import { upsertChunks } from "@/lib/pinecone"
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
     const caseRecord = await db.case.create({
       data: {
         userId: session.user.id,
+        name: generateCaseName(),
         status: "SCREENING",
         ...(eb1aType && { applicationTypeId: eb1aType.id }),
       },
@@ -96,14 +98,27 @@ export async function POST(request: Request) {
           ? (async () => {
               const chunks = chunkText(textToChunk)
               const { vectorIds } = await upsertChunks(chunks, caseRecord.id)
-              await db.resumeUpload.create({
-                data: {
-                  caseId: caseRecord.id,
-                  fileName: file.name,
-                  fileSize: file.size,
-                  pineconeVectorIds: vectorIds,
-                },
-              })
+              const ext = file.name.toLowerCase().split('.').pop()
+              const docType = ext === 'pdf' ? 'PDF' : ext === 'docx' ? 'DOCX' : 'MARKDOWN' as const
+              await Promise.all([
+                db.resumeUpload.create({
+                  data: {
+                    caseId: caseRecord.id,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    pineconeVectorIds: vectorIds,
+                  },
+                }),
+                db.document.create({
+                  data: {
+                    caseId: caseRecord.id,
+                    name: file.name,
+                    type: docType,
+                    source: 'USER_UPLOADED',
+                    status: 'DRAFT',
+                  },
+                }),
+              ])
             })()
           : Promise.resolve(),
         // Extract profile

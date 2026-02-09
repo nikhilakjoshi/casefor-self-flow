@@ -104,7 +104,7 @@ ${d.content?.slice(0, 3000)}${(d.content?.length ?? 0) > 3000 ? "\n... (truncate
     )
     .join("\n");
 
-  const prompt = `You are an expert EB-1A immigration petition reviewer. Your job is to assess the quality of evidence documents for an EB-1A extraordinary ability petition.
+  const prompt = `You are an expert EB-1A immigration petition reviewer. Your job is to assess the quality of evidence documents for an EB-1A extraordinary ability petition. Do not use emojis.
 
 ## APPLICANT PROFILE
 ${JSON.stringify(profileData, null, 2)}

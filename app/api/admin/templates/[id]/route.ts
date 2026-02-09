@@ -9,7 +9,10 @@ export async function GET(_request: Request, { params }: Params) {
 
   const template = await db.template.findUnique({
     where: { id },
-    include: { applicationType: { select: { id: true, code: true, name: true } } },
+    include: {
+      applicationType: { select: { id: true, code: true, name: true } },
+      variations: { orderBy: { createdAt: 'asc' } },
+    },
   })
   if (!template) {
     return new Response('Not found', { status: 404 })
@@ -21,7 +24,8 @@ export async function GET(_request: Request, { params }: Params) {
 const PatchSchema = z.object({
   name: z.string().min(1).optional(),
   type: z.enum(['PERSONAL_STATEMENT', 'RECOMMENDATION_LETTER', 'PETITION', 'USCIS_FORM', 'OTHER']).optional(),
-  content: z.string().min(1).optional(),
+  systemInstruction: z.string().min(1).optional(),
+  description: z.string().nullable().optional(),
   active: z.boolean().optional(),
   version: z.number().int().min(1).optional(),
 })
@@ -52,7 +56,10 @@ export async function PATCH(request: Request, { params }: Params) {
   const updated = await db.template.update({
     where: { id },
     data: parsed.data,
-    include: { applicationType: { select: { id: true, code: true, name: true } } },
+    include: {
+      applicationType: { select: { id: true, code: true, name: true } },
+      variations: { orderBy: { createdAt: 'asc' } },
+    },
   })
 
   return NextResponse.json(updated)

@@ -34,7 +34,7 @@ export type EB1AEvaluation = z.infer<typeof EB1AEvaluationSchema>
 
 const MODEL = "claude-sonnet-4-20250514"
 
-const EXTRACTION_SYSTEM_PROMPT = `You are an EB-1A immigration expert. Extract ALL structured information from this resume/CV and map each item to the relevant EB-1A criteria.
+const EXTRACTION_SYSTEM_PROMPT = `You are an EB-1A immigration expert. Extract ALL structured information from this resume/CV and map each item to the relevant EB-1A criteria. Do not use emojis in any output.
 
 THE 10 EB-1A CRITERIA:
 C1: Awards - nationally/internationally recognized prizes for excellence

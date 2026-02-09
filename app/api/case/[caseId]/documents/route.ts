@@ -72,6 +72,7 @@ export async function POST(
 
   const formData = await request.formData()
   const file = formData.get('file') as File | null
+  const context = (formData.get('context') as string | null)?.trim() || null
 
   if (!file) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -111,7 +112,11 @@ export async function POST(
 
     await db.document.update({
       where: { id: document.id },
-      data: { s3Key: key, s3Url: url },
+      data: {
+        s3Key: key,
+        s3Url: url,
+        ...(context && { content: `[User context]: ${context}` }),
+      },
     })
 
     return NextResponse.json({
@@ -124,14 +129,22 @@ export async function POST(
   // No S3: store inline content for markdown files
   if (docType === 'MARKDOWN') {
     const text = await file.text()
+    const fullContent = context ? `${text}\n\n---\n[User context]: ${context}` : text
     await db.document.update({
       where: { id: document.id },
-      data: { content: text },
+      data: { content: fullContent },
     })
 
-    return NextResponse.json({ ...document, content: text })
+    return NextResponse.json({ ...document, content: fullContent })
   }
 
-  // Non-markdown without S3: record exists but no content stored
+  // Non-markdown without S3: store context if provided
+  if (context) {
+    await db.document.update({
+      where: { id: document.id },
+      data: { content: `[User context]: ${context}` },
+    })
+  }
+
   return NextResponse.json(document)
 }

@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { generateCaseName } from "@/lib/case-name"
 import { parseFile } from "@/lib/file-parser"
 import { extractSurveyData, extractSurveyDataFromPdf } from "@/lib/survey-extractor"
 import { NextResponse } from "next/server"
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
     const caseRecord = await db.case.create({
       data: {
         userId: session.user.id,
+        name: generateCaseName(),
         status: "SCREENING",
         ...(eb1aType && { applicationTypeId: eb1aType.id }),
       },
@@ -39,6 +41,9 @@ export async function POST(request: Request) {
       : await extractSurveyData(await parseFile(file))
 
     // Save extracted data to profile
+    const ext = file.name.toLowerCase().split('.').pop()
+    const docType = ext === 'pdf' ? 'PDF' : ext === 'docx' ? 'DOCX' : 'MARKDOWN' as const
+
     await Promise.all([
       db.caseProfile.create({
         data: { caseId: caseRecord.id, data: surveyData as object },
@@ -49,6 +54,15 @@ export async function POST(request: Request) {
           fileName: file.name,
           fileSize: file.size,
           pineconeVectorIds: [],
+        },
+      }),
+      db.document.create({
+        data: {
+          caseId: caseRecord.id,
+          name: file.name,
+          type: docType,
+          source: 'USER_UPLOADED',
+          status: 'DRAFT',
         },
       }),
     ])

@@ -16,11 +16,13 @@ interface Template {
   id: string
   name: string
   type: string
+  description: string | null
   applicationTypeId: string
   version: number
   active: boolean
   createdAt: string
   applicationType: AppType
+  _count: { variations: number }
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -95,6 +97,7 @@ export default function AdminTemplatesPage() {
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground">Name</th>
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground">Type</th>
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground">Application Type</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground w-20">Variations</th>
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground w-16">Ver</th>
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground w-20">Active</th>
                 <th className="px-3 py-2 w-24" />
@@ -114,6 +117,11 @@ export default function AdminTemplatesPage() {
                       <FileText className="size-3.5 shrink-0" />
                       {t.name}
                     </Link>
+                    {t.description && (
+                      <p className="text-xs text-muted-foreground mt-0.5 ml-5 truncate max-w-xs">
+                        {t.description}
+                      </p>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <Badge variant="secondary" className="text-xs">
@@ -122,6 +130,9 @@ export default function AdminTemplatesPage() {
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
                     {t.applicationType.name}
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {t._count.variations}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
                     v{t.version}

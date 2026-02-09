@@ -1,14 +1,15 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { runEvidenceAgent } from "@/lib/evidence-agent";
+import { runDocumentAgent } from "@/lib/document-agent";
 import { chunkText } from "@/lib/chunker";
 import { upsertChunks } from "@/lib/pinecone";
 import { parseDocx, parseTxt } from "@/lib/file-parser";
+import { verifyDocuments } from "@/lib/document-verifier";
 import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
 
-const MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 const PdfTextSchema = z.object({
   extractedText: z.string().describe("Full text extracted from the PDF"),
@@ -16,7 +17,7 @@ const PdfTextSchema = z.object({
 
 async function extractPdfText(pdfBuffer: ArrayBuffer): Promise<string> {
   const { output } = await generateText({
-    model: google(MODEL),
+    model: google(GEMINI_MODEL),
     output: Output.object({ schema: PdfTextSchema }),
     messages: [
       {
@@ -84,6 +85,11 @@ async function processUploadedFile(
     }),
   ]);
 
+  // Run verification in background
+  verifyDocuments(caseId).catch((err) =>
+    console.error(`[document-chat] Background verification failed:`, err)
+  );
+
   return text;
 }
 
@@ -113,7 +119,6 @@ export async function POST(
   let fileName: string | null = null;
 
   if (contentType.includes("multipart/form-data")) {
-    // File upload path
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const messagesJson = formData.get("messages") as string | null;
@@ -129,73 +134,48 @@ export async function POST(
       const uploadMsg = `[Uploaded file: ${fileName}]\n\nExtracted content:\n${fileText.slice(0, 3000)}`;
       messages.push({ role: "user", content: uploadMsg });
 
-      // Save user message with EVIDENCE phase
       await db.chatMessage.create({
         data: {
           caseId,
           role: "USER",
           content: `[Uploaded file: ${fileName}]`,
           metadata: { type: "file_upload", fileName },
-          phase: "EVIDENCE",
+          phase: "DOCUMENTS",
         },
       });
     }
   } else {
-    // JSON path
     const body = await request.json();
-    const action = body.action || null;
     messages = body.messages || [];
 
-    if (action === "initiate") {
-      // AI-initiated: load existing evidence messages from DB
-      const dbMessages = await db.chatMessage.findMany({
-        where: { caseId, phase: "EVIDENCE" },
-        orderBy: { createdAt: "asc" },
-        take: 50,
+    const lastUserMsg = messages.findLast((m: { role: string }) => m.role === "user");
+    if (lastUserMsg) {
+      await db.chatMessage.create({
+        data: {
+          caseId,
+          role: "USER",
+          content: lastUserMsg.content,
+          phase: "DOCUMENTS",
+        },
       });
-
-      messages = dbMessages.map((m: { role: string; content: string }) => ({
-        role: m.role.toLowerCase() as "user" | "assistant",
-        content: m.content,
-      }));
-
-      // Seed starter message if no history
-      if (messages.length === 0) {
-        messages = [{ role: "user" as const, content: "Begin evidence gathering." }];
-      }
-    } else {
-      // Normal message -- save user message
-      const lastUserMsg = messages.findLast((m: { role: string }) => m.role === "user");
-      if (lastUserMsg) {
-        await db.chatMessage.create({
-          data: {
-            caseId,
-            role: "USER",
-            content: lastUserMsg.content,
-            phase: "EVIDENCE",
-          },
-        });
-      }
     }
   }
 
-  // Load full evidence-phase message history from DB
+  // Load full document-phase message history from DB
   const dbMessages = await db.chatMessage.findMany({
-    where: { caseId, phase: "EVIDENCE" },
+    where: { caseId, phase: "DOCUMENTS" },
     orderBy: { createdAt: "asc" },
     take: 50,
   });
 
-  // Use DB history as the authoritative message list
   const historyMessages = dbMessages.map((m: { role: string; content: string }) => ({
     role: m.role.toLowerCase() as "user" | "assistant",
     content: m.content,
   }));
 
-  // If no history yet (first message just saved), use what we have
   const agentMessages = historyMessages.length > 0 ? historyMessages : messages;
 
-  const result = await runEvidenceAgent({
+  const result = await runDocumentAgent({
     caseId,
     messages: agentMessages,
     onFinish: async (text) => {
@@ -205,7 +185,7 @@ export async function POST(
             caseId,
             role: "ASSISTANT",
             content: text,
-            phase: "EVIDENCE",
+            phase: "DOCUMENTS",
           },
         });
       }
@@ -234,11 +214,10 @@ export async function DELETE(
     return new Response("Not found", { status: 404 });
   }
 
-  // Delete all evidence-phase messages
   await db.chatMessage.deleteMany({
     where: {
       caseId,
-      phase: "EVIDENCE",
+      phase: "DOCUMENTS",
     },
   });
 

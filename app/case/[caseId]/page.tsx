@@ -59,12 +59,32 @@ export default async function CasePage({ params }: Props) {
     metadata: m.metadata as Record<string, unknown> | null,
   }))
 
+  // Fetch document-phase messages
+  const documentMessages = await db.chatMessage.findMany({
+    where: { caseId, phase: 'DOCUMENTS' },
+    orderBy: { createdAt: 'asc' },
+    take: 50,
+  })
+
+  const initialDocumentMessages = documentMessages.map((m: ChatMsg) => ({
+    id: m.id,
+    role: m.role.toLowerCase() as 'user' | 'assistant',
+    content: m.content,
+    metadata: m.metadata as Record<string, unknown> | null,
+  }))
+
   // Ensure profile exists
   if (!caseRecord.profile) {
     await db.caseProfile.create({
       data: { caseId, data: {} },
     })
   }
+
+  const latestStrengthEval = await db.strengthEvaluation.findFirst({
+    where: { caseId },
+    orderBy: { createdAt: 'desc' },
+    select: { data: true },
+  })
 
   const latestAnalysis = caseRecord.eb1aAnalyses[0] ?? null
 
@@ -100,8 +120,10 @@ export default async function CasePage({ params }: Props) {
       initialAnalysisVersion={latestAnalysis?.version ?? 0}
       initialThreshold={criteriaThreshold}
       initialEvidenceMessages={initialEvidenceMessages}
+      initialDocumentMessages={initialDocumentMessages}
       initialIntakeStatus={caseRecord.intakeStatus}
       initialProfileData={profileData}
+      initialStrengthEvaluation={latestStrengthEval?.data as import('@/lib/strength-evaluation-schema').StrengthEvaluation | null ?? null}
     />
   )
 }

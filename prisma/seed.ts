@@ -55,48 +55,68 @@ async function main() {
   }
   console.log(`Upserted ${criteria.length} CriteriaMapping rows`)
 
-  // 3. Upsert 4 Templates
+  // 3. Upsert 4 Templates (systemInstruction = drafting guidelines, variations = actual template body)
   const templates = [
     {
       name: 'Recommendation Letter',
       type: 'RECOMMENDATION_LETTER' as const,
-      content: 'Draft a recommendation letter for an EB-1A petition. The letter should be from a qualified expert in the field who can attest to the applicant\'s extraordinary ability. Include specific examples of achievements, contributions, and impact in the field.',
+      systemInstruction: 'Draft a recommendation letter for an EB-1A petition. The letter should be from a qualified expert in the field who can attest to the applicant\'s extraordinary ability. Include specific examples of achievements, contributions, and impact in the field.',
+      defaultVariationContent: 'Write a formal recommendation letter. Open with the recommender\'s credentials and relationship to the applicant. Provide 2-3 specific examples of the applicant\'s extraordinary contributions. Close with a strong endorsement of their EB-1A eligibility.',
     },
     {
       name: 'Personal Statement',
       type: 'PERSONAL_STATEMENT' as const,
-      content: 'Draft a personal statement for an EB-1A petition. The statement should describe the applicant\'s career trajectory, key achievements, and how they demonstrate extraordinary ability in their field. Focus on concrete evidence that maps to USCIS criteria.',
+      systemInstruction: 'Draft a personal statement for an EB-1A petition. The statement should describe the applicant\'s career trajectory, key achievements, and how they demonstrate extraordinary ability in their field. Focus on concrete evidence that maps to USCIS criteria.',
+      defaultVariationContent: 'Write a compelling first-person narrative. Begin with early career motivation, progress through key milestones, highlight specific achievements that meet EB-1A criteria, and conclude with future plans and continued impact in the field.',
     },
     {
       name: 'Petition Letter',
       type: 'PETITION' as const,
-      content: 'Draft a petition letter (cover letter) for an EB-1A application. The letter should summarize the applicant\'s qualifications, identify which criteria are met, and present a compelling legal argument for extraordinary ability classification.',
+      systemInstruction: 'Draft a petition letter (cover letter) for an EB-1A application. The letter should summarize the applicant\'s qualifications, identify which criteria are met, and present a compelling legal argument for extraordinary ability classification.',
+      defaultVariationContent: 'Write a formal legal petition letter addressed to USCIS. Introduce the applicant, state the classification sought, enumerate each qualifying criterion with supporting evidence, and conclude with a request for approval.',
     },
     {
       name: 'USCIS Form Instructions',
       type: 'USCIS_FORM' as const,
-      content: 'Provide guidance for completing USCIS Form I-140 (Immigrant Petition for Alien Workers) for an EB-1A extraordinary ability classification. Include instructions for each relevant section and common pitfalls to avoid.',
+      systemInstruction: 'Provide guidance for completing USCIS Form I-140 (Immigrant Petition for Alien Workers) for an EB-1A extraordinary ability classification. Include instructions for each relevant section and common pitfalls to avoid.',
+      defaultVariationContent: 'Provide section-by-section guidance for Form I-140. Cover beneficiary information, classification requested, and supporting documentation requirements. Note common mistakes and best practices for each field.',
     },
   ]
 
   for (const t of templates) {
+    const templateId = `${eb1a.id}-${t.type}`
     await prisma.template.upsert({
-      where: {
-        id: `${eb1a.id}-${t.type}`,
-      },
-      update: { name: t.name, content: t.content },
+      where: { id: templateId },
+      update: { name: t.name, systemInstruction: t.systemInstruction },
       create: {
-        id: `${eb1a.id}-${t.type}`,
+        id: templateId,
         applicationTypeId: eb1a.id,
         name: t.name,
         type: t.type,
-        content: t.content,
+        systemInstruction: t.systemInstruction,
         version: 1,
         active: true,
       },
     })
+
+    // Upsert default variation
+    const defaultVarId = `${templateId}-default`
+    await prisma.templateVariation.upsert({
+      where: { id: defaultVarId },
+      update: { content: t.defaultVariationContent, label: 'Default' },
+      create: {
+        id: defaultVarId,
+        templateId,
+        label: 'Default',
+        content: t.defaultVariationContent,
+        matchField: '',
+        matchValue: '',
+        isDefault: true,
+        active: true,
+      },
+    })
   }
-  console.log(`Upserted ${templates.length} Template rows`)
+  console.log(`Upserted ${templates.length} Template rows with default variations`)
 
   // 4. Backfill existing cases with applicationTypeId
   const updated = await prisma.case.updateMany({

@@ -4,6 +4,10 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { generateText, Output } from "ai"
 import { z } from "zod"
 import { parseFile } from "@/lib/file-parser"
+import { extractPdfText } from "@/lib/pdf-extractor"
+import { chunkText } from "@/lib/chunker"
+import { upsertChunks } from "@/lib/pinecone"
+import { isS3Configured, uploadToS3, buildDocumentKey } from "@/lib/s3"
 import { CRITERIA_METADATA, type CriterionId } from "@/lib/eb1a-extraction-schema"
 
 const MODEL = "claude-sonnet-4-20250514"
@@ -55,13 +59,56 @@ export async function POST(
       const file = formData.get("file") as File | null
 
       if (file) {
+        const buffer = await file.arrayBuffer()
         const isPdf = file.name.toLowerCase().endsWith(".pdf")
+
         if (isPdf) {
-          // For PDFs, we'd need to extract text - simplified for now
-          const buffer = await file.arrayBuffer()
-          fileContent = `[PDF file uploaded: ${file.name}]`
+          fileContent = await extractPdfText(buffer)
         } else {
           fileContent = await parseFile(file)
+        }
+
+        // Persist file as Document (always, before optional Pinecone/S3)
+        const ext = file.name.toLowerCase().split(".").pop()
+        const docType = ext === "pdf" ? "PDF" : ext === "docx" ? "DOCX" : "MARKDOWN" as const
+
+        const doc = await db.document.create({
+          data: {
+            caseId,
+            name: file.name,
+            type: docType,
+            source: "USER_UPLOADED",
+            status: "DRAFT",
+            content: fileContent || null,
+          },
+        })
+
+        // S3 upload (non-fatal)
+        if (isS3Configured()) {
+          try {
+            const s3Key = buildDocumentKey(caseId, doc.id, file.name)
+            const { url } = await uploadToS3(s3Key, Buffer.from(buffer), file.type)
+            await db.document.update({ where: { id: doc.id }, data: { s3Key, s3Url: url } })
+          } catch (s3Err) {
+            console.error(`S3 upload failed for ${file.name}:`, s3Err)
+          }
+        }
+
+        // Pinecone upsert (non-fatal)
+        if (fileContent && fileContent.length > 20) {
+          try {
+            const chunks = chunkText(fileContent)
+            const { vectorIds } = await upsertChunks(chunks, caseId)
+            await db.resumeUpload.create({
+              data: { caseId, fileName: file.name, fileSize: file.size, pineconeVectorIds: vectorIds },
+            })
+          } catch (pineconeErr) {
+            console.error(`Pinecone upsert failed for ${file.name}:`, pineconeErr)
+            // Still create ResumeUpload with empty vectorIds
+            await db.resumeUpload.create({
+              data: { caseId, fileName: file.name, fileSize: file.size, pineconeVectorIds: [] },
+            })
+          }
         }
       }
     } else {
@@ -94,7 +141,7 @@ export async function POST(
       contextParts.push(`ADDITIONAL DOCUMENT CONTENT:\n${fileContent.slice(0, 8000)}`)
     }
 
-    const systemPrompt = `You are an EB-1A immigration expert. Evaluate the provided information ONLY for the following criterion:
+    const systemPrompt = `You are an EB-1A immigration expert. Evaluate the provided information ONLY for the following criterion. Do not use emojis.
 
 CRITERION ${criterionId}: ${meta.name}
 ${meta.description}

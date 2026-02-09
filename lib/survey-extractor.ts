@@ -76,7 +76,7 @@ export const SurveyExtractionSchema = z.object({
 
 export type SurveyExtraction = z.infer<typeof SurveyExtractionSchema>
 
-const SYSTEM_PROMPT = `You are an expert at extracting information from resumes and CVs for EB-1A (Extraordinary Ability) visa applications.
+const SYSTEM_PROMPT = `You are an expert at extracting information from resumes and CVs for EB-1A (Extraordinary Ability) visa applications. Do not use emojis in any output.
 
 Your task is to extract information that maps to an EB-1A intake survey. The EB-1A visa requires demonstrating extraordinary ability through:
 1. Awards/recognition for excellence

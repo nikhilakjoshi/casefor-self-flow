@@ -58,7 +58,7 @@ export const ProfileSchema = z.object({
 
 export type Profile = z.infer<typeof ProfileSchema>;
 
-const SYSTEM_PROMPT = `You are an expert at extracting structured profile information from resumes and CVs.
+const SYSTEM_PROMPT = `You are an expert at extracting structured profile information from resumes and CVs. Do not use emojis in any output.
 
 Extract the following information if present:
 - name: Full name
