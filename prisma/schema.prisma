@@ -78,6 +78,7 @@ enum ChatPhase {
   ANALYSIS
   EVIDENCE
   DOCUMENTS
+  DRAFTING
 }
 
 enum IntakeStatus {
@@ -180,17 +181,19 @@ enum ChatRole {
 }
 
 model ChatMessage {
-  id        String    @id @default(cuid())
-  caseId    String
-  role      ChatRole
-  content   String
-  metadata  Json?
-  phase     ChatPhase @default(ANALYSIS)
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  caseId     String
+  role       ChatRole
+  content    String
+  metadata   Json?
+  phase      ChatPhase @default(ANALYSIS)
+  documentId String?
+  createdAt  DateTime  @default(now())
 
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   @@index([caseId, createdAt])
+  @@index([caseId, documentId])
 }
 
 model ResumeUpload {

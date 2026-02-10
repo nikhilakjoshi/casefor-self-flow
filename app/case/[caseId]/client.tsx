@@ -7,6 +7,7 @@ import { PhaseTabs } from './_components/phase-tabs'
 import { EvidenceChatPanel } from './_components/evidence-chat-panel'
 import { DocumentChatPanel } from './_components/document-chat-panel'
 import { DocumentsPanel } from './_components/documents-panel'
+import { DraftingPanel } from './_components/drafting-panel'
 import { IntakeSheet } from './_components/intake-sheet'
 import { Upload, MessageSquare, X } from 'lucide-react'
 import type { IntakeData } from './_lib/intake-schema'
@@ -73,9 +74,20 @@ export function CasePageClient({
   const [badgeDismissed, setBadgeDismissed] = useState(false)
   const [isEvidenceLoading, setIsEvidenceLoading] = useState(false)
   const [isDocumentLoading, setIsDocumentLoading] = useState(false)
+  const [draftingDoc, setDraftingDoc] = useState<{
+    id?: string
+    name?: string
+    content?: string
+    recommenderId?: string
+    category?: string
+  } | null>(null)
   const [intakeOpen, setIntakeOpen] = useState(initialIntakeStatus === 'PENDING')
   const [chatOpen, setChatOpen] = useState(true)
   const initiatedRef = useRef(false)
+
+  const onOpenDraft = useCallback((doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => {
+    setDraftingDoc(doc || {})
+  }, [])
 
   const showEvidenceBadge = activeTab === 'analysis' && strongCount >= threshold && !badgeDismissed
 
@@ -349,8 +361,16 @@ export function CasePageClient({
         )}
       </div>
 
-      {/* Tab content */}
-      {activeTab === 'analysis' ? (
+      {/* Drafting panel overlay */}
+      {draftingDoc !== null ? (
+        <DraftingPanel
+          caseId={caseId}
+          document={draftingDoc}
+          onClose={() => setDraftingDoc(null)}
+          onSave={() => setDraftingDoc(null)}
+        />
+      ) : /* Tab content */
+      activeTab === 'analysis' ? (
         <div className="flex flex-1 overflow-hidden relative">
           <input
             ref={fileInputRef}
@@ -412,7 +432,7 @@ export function CasePageClient({
         <div className="flex flex-1 overflow-hidden relative">
           {/* Documents Panel - fills remaining space */}
           <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} />
+            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} onOpenDraft={onOpenDraft} />
           </div>
 
           {/* Evidence Chat - right side, closable */}
@@ -447,7 +467,7 @@ export function CasePageClient({
         <div className="flex flex-1 overflow-hidden relative">
           {/* Documents Panel */}
           <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists />
+            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists onOpenDraft={onOpenDraft} />
           </div>
 
           {/* Document Chat - right side, closable */}

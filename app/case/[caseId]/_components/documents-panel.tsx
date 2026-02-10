@@ -44,6 +44,8 @@ import {
   AlertCircle,
   Shield,
   Users,
+  PenLine,
+  FilePlus,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { RecommendersPanel } from './recommenders-panel'
@@ -68,6 +70,7 @@ interface DocumentsPanelProps {
   caseId: string
   isChatActive?: boolean
   hideChecklists?: boolean
+  onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
 }
 
 interface DocumentGroup {
@@ -520,7 +523,7 @@ function PanelTabs({
   )
 }
 
-export function DocumentsPanel({ caseId, isChatActive, hideChecklists }: DocumentsPanelProps) {
+export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDraft }: DocumentsPanelProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>('documents')
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [selectedDoc, setSelectedDoc] = useState<DocumentDetail | null>(null)
@@ -966,16 +969,29 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists }: Documen
               {documentGroups.length} document{documentGroups.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs gap-1.5"
-            disabled={isUploading}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload className="w-3.5 h-3.5" />
-            {isUploading ? 'Uploading...' : 'Upload'}
-          </Button>
+          <div className="flex items-center gap-1.5">
+            {onOpenDraft && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={() => onOpenDraft()}
+              >
+                <FilePlus className="w-3.5 h-3.5" />
+                New Document
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              disabled={isUploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              {isUploading ? 'Uploading...' : 'Upload'}
+            </Button>
+          </div>
           <input
             ref={fileInputRef}
             type="file"
@@ -1041,6 +1057,32 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists }: Documen
                           </span>
                         </div>
                       </div>
+
+                      {onOpenDraft && group.latestDoc.type === 'MARKDOWN' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            // Fetch content then open draft
+                            fetch(`/api/case/${caseId}/documents/${group.latestDoc.id}`)
+                              .then((res) => res.json())
+                              .then((data) => {
+                                onOpenDraft({
+                                  id: data.id,
+                                  name: data.name,
+                                  content: data.content,
+                                  category: data.category,
+                                })
+                              })
+                              .catch(console.error)
+                          }}
+                          title="Draft with AI"
+                        >
+                          <PenLine className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
