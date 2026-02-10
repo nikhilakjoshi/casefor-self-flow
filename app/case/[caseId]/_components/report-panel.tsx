@@ -5,10 +5,12 @@ import { cn } from "@/lib/utils"
 import { ExtractionRawPanel } from "./extraction-raw-panel"
 import { StrengthEvaluationPanel } from "./strength-evaluation-panel"
 import { GapAnalysisPanel } from "./gap-analysis-panel"
+import { CaseStrategyPanel } from "./case-strategy-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
 import { CRITERIA_METADATA } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
 import type { GapAnalysis } from "@/lib/gap-analysis-schema"
+import type { CaseStrategy } from "@/lib/case-strategy-schema"
 import {
   FileText,
   Award,
@@ -55,6 +57,7 @@ interface ReportPanelProps {
   onStrongCountChange?: (count: number) => void
   initialStrengthEvaluation?: StrengthEvaluation | null
   initialGapAnalysis?: GapAnalysis | null
+  initialCaseStrategy?: CaseStrategy | null
 }
 
 function getStrengthConfig(strength: Strength) {
@@ -474,7 +477,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "strength" | "gap" | "raw"
+type ReportTab = "summary" | "strength" | "gap" | "strategy" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -485,6 +488,7 @@ export function ReportPanel({
   onStrongCountChange,
   initialStrengthEvaluation,
   initialGapAnalysis,
+  initialCaseStrategy,
 }: ReportPanelProps) {
   const [analysis, setAnalysis] = useState<Analysis | null>(initialAnalysis ?? null)
   const [activeTab, setActiveTab] = useState<ReportTab>("summary")
@@ -694,6 +698,17 @@ export function ReportPanel({
                 >
                   Gap Analysis
                 </button>
+                <button
+                  onClick={() => setActiveTab("strategy")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                    activeTab === "strategy"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                  )}
+                >
+                  Strategy
+                </button>
               </div>
             </div>
 
@@ -746,6 +761,12 @@ export function ReportPanel({
           caseId={caseId}
           initialData={initialGapAnalysis}
           hasStrengthEval={!!initialStrengthEvaluation}
+        />
+      ) : activeTab === "strategy" ? (
+        <CaseStrategyPanel
+          caseId={caseId}
+          initialData={initialCaseStrategy}
+          hasGapAnalysis={!!initialGapAnalysis}
         />
       ) : (
         <ExtractionRawPanel extraction={analysis.extraction ?? null} />
