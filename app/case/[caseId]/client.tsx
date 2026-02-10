@@ -13,6 +13,7 @@ import type { IntakeData } from './_lib/intake-schema'
 import type { DetailedExtraction } from '@/lib/eb1a-extraction-schema'
 import type { StrengthEvaluation } from '@/lib/strength-evaluation-schema'
 import type { GapAnalysis } from '@/lib/gap-analysis-schema'
+import type { CaseStrategy } from '@/lib/case-strategy-schema'
 
 interface Message {
   id: string
@@ -44,6 +45,7 @@ interface CasePageClientProps {
   initialProfileData?: Record<string, unknown>
   initialStrengthEvaluation?: StrengthEvaluation | null
   initialGapAnalysis?: GapAnalysis | null
+  initialCaseStrategy?: CaseStrategy | null
 }
 
 export function CasePageClient({
@@ -59,6 +61,7 @@ export function CasePageClient({
   initialProfileData = {},
   initialStrengthEvaluation,
   initialGapAnalysis,
+  initialCaseStrategy,
 }: CasePageClientProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
@@ -368,6 +371,7 @@ export function CasePageClient({
               onStrongCountChange={setStrongCount}
               initialStrengthEvaluation={initialStrengthEvaluation}
               initialGapAnalysis={initialGapAnalysis}
+              initialCaseStrategy={initialCaseStrategy}
             />
           </div>
 

@@ -80,13 +80,18 @@ export default async function CasePage({ params }: Props) {
     })
   }
 
-  const [latestStrengthEval, latestGapAnalysis] = await Promise.all([
+  const [latestStrengthEval, latestGapAnalysis, latestCaseStrategy] = await Promise.all([
     db.strengthEvaluation.findFirst({
       where: { caseId },
       orderBy: { createdAt: 'desc' },
       select: { data: true },
     }),
     db.gapAnalysis.findFirst({
+      where: { caseId },
+      orderBy: { createdAt: 'desc' },
+      select: { data: true },
+    }),
+    db.caseStrategy.findFirst({
       where: { caseId },
       orderBy: { createdAt: 'desc' },
       select: { data: true },
@@ -132,6 +137,7 @@ export default async function CasePage({ params }: Props) {
       initialProfileData={profileData}
       initialStrengthEvaluation={latestStrengthEval?.data as import('@/lib/strength-evaluation-schema').StrengthEvaluation | null ?? null}
       initialGapAnalysis={latestGapAnalysis?.data as import('@/lib/gap-analysis-schema').GapAnalysis | null ?? null}
+      initialCaseStrategy={latestCaseStrategy?.data as import('@/lib/case-strategy-schema').CaseStrategy | null ?? null}
     />
   )
 }
