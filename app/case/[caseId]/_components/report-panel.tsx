@@ -6,6 +6,7 @@ import { ExtractionRawPanel } from "./extraction-raw-panel"
 import { StrengthEvaluationPanel } from "./strength-evaluation-panel"
 import { GapAnalysisPanel } from "./gap-analysis-panel"
 import { CaseStrategyPanel } from "./case-strategy-panel"
+import { EvidenceListPanel } from "./evidence-list-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
 import { CRITERIA_METADATA } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
@@ -477,7 +478,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "strength" | "gap" | "strategy" | "raw"
+type ReportTab = "summary" | "strength" | "gap" | "strategy" | "evidence" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -715,6 +716,29 @@ export function ReportPanel({
             {/* Separator */}
             <div className="h-8 w-px bg-border/50 shrink-0 mb-1" />
 
+            {/* Phase 2 group */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
+                Phase 2
+              </span>
+              <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
+                <button
+                  onClick={() => setActiveTab("evidence")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                    activeTab === "evidence"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                  )}
+                >
+                  Evidence List
+                </button>
+              </div>
+            </div>
+
+            {/* Separator */}
+            <div className="h-8 w-px bg-border/50 shrink-0 mb-1" />
+
             {/* Raw Data - outside phase group */}
             <button
               onClick={() => setActiveTab("raw")}
@@ -768,6 +792,8 @@ export function ReportPanel({
           initialData={initialCaseStrategy}
           hasGapAnalysis={!!initialGapAnalysis}
         />
+      ) : activeTab === "evidence" ? (
+        <EvidenceListPanel caseId={caseId} />
       ) : (
         <ExtractionRawPanel extraction={analysis.extraction ?? null} />
       )}
