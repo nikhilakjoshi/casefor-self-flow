@@ -24,13 +24,18 @@ interface TiptapEditorProps {
   content: string;
   onUpdate?: (markdown: string) => void;
   editable?: boolean;
+  streaming?: boolean;
+  onSave?: (markdown: string) => void;
 }
 
 export function TiptapEditor({
   content,
   onUpdate,
   editable = true,
+  streaming = false,
+  onSave,
 }: TiptapEditorProps) {
+  const isEditable = editable && !streaming;
   const lastContentRef = useRef(content);
 
   const editor = useEditor({
@@ -44,7 +49,7 @@ export function TiptapEditor({
       }),
     ],
     content,
-    editable,
+    editable: isEditable,
     immediatelyRender: false,
     onUpdate: ({ editor: ed }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,8 +61,23 @@ export function TiptapEditor({
 
   // Sync editable prop
   useEffect(() => {
-    if (editor) editor.setEditable(editable);
-  }, [editor, editable]);
+    if (editor) editor.setEditable(isEditable);
+  }, [editor, isEditable]);
+
+  // Cmd+S save shortcut
+  useEffect(() => {
+    if (!onSave || !editor) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const md = (editor.storage as any).markdown.getMarkdown() as string;
+        onSave(md);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [editor, onSave]);
 
   // Sync external content changes (e.g. switching documents)
   useEffect(() => {
@@ -72,7 +92,7 @@ export function TiptapEditor({
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {editable && (
+      {isEditable && (
         <div className="shrink-0 flex items-center gap-1 px-4 py-2 border-b border-border bg-muted/30">
           <ToolbarButton
             active={false}

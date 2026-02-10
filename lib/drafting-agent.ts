@@ -1,0 +1,232 @@
+import { ToolLoopAgent, tool, stepCountIs } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
+import { z } from "zod";
+import { db } from "./db";
+import { getCriteriaForCase, type Criterion } from "./criteria";
+import { type CriterionResult } from "./eb1a-agent";
+import { queryContext } from "./rag";
+
+const MODEL = "claude-sonnet-4-20250514";
+const MAX_HISTORY = 20;
+
+function buildDraftingSystemPrompt(opts: {
+  criteria: Criterion[];
+  threshold: number;
+  profile: Record<string, unknown> | null;
+  analysis: CriterionResult[] | null;
+  documentName?: string;
+  existingContent?: string | null;
+}): string {
+  const criteriaList = opts.criteria
+    .map((c) => `- ${c.key}: ${c.name} -- ${c.description}`)
+    .join("\n");
+
+  const profileSection = opts.profile
+    ? `CURRENT APPLICANT PROFILE:\n${JSON.stringify(opts.profile, null, 2)}`
+    : "APPLICANT PROFILE: Not yet established.";
+
+  const analysisSection = opts.analysis
+    ? `CURRENT ANALYSIS (${opts.analysis.filter((c) => c.strength === "Strong").length} Strong, need ${opts.threshold}+):\n${opts.analysis.map((c) => `${c.criterionId}: ${c.strength} - ${c.reason}`).join("\n")}`
+    : "ANALYSIS: No analysis yet.";
+
+  const docSection = opts.documentName
+    ? `CURRENT DOCUMENT: "${opts.documentName}"${opts.existingContent ? `\n\nEXISTING CONTENT:\n${opts.existingContent}` : ""}`
+    : "";
+
+  return `You are an expert document drafter for EB-1A extraordinary ability immigration petitions. You produce polished, complete document content.
+
+FORMATTING: Do not use emojis in any responses or generated documents.
+
+YOUR ROLE:
+- Draft and revise documents: recommendation letters, personal statements, petition letters, cover letters, and other supporting documents.
+- Your text output IS the document content. It will be placed directly into the editor.
+- Output ONLY the document content in markdown format. No meta-commentary, no explanations, no conversational text.
+
+YOUR BEHAVIOR:
+1. When asked to draft a new document, first gather context using your tools (profile, analysis, recommender info, existing documents).
+2. Then produce the full document as your response text.
+3. When asked to revise, regenerate the ENTIRE document with the requested changes applied.
+4. Use specific details from the applicant's profile -- never use placeholders like [NAME] or [FIELD].
+5. Write in a professional, compelling tone appropriate for USCIS submissions.
+6. Ground your writing in real evidence from the case materials.
+
+IMPORTANT:
+- Your entire text response becomes the document content in the editor.
+- Do NOT include any conversational text, greetings, or explanations in your response.
+- Just output the document markdown directly.
+
+EB-1A CRITERIA (need ${opts.threshold}+ Strong):
+${criteriaList}
+
+${profileSection}
+
+${analysisSection}
+
+${docSection}
+
+TOOL USAGE:
+- Call getProfile and getAnalysis before drafting to use real applicant data.
+- Call searchDocuments to find relevant content from uploaded materials.
+- Call getRecommender when drafting recommendation letters.
+- Call getCurrentDocument to see the current document content before revising.`;
+}
+
+function createDraftingAgentTools(caseId: string, documentId?: string) {
+  const logPrefix = `[DraftingAgent:${caseId}]`;
+
+  return {
+    getProfile: tool({
+      description: "Fetch the applicant profile for this case.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        console.log(`${logPrefix} [getProfile] Called`);
+        const profile = await db.caseProfile.findUnique({
+          where: { caseId },
+        });
+        if (!profile) return { exists: false, data: null };
+        return { exists: true, data: profile.data };
+      },
+    }),
+
+    getAnalysis: tool({
+      description: "Fetch the latest EB-1A criteria analysis.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        console.log(`${logPrefix} [getAnalysis] Called`);
+        const analysis = await db.eB1AAnalysis.findFirst({
+          where: { caseId },
+          orderBy: { createdAt: "desc" },
+        });
+        if (!analysis) return { exists: false, criteria: null };
+        return {
+          exists: true,
+          version: analysis.version,
+          criteria: analysis.criteria,
+          strongCount: analysis.strongCount,
+          weakCount: analysis.weakCount,
+        };
+      },
+    }),
+
+    getRecommender: tool({
+      description:
+        "Get full details of a recommender by ID. Use when drafting recommendation letters.",
+      inputSchema: z.object({
+        recommenderId: z.string().describe("ID of the recommender"),
+      }),
+      execute: async ({ recommenderId }) => {
+        console.log(`${logPrefix} [getRecommender] Fetching ${recommenderId}`);
+        const recommender = await db.recommender.findFirst({
+          where: { id: recommenderId, caseId },
+          include: {
+            documents: {
+              select: { id: true, name: true, type: true, status: true },
+            },
+          },
+        });
+        if (!recommender) return { found: false, recommender: null };
+        return { found: true, recommender };
+      },
+    }),
+
+    searchDocuments: tool({
+      description:
+        "RAG search across uploaded documents and case materials for relevant content.",
+      inputSchema: z.object({
+        query: z.string().describe("Search query"),
+        topK: z.number().optional().default(5).describe("Number of results"),
+      }),
+      execute: async ({ query, topK }) => {
+        console.log(`${logPrefix} [searchDocuments] Query: "${query}", topK: ${topK}`);
+        const results = await queryContext(caseId, query, topK);
+        return { results };
+      },
+    }),
+
+    getCurrentDocument: tool({
+      description:
+        "Fetch the current document content being edited. Use before revisions.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        if (!documentId) return { found: false, content: null };
+        console.log(`${logPrefix} [getCurrentDocument] Fetching ${documentId}`);
+        const doc = await db.document.findFirst({
+          where: { id: documentId, caseId },
+        });
+        if (!doc) return { found: false, content: null };
+        return {
+          found: true,
+          id: doc.id,
+          name: doc.name,
+          content: doc.content,
+        };
+      },
+    }),
+  };
+}
+
+export async function runDraftingAgent(opts: {
+  caseId: string;
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  documentId?: string;
+  documentName?: string;
+  existingContent?: string | null;
+  onFinish?: (text: string) => Promise<void>;
+}) {
+  const { caseId, messages, documentId, documentName, existingContent, onFinish } = opts;
+  const log = (msg: string, ...args: unknown[]) =>
+    console.log(`[DraftingAgent:${caseId}] ${msg}`, ...args);
+
+  log("runDraftingAgent called, messages:", messages.length);
+
+  const [criteria, caseRecord, profile, analysis] = await Promise.all([
+    getCriteriaForCase(caseId),
+    db.case.findUnique({
+      where: { id: caseId },
+      select: { criteriaThreshold: true },
+    }),
+    db.caseProfile.findUnique({ where: { caseId } }),
+    db.eB1AAnalysis.findFirst({
+      where: { caseId },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  const threshold = caseRecord?.criteriaThreshold ?? 3;
+  log("context gathered - criteria:", criteria.length, "threshold:", threshold);
+
+  const instructions = buildDraftingSystemPrompt({
+    criteria,
+    threshold,
+    profile: (profile?.data as Record<string, unknown>) ?? null,
+    analysis: analysis ? (analysis.criteria as CriterionResult[]) : null,
+    documentName,
+    existingContent,
+  });
+
+  const tools = createDraftingAgentTools(caseId, documentId);
+
+  log("creating ToolLoopAgent with model:", MODEL, "tools:", Object.keys(tools));
+
+  const agent = new ToolLoopAgent({
+    model: anthropic(MODEL),
+    instructions,
+    tools,
+    stopWhen: stepCountIs(7),
+    onStepFinish: ({ toolCalls, text, finishReason }) => {
+      log("step finished - finishReason:", finishReason);
+      log("step text length:", text?.length ?? 0);
+      log(
+        "step toolCalls:",
+        toolCalls?.map((tc: { toolName: string }) => tc.toolName) ?? "none",
+      );
+    },
+    onFinish: async ({ text }) => {
+      log("agent finished, text length:", text?.length ?? 0);
+      if (onFinish) await onFinish(text);
+    },
+  });
+
+  log("starting stream");
+  return agent.stream({ messages: messages.slice(-MAX_HISTORY) });
+}

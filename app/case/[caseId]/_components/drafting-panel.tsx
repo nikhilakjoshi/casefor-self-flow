@@ -1,0 +1,288 @@
+'use client'
+
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { TiptapEditor } from '@/components/ui/tiptap-editor'
+import { ChatInput } from '@/components/ui/chat-input'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Button } from '@/components/ui/button'
+import { X, Save, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+interface DraftingDoc {
+  id?: string
+  name?: string
+  content?: string
+  recommenderId?: string
+  category?: string
+}
+
+interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+}
+
+interface DraftingPanelProps {
+  caseId: string
+  document?: DraftingDoc
+  onClose: () => void
+  onSave?: (docId: string) => void
+}
+
+export function DraftingPanel({
+  caseId,
+  document,
+  onClose,
+  onSave,
+}: DraftingPanelProps) {
+  const [docId, setDocId] = useState<string | undefined>(document?.id)
+  const [docName, setDocName] = useState(document?.name || 'Untitled Document')
+  const [editorContent, setEditorContent] = useState(document?.content || '')
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [isStreaming, setIsStreaming] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+  const editorContentRef = useRef(editorContent)
+
+  // Keep ref in sync
+  useEffect(() => {
+    editorContentRef.current = editorContent
+  }, [editorContent])
+
+  // Load chat history for existing documents
+  useEffect(() => {
+    if (!document?.id) return
+    setIsLoadingHistory(true)
+    fetch(`/api/case/${caseId}/draft-chat?documentId=${document.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.messages?.length > 0) {
+          setChatMessages(
+            data.messages.map((m: { id: string; role: string; content: string }) => ({
+              id: m.id,
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+            }))
+          )
+        }
+      })
+      .catch(console.error)
+      .finally(() => setIsLoadingHistory(false))
+  }, [caseId, document?.id])
+
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
+
+  const sendInstruction = useCallback(
+    async (text: string) => {
+      if (!text.trim() || isStreaming) return
+
+      const userMsg: ChatMessage = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: text.trim(),
+      }
+
+      const allMessages = [...chatMessages, userMsg]
+      setChatMessages(allMessages)
+      setIsStreaming(true)
+
+      try {
+        const res = await fetch(`/api/case/${caseId}/draft-chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: allMessages.map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+            documentId: docId,
+            documentName: docName,
+            category: document?.category,
+            recommenderId: document?.recommenderId,
+          }),
+        })
+
+        if (!res.ok) throw new Error('Draft chat failed')
+
+        // Capture document ID from header (for new docs)
+        const returnedDocId = res.headers.get('X-Document-Id')
+        if (returnedDocId && !docId) {
+          setDocId(returnedDocId)
+        }
+
+        const reader = res.body?.getReader()
+        if (!reader) throw new Error('No reader')
+
+        const decoder = new TextDecoder()
+        let accumulated = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          accumulated += decoder.decode(value, { stream: true })
+          setEditorContent(accumulated)
+        }
+
+        // Add a status message to chat (not the full content)
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: `status-${Date.now()}`,
+            role: 'assistant',
+            content: 'Document updated.',
+          },
+        ])
+      } catch (err) {
+        console.error('Draft chat error:', err)
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: `err-${Date.now()}`,
+            role: 'assistant',
+            content: 'Something went wrong. Please try again.',
+          },
+        ])
+      } finally {
+        setIsStreaming(false)
+      }
+    },
+    [caseId, chatMessages, docId, docName, document?.category, document?.recommenderId, isStreaming]
+  )
+
+  const handleSave = useCallback(async (content?: string) => {
+    const saveContent = content ?? editorContentRef.current
+    if (!docId || !saveContent) return
+
+    setIsSaving(true)
+    try {
+      // Save content
+      await fetch(`/api/case/${caseId}/documents/${docId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: saveContent, name: docName }),
+      })
+      onSave?.(docId)
+    } catch (err) {
+      console.error('Save failed:', err)
+    } finally {
+      setIsSaving(false)
+    }
+  }, [caseId, docId, docName, onSave])
+
+  const handleEditorUpdate = useCallback((markdown: string) => {
+    setEditorContent(markdown)
+  }, [])
+
+  return (
+    <div className="flex flex-col h-full bg-background">
+      {/* Top bar */}
+      <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-border">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <input
+            type="text"
+            value={docName}
+            onChange={(e) => setDocName(e.target.value)}
+            className="text-sm font-medium bg-transparent border-none outline-none focus:ring-1 focus:ring-primary/30 rounded px-1.5 py-0.5 min-w-0 flex-1 max-w-[300px]"
+          />
+          {isStreaming && (
+            <span className="text-[10px] text-primary flex items-center gap-1 shrink-0">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Drafting...
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs gap-1.5"
+            onClick={() => handleSave()}
+            disabled={isSaving || !docId}
+          >
+            {isSaving ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Save className="w-3 h-3" />
+            )}
+            {isSaving ? 'Saving...' : 'Save'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={onClose}
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Main content: chat left, editor right */}
+      <div className="flex flex-1 min-h-0">
+        {/* Chat panel - left 1/4 */}
+        <div className="w-1/4 min-w-[280px] max-w-[360px] flex flex-col border-r border-border">
+          <div className="shrink-0 px-3 py-2 border-b border-border">
+            <h4 className="text-xs font-medium text-muted-foreground">Instructions</h4>
+          </div>
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="p-3 space-y-3">
+              {isLoadingHistory ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : chatMessages.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-8">
+                  Give instructions to start drafting.
+                  {'\n'}E.g. &ldquo;Draft a recommendation letter for Dr. Smith&rdquo;
+                </p>
+              ) : (
+                chatMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      'text-xs rounded-lg px-3 py-2',
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground ml-4'
+                        : 'bg-muted text-muted-foreground mr-4'
+                    )}
+                  >
+                    {msg.content}
+                  </div>
+                ))
+              )}
+              {isStreaming && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground px-3 py-2">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Drafting...
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+          </ScrollArea>
+          <div className="shrink-0 p-3 border-t border-border">
+            <ChatInput
+              onSend={sendInstruction}
+              isLoading={isStreaming}
+              placeholder="Give instructions..."
+            />
+          </div>
+        </div>
+
+        {/* Editor - right 3/4 */}
+        <div className="flex-1 min-h-0">
+          <TiptapEditor
+            content={editorContent}
+            onUpdate={handleEditorUpdate}
+            editable={true}
+            streaming={isStreaming}
+            onSave={(md) => handleSave(md)}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
