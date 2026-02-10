@@ -163,6 +163,7 @@ model Case {
   strengthEvaluations    StrengthEvaluation[]
   gapAnalyses            GapAnalysis[]
   caseStrategies         CaseStrategy[]
+  evidenceVerifications  EvidenceVerification[]
 }
 
 model CaseProfile {
@@ -307,6 +308,7 @@ model Document {
   criterion   CriteriaMapping? @relation(fields: [criterionId], references: [id])
   template    Template?        @relation(fields: [templateId], references: [id])
   recommender Recommender?     @relation(fields: [recommenderId], references: [id])
+  evidenceVerifications EvidenceVerification[]
 
   @@index([caseId])
 }
@@ -383,4 +385,23 @@ model CaseStrategy {
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   @@index([caseId, createdAt])
+}
+
+model EvidenceVerification {
+  id             String   @id @default(cuid())
+  caseId         String
+  documentId     String
+  criterion      String
+  version        Int      @default(1)
+  data           Json
+  score          Float
+  recommendation String
+  createdAt      DateTime @default(now())
+
+  case     Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, criterion, version])
+  @@index([caseId])
+  @@index([documentId])
 }
