@@ -1,7 +1,7 @@
 import { generateObject } from "ai"
-import { anthropic } from "@ai-sdk/anthropic"
 import { db } from "./db"
 import { buildEvaluationContext } from "./strength-evaluation"
+import { getPrompt, resolveModel } from "./agent-prompt"
 import {
   C1VerificationSchema,
   C2VerificationSchema,
@@ -15,9 +15,22 @@ import {
   C10VerificationSchema,
 } from "./evidence-verification-schema"
 
-const MODEL = "claude-sonnet-4-20250514"
+// ─── Criterion → DB slug map ───
 
-// ─── System Prompts ───
+const CRITERION_SLUGS: Record<string, string> = {
+  C1: 'ev-c1-awards',
+  C2: 'ev-c2-memberships',
+  C3: 'ev-c3-published',
+  C4: 'ev-c4-judging',
+  C5: 'ev-c5-contributions',
+  C6: 'ev-c6-scholarly-articles',
+  C7: 'ev-c7-artistic-exhibitions',
+  C8: 'ev-c8-leading-role',
+  C9: 'ev-c9-high-salary',
+  C10: 'ev-c10-commercial-success',
+}
+
+// ─── System Prompts (used as defaultContent in seeds, no longer referenced at runtime) ───
 
 const C1_PROMPT = `You are an EB-1A Evidence Verification Agent for Criterion 1: Awards & Prizes (8 CFR 204.5(h)(3)(i)).
 
@@ -373,14 +386,19 @@ async function verifyCriterion(
   context: string,
 ) {
   const schema = SCHEMAS[criterion]
-  const systemPrompt = SYSTEM_PROMPTS[criterion]
-  if (!schema || !systemPrompt) throw new Error(`Unknown criterion: ${criterion}`)
+  const slug = CRITERION_SLUGS[criterion]
+  if (!schema || !slug) throw new Error(`Unknown criterion: ${criterion}`)
+
+  const row = await getPrompt(slug)
+  if (!row) throw new Error(`DB prompt not found or deactivated: ${slug}`)
 
   const { object } = await generateObject({
-    model: anthropic(MODEL),
+    model: resolveModel(row.provider, row.modelName),
     schema,
-    system: systemPrompt,
+    system: row.content,
     prompt: `=== CASE CONTEXT ===\n${context}\n\n=== DOCUMENT TO VERIFY ===\n${documentText}`,
+    ...(row.temperature != null && { temperature: row.temperature }),
+    ...(row.maxTokens != null && { maxTokens: row.maxTokens }),
   })
 
   return object
