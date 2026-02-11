@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { runDocumentVerification } from "@/lib/evidence-verification"
+import { autoRouteDocument } from "@/lib/criteria-routing"
 
 export async function POST(
   _request: Request,
@@ -47,6 +48,11 @@ export async function POST(
         await runDocumentVerification(caseId, documentId, text, (criterion, result) => {
           send({ type: "criterion_complete", documentId, criterion, result })
         })
+
+        // Auto-route based on verification scores
+        console.log(`[evidence-verify] running autoRouteDocument for re-verify doc=${documentId}`)
+        await autoRouteDocument(caseId, documentId)
+        console.log(`[evidence-verify] autoRouteDocument complete for re-verify doc=${documentId}`)
 
         send({ type: "doc_complete", documentId })
         send({ type: "all_complete" })

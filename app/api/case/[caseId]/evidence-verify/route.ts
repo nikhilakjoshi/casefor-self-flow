@@ -6,6 +6,7 @@ import { chunkText } from "@/lib/chunker"
 import { upsertChunks } from "@/lib/pinecone"
 import { classifyDocument } from "@/lib/document-classifier"
 import { runDocumentVerification } from "@/lib/evidence-verification"
+import { autoRouteDocument } from "@/lib/criteria-routing"
 
 const MAX_FILES = 10
 
@@ -164,6 +165,11 @@ export async function POST(
           await runDocumentVerification(caseId, doc.id, text, (criterion, result) => {
             send({ type: "criterion_complete", documentId: doc.id, criterion, result })
           })
+
+          // Auto-route based on verification scores
+          console.log(`[evidence-verify] running autoRouteDocument for doc=${doc.id} (${file.name})`)
+          await autoRouteDocument(caseId, doc.id)
+          console.log(`[evidence-verify] autoRouteDocument complete for doc=${doc.id}`)
 
           send({ type: "doc_complete", documentId: doc.id })
         }
