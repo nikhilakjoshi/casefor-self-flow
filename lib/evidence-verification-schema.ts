@@ -65,12 +65,70 @@ export const C5VerificationSchema = BaseVerificationSchema.extend({
   }),
 })
 
+// C6: Scholarly Articles
+export const C6VerificationSchema = BaseVerificationSchema.extend({
+  publication_metrics: z.object({
+    h_index: z.number().optional(),
+    total_citations: z.number().optional(),
+    first_author_count: z.number().optional(),
+    top_venue_count: z.number().optional(),
+  }),
+})
+
+// C7: Artistic Exhibitions
+export const C7VerificationSchema = BaseVerificationSchema.extend({
+  exhibition_test: z.object({
+    artistic_nature: z.boolean(),
+    venue_prestige_documented: z.boolean(),
+    merit_based_selection: z.boolean(),
+    critical_reception: z.boolean(),
+  }),
+})
+
+// C8: Leading or Critical Role
+export const C8VerificationSchema = BaseVerificationSchema.extend({
+  two_part_test: z.object({
+    role_type: z.enum(["leading", "critical", "unclear"]),
+    role_documented: z.boolean(),
+    org_reputation_proven: z.boolean(),
+    impact_beyond_department: z.boolean(),
+    field_wide_recognition: z.boolean(),
+  }),
+})
+
+// C9: High Salary
+export const C9VerificationSchema = BaseVerificationSchema.extend({
+  salary_analysis: z.object({
+    compensation_documented: z.boolean(),
+    comparative_data_present: z.boolean(),
+    percentile_estimate: z.string(),
+    geographic_match: z.boolean(),
+    multi_year_pattern: z.boolean(),
+  }),
+})
+
+// C10: Commercial Success
+export const C10VerificationSchema = BaseVerificationSchema.extend({
+  commercial_test: z.object({
+    financial_metrics_documented: z.boolean(),
+    individual_attribution_proven: z.boolean(),
+    comparative_data_present: z.boolean(),
+    performing_arts_scope: z.boolean(),
+    sustained_pattern: z.boolean(),
+  }),
+})
+
 export type BaseVerification = z.infer<typeof BaseVerificationSchema>
 export type C1Verification = z.infer<typeof C1VerificationSchema>
 export type C2Verification = z.infer<typeof C2VerificationSchema>
 export type C3Verification = z.infer<typeof C3VerificationSchema>
 export type C4Verification = z.infer<typeof C4VerificationSchema>
 export type C5Verification = z.infer<typeof C5VerificationSchema>
+export type C6Verification = z.infer<typeof C6VerificationSchema>
+export type C7Verification = z.infer<typeof C7VerificationSchema>
+export type C8Verification = z.infer<typeof C8VerificationSchema>
+export type C9Verification = z.infer<typeof C9VerificationSchema>
+export type C10Verification = z.infer<typeof C10VerificationSchema>
 
 export type EvidenceVerificationResult =
   | C1Verification
@@ -78,6 +136,11 @@ export type EvidenceVerificationResult =
   | C3Verification
   | C4Verification
   | C5Verification
+  | C6Verification
+  | C7Verification
+  | C8Verification
+  | C9Verification
+  | C10Verification
 
 export const CRITERIA_SCHEMAS: Record<string, z.ZodSchema> = {
   C1: C1VerificationSchema,
@@ -85,6 +148,11 @@ export const CRITERIA_SCHEMAS: Record<string, z.ZodSchema> = {
   C3: C3VerificationSchema,
   C4: C4VerificationSchema,
   C5: C5VerificationSchema,
+  C6: C6VerificationSchema,
+  C7: C7VerificationSchema,
+  C8: C8VerificationSchema,
+  C9: C9VerificationSchema,
+  C10: C10VerificationSchema,
 }
 
 export const CRITERIA_LABELS: Record<string, string> = {
@@ -93,4 +161,9 @@ export const CRITERIA_LABELS: Record<string, string> = {
   C3: "Published Material About Applicant",
   C4: "Judging the Work of Others",
   C5: "Original Contributions of Major Significance",
+  C6: "Scholarly Articles",
+  C7: "Artistic Exhibitions",
+  C8: "Leading or Critical Role",
+  C9: "High Salary",
+  C10: "Commercial Success",
 }

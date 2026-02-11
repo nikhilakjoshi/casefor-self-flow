@@ -1,10 +1,13 @@
 import { generateText, streamText, Output } from "ai"
 import { anthropic } from "@ai-sdk/anthropic"
+import { google } from "@ai-sdk/google"
 import { z } from "zod"
 import { getCriteriaForType, type Criterion } from "./criteria"
-import { getPrompt, resolveModel } from "./agent-prompt"
 import {
   DetailedExtractionSchema,
+  PersonalInfoSchema,
+  EducationSchema,
+  WorkExperienceSchema,
   type DetailedExtraction,
   type CriteriaSummaryItem,
   CRITERIA_METADATA,
@@ -33,9 +36,62 @@ export const EB1AEvaluationSchema = z.object({
 export type CriterionResult = z.infer<typeof CriterionResultSchema>
 export type EB1AEvaluation = z.infer<typeof EB1AEvaluationSchema>
 
-const FALLBACK_MODEL = "claude-sonnet-4-20250514"
+const MODEL = "claude-sonnet-4-20250514"
+const QUICK_PROFILE_MODEL = "gemini-2.5-flash"
 
-const FALLBACK_EXTRACTION_PROMPT = `You are an EB-1A immigration expert. Extract ALL structured information from this resume/CV and map each item to the relevant EB-1A criteria. Do not use emojis in any output.
+// Small schema for fast profile extraction
+const QuickProfileSchema = z.object({
+  personal_info: PersonalInfoSchema.optional(),
+  education: z.array(EducationSchema).default([]),
+  work_experience: z.array(WorkExperienceSchema).default([]),
+})
+
+export async function streamQuickProfile(
+  resumeText: string,
+  surveyData?: Record<string, unknown>
+) {
+  const surveyContext = surveyData
+    ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
+    : ""
+
+  return streamText({
+    model: google(QUICK_PROFILE_MODEL),
+    output: Output.object({ schema: QuickProfileSchema }),
+    prompt: `Extract the person's profile, education, and work experience from this resume.\n\n${resumeText}${surveyContext}`,
+  })
+}
+
+export async function streamQuickProfileFromPdf(
+  pdfBuffer: ArrayBuffer,
+  surveyData?: Record<string, unknown>
+) {
+  const surveyContext = surveyData
+    ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
+    : ""
+
+  return streamText({
+    model: google(QUICK_PROFILE_MODEL),
+    output: Output.object({ schema: QuickProfileSchema }),
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `Extract the person's profile, education, and work experience from this resume.${surveyContext}`,
+          },
+          {
+            type: "file",
+            data: Buffer.from(pdfBuffer),
+            mediaType: "application/pdf",
+          },
+        ],
+      },
+    ],
+  })
+}
+
+const EXTRACTION_SYSTEM_PROMPT = `You are an EB-1A immigration expert. Extract ALL structured information from this resume/CV and map each item to the relevant EB-1A criteria. Do not use emojis in any output.
 
 THE 10 EB-1A CRITERIA:
 C1: Awards - nationally/internationally recognized prizes for excellence
@@ -81,11 +137,10 @@ export async function extractAndEvaluate(
     ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
     : ""
 
-  const p = await getPrompt("eb1a-extraction")
   const { output } = await generateText({
-    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
+    model: anthropic(MODEL),
     output: Output.object({ schema: DetailedExtractionSchema }),
-    system: p?.content ?? FALLBACK_EXTRACTION_PROMPT,
+    system: EXTRACTION_SYSTEM_PROMPT,
     prompt: `Extract all structured information from this resume and evaluate against EB-1A criteria:\n\n${resumeText}${surveyContext}`,
   })
 
@@ -100,11 +155,10 @@ export async function extractAndEvaluateFromPdf(
     ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
     : ""
 
-  const p = await getPrompt("eb1a-extraction")
   const { output } = await generateText({
-    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
+    model: anthropic(MODEL),
     output: Output.object({ schema: PdfExtractionSchema }),
-    system: p?.content ?? FALLBACK_EXTRACTION_PROMPT,
+    system: EXTRACTION_SYSTEM_PROMPT,
     messages: [
       {
         role: "user",
@@ -138,11 +192,10 @@ export async function streamExtractAndEvaluate(
     ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
     : ""
 
-  const p = await getPrompt("eb1a-extraction")
   return streamText({
-    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
+    model: anthropic(MODEL),
     output: Output.object({ schema: DetailedExtractionSchema }),
-    system: p?.content ?? FALLBACK_EXTRACTION_PROMPT,
+    system: EXTRACTION_SYSTEM_PROMPT,
     prompt: `Extract all structured information from this resume and evaluate against EB-1A criteria:\n\n${resumeText}${surveyContext}`,
   })
 }
@@ -155,11 +208,10 @@ export async function streamExtractAndEvaluateFromPdf(
     ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
     : ""
 
-  const p = await getPrompt("eb1a-extraction")
   return streamText({
-    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
+    model: anthropic(MODEL),
     output: Output.object({ schema: PdfExtractionSchema }),
-    system: p?.content ?? FALLBACK_EXTRACTION_PROMPT,
+    system: EXTRACTION_SYSTEM_PROMPT,
     messages: [
       {
         role: "user",
