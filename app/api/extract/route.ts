@@ -40,11 +40,19 @@ export async function POST(request: Request) {
       ? await extractSurveyDataFromPdf(buffer)
       : await extractSurveyData(await parseFile(file))
 
+    // Derive meaningful case name from extraction
+    const fullName = surveyData?.background?.fullName
+    const field = surveyData?.background?.areaOfExpertise
+    const caseName = fullName
+      ? field ? `${fullName} - ${field}` : fullName
+      : null
+
     // Save extracted data to profile
     const ext = file.name.toLowerCase().split('.').pop()
     const docType = ext === 'pdf' ? 'PDF' : ext === 'docx' ? 'DOCX' : 'MARKDOWN' as const
 
     await Promise.all([
+      ...(caseName ? [db.case.update({ where: { id: caseRecord.id }, data: { name: caseName } })] : []),
       db.caseProfile.create({
         data: { caseId: caseRecord.id, data: surveyData as object },
       }),
@@ -69,6 +77,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       caseId: caseRecord.id,
+      caseName: caseName || caseRecord.name,
       surveyData,
     })
   } catch (err) {

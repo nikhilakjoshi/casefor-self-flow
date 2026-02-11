@@ -64,6 +64,12 @@ interface CaseItem {
   createdAt: string
 }
 
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    + " " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+}
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession()
   const pathname = usePathname()
@@ -183,13 +189,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         asChild
+                        size="lg"
                         isActive={c.id === currentCaseId}
                       >
                         <Link href={`/case/${c.id}`}>
                           <FolderOpen className="size-4" />
-                          <span className="truncate">
-                            {getCaseName(c)}
-                          </span>
+                          <div className="grid flex-1 text-left leading-tight min-w-0">
+                            <span className="truncate text-sm">{getCaseName(c)}</span>
+                            <span className="truncate text-xs text-muted-foreground">
+                              {formatDate(c.createdAt)}
+                            </span>
+                          </div>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
