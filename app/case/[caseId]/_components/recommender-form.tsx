@@ -1,9 +1,17 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useDropzone } from 'react-dropzone'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Collapsible,
   CollapsibleContent,
@@ -16,6 +24,9 @@ import {
   Link2,
   Loader2,
   X,
+  Upload,
+  Globe,
+  Sparkles,
 } from 'lucide-react'
 
 // Relationship type options matching Prisma enum
@@ -148,6 +159,124 @@ export function RecommenderForm({
     recommender?.durationYears?.toString() ?? ''
   )
 
+  const [contextNotes, setContextNotes] = useState<Record<string, unknown> | null>(
+    recommender?.contextNotes ?? null
+  )
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [extractError, setExtractError] = useState<string | null>(null)
+  const [extractUrl, setExtractUrl] = useState('')
+
+  const applyExtracted = useCallback(
+    (data: Record<string, string | null>) => {
+      if (data.name && !name) setName(data.name)
+      if (data.title && !title) setTitle(data.title)
+      if (data.email && !email) setEmail(data.email)
+      if (data.phone && !phone) setPhone(data.phone)
+      if (data.linkedIn && !linkedIn) setLinkedIn(data.linkedIn)
+      if (data.countryRegion && !countryRegion) setCountryRegion(data.countryRegion)
+      if (data.organization && !organization) setOrganization(data.organization)
+      if (data.bio && !bio) setBio(data.bio)
+      if (data.credentials && !credentials) setCredentials(data.credentials)
+    },
+    [name, title, email, phone, linkedIn, countryRegion, organization, bio, credentials]
+  )
+
+  const extractFromFile = useCallback(
+    async (file: File) => {
+      setIsExtracting(true)
+      setExtractError(null)
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        const res = await fetch(`/api/case/${caseId}/recommenders/extract`, {
+          method: 'POST',
+          body: formData,
+        })
+        if (!res.ok) {
+          const data = await res.json()
+          throw new Error(data.error || 'Extraction failed')
+        }
+        const { extracted, contextNotes: notes } = await res.json()
+        applyExtracted(extracted)
+        setContextNotes(notes)
+      } catch (err) {
+        setExtractError(err instanceof Error ? err.message : 'Extraction failed')
+      } finally {
+        setIsExtracting(false)
+      }
+    },
+    [caseId, applyExtracted]
+  )
+
+  const extractFromUrl = useCallback(
+    async () => {
+      if (!extractUrl.trim()) return
+      setIsExtracting(true)
+      setExtractError(null)
+      try {
+        const res = await fetch(`/api/case/${caseId}/recommenders/extract`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: extractUrl.trim() }),
+        })
+        if (!res.ok) {
+          const data = await res.json()
+          throw new Error(data.error || 'Extraction failed')
+        }
+        const { extracted, contextNotes: notes } = await res.json()
+        applyExtracted(extracted)
+        setContextNotes(notes)
+      } catch (err) {
+        setExtractError(err instanceof Error ? err.message : 'Extraction failed')
+      } finally {
+        setIsExtracting(false)
+      }
+    },
+    [caseId, extractUrl, applyExtracted]
+  )
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (files) => {
+      if (files[0]) extractFromFile(files[0])
+    },
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'text/plain': ['.txt'],
+    },
+    multiple: false,
+    disabled: isExtracting,
+  })
+
+  const [isImproving, setIsImproving] = useState(false)
+
+  const improveContext = useCallback(async () => {
+    if (!relationshipContext.trim()) return
+    setIsImproving(true)
+    try {
+      const res = await fetch(`/api/case/${caseId}/recommenders/improve-context`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          draft: relationshipContext.trim(),
+          recommenderName: name || undefined,
+          recommenderTitle: title || undefined,
+          relationshipType,
+          organization: organization || undefined,
+          bio: bio || undefined,
+          credentials: credentials || undefined,
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to improve')
+      const { improved } = await res.json()
+      if (improved) setRelationshipContext(improved)
+    } catch {
+      // silent fail -- user still has their draft
+    } finally {
+      setIsImproving(false)
+    }
+  }, [caseId, relationshipContext, name, title, relationshipType, organization, bio, credentials])
+
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -194,6 +323,7 @@ export function RecommenderForm({
           const parsed = parseFloat(durationYears)
           if (!isNaN(parsed)) payload.durationYears = parsed
         }
+        if (contextNotes) payload.contextNotes = contextNotes
 
         const url = isEdit
           ? `/api/case/${caseId}/recommenders/${recommender.id}`
@@ -236,12 +366,13 @@ export function RecommenderForm({
       startDate,
       endDate,
       durationYears,
+      contextNotes,
       onSave,
     ]
   )
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col h-full">
+    <form onSubmit={handleSubmit} className="flex flex-col max-h-[85vh]">
       {/* Header */}
       <div className="shrink-0 px-4 py-3 flex items-center justify-between border-b border-border">
         <h3 className="text-sm font-semibold">
@@ -260,6 +391,80 @@ export function RecommenderForm({
 
       {/* Form content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {/* Extraction zone - create mode only */}
+        {!isEdit && (
+          <div className="space-y-3">
+            <div
+              {...getRootProps()}
+              className={cn(
+                'border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors',
+                isDragActive
+                  ? 'border-primary bg-primary/5'
+                  : 'border-muted-foreground/25 hover:border-muted-foreground/50',
+                isExtracting && 'opacity-50 pointer-events-none'
+              )}
+            >
+              <input {...getInputProps()} />
+              {isExtracting ? (
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Extracting...
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1">
+                  <Upload className="w-5 h-5 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Drop a PDF, DOCX, or TXT to auto-fill
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={extractUrl}
+                  onChange={(e) => setExtractUrl(e.target.value)}
+                  placeholder="Paste profile URL..."
+                  className="h-9 pl-8"
+                  disabled={isExtracting}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      extractFromUrl()
+                    }
+                  }}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isExtracting || !extractUrl.trim()}
+                onClick={extractFromUrl}
+                className="h-9"
+              >
+                {isExtracting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  'Fetch'
+                )}
+              </Button>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              For best results, upload a PDF or DOCX profile. Public URLs work well, though some sites may restrict access.
+            </p>
+
+            {extractError && (
+              <p className="text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded-md">
+                {extractError}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Required fields - always visible */}
         <div className="space-y-3">
           <FormField label="Full Name" required>
@@ -281,29 +486,52 @@ export function RecommenderForm({
           </FormField>
 
           <FormField label="Relationship Type" required>
-            <select
+            <Select
               value={relationshipType}
-              onChange={(e) =>
-                setRelationshipType(e.target.value as RelationshipType)
-              }
-              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              onValueChange={(v) => setRelationshipType(v as RelationshipType)}
             >
-              {RELATIONSHIP_TYPES.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RELATIONSHIP_TYPES.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </FormField>
 
-          <FormField label="Relationship Context" required>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-muted-foreground">
+                Relationship Context
+                <span className="text-red-500 ml-0.5">*</span>
+              </label>
+              {relationshipContext.trim().length > 0 && (
+                <button
+                  type="button"
+                  onClick={improveContext}
+                  disabled={isImproving}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  {isImproving ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3 h-3" />
+                  )}
+                  {isImproving ? 'Improving...' : 'Improve'}
+                </button>
+              )}
+            </div>
             <textarea
               value={relationshipContext}
               onChange={(e) => setRelationshipContext(e.target.value)}
               placeholder="Describe how you know this person and why they can speak to your qualifications..."
               className="w-full min-h-[80px] px-3 py-2 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             />
-          </FormField>
+          </div>
         </div>
 
         {/* Collapsible sections */}
