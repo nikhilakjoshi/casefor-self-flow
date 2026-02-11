@@ -2,10 +2,16 @@
 
 import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { Dropzone } from "./_components/dropzone";
-import { ResultsModal, type Strength } from "./_components/results-modal";
-import { SurveyModal } from "./_components/survey-modal";
+import { ResultsPanel, type Strength } from "./_components/results-panel";
+import { SurveyInline } from "./_components/survey-inline";
+import { ExtractionProgressPanel } from "./_components/extraction-progress-panel";
+import type { DetailedExtraction } from "@/lib/eb1a-extraction-schema";
 import type { SurveyData } from "./_lib/survey-schema";
+
+type Phase = "upload" | "survey" | "evaluating" | "results";
+type StreamPhase = "connecting" | "extracting" | null;
 
 interface CriterionResultData {
   criterionId: string;
@@ -31,7 +37,6 @@ function countStrengths(criteria: CriterionResultData[]) {
   );
 }
 
-// Convert new extraction format to legacy criteria format
 function extractionToCriteria(data: Record<string, unknown>): CriterionResultData[] {
   const criteriaSummary = data.criteria_summary as Array<{
     criterion_id: string;
@@ -49,7 +54,6 @@ function extractionToCriteria(data: Record<string, unknown>): CriterionResultDat
     }));
   }
 
-  // Fallback to legacy format if available
   if (data.criteria) {
     return data.criteria as CriterionResultData[];
   }
@@ -64,24 +68,68 @@ const STEPS = [
   { number: "04", label: "Review results and build case", detail: "Strengthen weak areas with guidance" },
 ];
 
+function StepIndicators({ phase }: { phase: Phase }) {
+  const phaseIndex = phase === "upload" ? 0 : phase === "survey" ? 1 : phase === "evaluating" ? 2 : 3;
+
+  return (
+    <div className="flex items-center gap-3 mb-8">
+      {STEPS.map((step, i) => {
+        const isActive = i === phaseIndex;
+        const isCompleted = i < phaseIndex;
+
+        return (
+          <div key={step.number} className="flex items-center gap-2">
+            {i > 0 && (
+              <div className={`w-8 h-px ${isCompleted ? "bg-primary" : "bg-border"}`} />
+            )}
+            <div className="flex items-center gap-2">
+              <span
+                className={`
+                  w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-[family-name:var(--font-jetbrains-mono)]
+                  ${isActive ? "bg-primary text-primary-foreground" : ""}
+                  ${isCompleted ? "bg-emerald-500 text-white" : ""}
+                  ${!isActive && !isCompleted ? "bg-muted text-muted-foreground" : ""}
+                `}
+              >
+                {isCompleted ? (
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : (
+                  step.number
+                )}
+              </span>
+              <span className={`text-xs font-medium hidden sm:inline ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                {step.label}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function OnboardPage() {
+  const [phase, setPhase] = useState<Phase>("upload");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [caseId, setCaseId] = useState<string | null>(null);
-
-  // Survey state
-  const [surveyOpen, setSurveyOpen] = useState(false);
+  const [caseName, setCaseName] = useState<string | null>(null);
   const [surveyData, setSurveyData] = useState<SurveyData>({});
+  const [streamingExtraction, setStreamingExtraction] = useState<Partial<DetailedExtraction>>({});
+  const [streamPhase, setStreamPhase] = useState<StreamPhase>(null);
   const fileRef = useRef<File | null>(null);
 
   const startAnalysis = useCallback(async (file: File, targetCaseId: string) => {
     setIsStreaming(true);
     setAnalysisResult(null);
-    setIsModalOpen(true);
+    setStreamingExtraction({});
+    setStreamPhase("connecting");
+    setPhase("evaluating");
 
     try {
       const formData = new FormData();
@@ -96,6 +144,7 @@ export default function OnboardPage() {
         const errorData = await response.json();
         setError(errorData.error ?? "Analysis failed");
         setIsStreaming(false);
+        setStreamPhase(null);
         return;
       }
 
@@ -103,11 +152,13 @@ export default function OnboardPage() {
       if (!reader) {
         setError("Failed to read response stream");
         setIsStreaming(false);
+        setStreamPhase(null);
         return;
       }
 
       const decoder = new TextDecoder();
       let buffer = "";
+      let receivedFirst = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -119,9 +170,17 @@ export default function OnboardPage() {
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
+            if (!receivedFirst) {
+              receivedFirst = true;
+              setStreamPhase("extracting");
+            }
             try {
               const data = JSON.parse(line.slice(6));
-              // Handle new extraction format (criteria_summary) or legacy (criteria)
+
+              // Store raw partial extraction for progress panel
+              setStreamingExtraction(data as Partial<DetailedExtraction>);
+
+              // Extract criteria for results panel
               const criteria = extractionToCriteria(data);
               if (criteria.length > 0) {
                 const counts = countStrengths(criteria);
@@ -139,9 +198,12 @@ export default function OnboardPage() {
       }
 
       setIsStreaming(false);
+      setStreamPhase(null);
+      setPhase("results");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
       setIsStreaming(false);
+      setStreamPhase(null);
     }
   }, []);
 
@@ -155,7 +217,6 @@ export default function OnboardPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      // Phase 1: Quick extraction
       const response = await fetch("/api/extract", {
         method: "POST",
         body: formData,
@@ -168,13 +229,12 @@ export default function OnboardPage() {
         return;
       }
 
-      const { caseId: newCaseId, surveyData: extractedSurvey } = await response.json();
+      const { caseId: newCaseId, caseName: newCaseName, surveyData: extractedSurvey } = await response.json();
       setCaseId(newCaseId);
+      setCaseName(newCaseName || null);
       setSurveyData(extractedSurvey || {});
       setIsLoading(false);
-
-      // Open survey modal
-      setSurveyOpen(true);
+      setPhase("survey");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
       setIsLoading(false);
@@ -182,7 +242,6 @@ export default function OnboardPage() {
   }, []);
 
   const handleSurveyComplete = useCallback(() => {
-    setSurveyOpen(false);
     if (caseId && fileRef.current) {
       startAnalysis(fileRef.current, caseId);
     }
@@ -197,7 +256,10 @@ export default function OnboardPage() {
     setError(null);
     setAnalysisResult(null);
     setCaseId(null);
+    setCaseName(null);
     setSurveyData({});
+    setStreamingExtraction({});
+    setPhase("upload");
   };
 
   const handleBuildCase = () => {
@@ -215,16 +277,14 @@ export default function OnboardPage() {
   const handleCriterionUpdate = useCallback((criterionId: string, data: CriterionResultData) => {
     setAnalysisResult((prev) => {
       if (!prev || !prev.criteria || prev.criteria.length === 0) {
-        console.warn("No existing analysis to update");
         return prev;
       }
 
-      // Create new criteria array with the updated criterion
       const updatedCriteria = prev.criteria.map((c) => {
         if (c.criterionId === criterionId) {
-          return { ...data, criterionId }; // Ensure criterionId is preserved
+          return { ...data, criterionId };
         }
-        return { ...c }; // Clone each criterion
+        return { ...c };
       });
 
       const counts = countStrengths(updatedCriteria);
@@ -236,7 +296,6 @@ export default function OnboardPage() {
       };
     });
   }, []);
-
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden">
@@ -269,125 +328,155 @@ export default function OnboardPage() {
       </nav>
 
       {/* Main content */}
-      <div className="relative z-10 px-6 sm:px-10 lg:px-16 pt-12 sm:pt-20 lg:pt-28 pb-20">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-start">
+      <div className="relative z-10 px-6 sm:px-10 lg:px-16 pt-6 pb-20">
+        <div className={cn("mx-auto", phase === "evaluating" || phase === "results" ? "max-w-7xl" : "max-w-6xl")}>
 
-            {/* Left: copy */}
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-muted/50 mb-6">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
-                  Eligibility Screening
-                </span>
-              </div>
-
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight leading-[1.15] text-foreground">
-                Start your EB-1A
-                <br />
-                <span className="text-primary">case evaluation</span>
-              </h1>
-
-              <p className="mt-4 text-base text-muted-foreground max-w-md leading-relaxed">
-                Upload your resume and we will extract your profile, walk you through
-                a quick intake survey, then evaluate your eligibility across all 10 criteria.
-              </p>
-
-              {/* Steps */}
-              <div className="mt-10 space-y-6">
-                {STEPS.map((step, i) => (
-                  <div key={step.number} className="flex gap-4">
-                    <span className="text-2xl font-bold text-primary/20 font-[family-name:var(--font-jetbrains-mono)] leading-none pt-0.5 shrink-0 w-8">
-                      {step.number}
+          {/* Upload phase */}
+          {phase === "upload" && (
+            <>
+              <StepIndicators phase={phase} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-start">
+                {/* Left: copy */}
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-muted/50 mb-6">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
+                      Eligibility Screening
                     </span>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{step.label}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{step.detail}</p>
-                      {i === 0 && (
-                        <div className="mt-1.5 flex items-center gap-1">
-                          <span className="w-1 h-1 rounded-full bg-primary/40" />
-                          <span className="text-[10px] text-primary/60 font-medium">You are here</span>
-                        </div>
-                      )}
-                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Right: dropzone card */}
-            <div className="lg:pt-8">
-              <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-                <div className="mb-5">
-                  <h2 className="text-sm font-semibold text-foreground">Upload your resume</h2>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Your data is processed securely and never shared
+                  <h1 className="text-3xl sm:text-4xl font-bold tracking-tight leading-[1.15] text-foreground">
+                    Start your EB-1A
+                    <br />
+                    <span className="text-primary">case evaluation</span>
+                  </h1>
+
+                  <p className="mt-4 text-base text-muted-foreground max-w-md leading-relaxed">
+                    Upload your resume and we will extract your profile, walk you through
+                    a quick intake survey, then evaluate your eligibility across all 10 criteria.
                   </p>
-                </div>
 
-                <Dropzone
-                  onFileSelect={handleFileSelect}
-                  onError={handleError}
-                  selectedFile={selectedFile}
-                  isLoading={isLoading}
-                />
-
-                {error && (
-                  <div className="mt-4 flex items-center justify-between rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2.5">
-                    <p className="text-sm text-destructive">{error}</p>
-                    <button
-                      type="button"
-                      onClick={handleRetry}
-                      className="ml-4 text-sm font-medium text-destructive underline underline-offset-2 hover:text-destructive/80 shrink-0"
-                    >
-                      Try again
-                    </button>
+                  {/* Steps */}
+                  <div className="mt-10 space-y-6">
+                    {STEPS.map((step) => (
+                      <div key={step.number} className="flex gap-4">
+                        <span className="text-2xl font-bold text-primary/20 font-[family-name:var(--font-jetbrains-mono)] leading-none pt-0.5 shrink-0 w-8">
+                          {step.number}
+                        </span>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{step.label}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{step.detail}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Trust indicators */}
-          <div className="mt-20 pt-10 border-t border-border">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl">
-              {[
-                { value: "10", label: "EB-1A criteria analyzed" },
-                { value: "< 2min", label: "Initial screening" },
-                { value: "Free", label: "To get started" },
-              ].map((stat) => (
-                <div key={stat.label} className="flex items-center gap-3">
-                  <span className="text-lg font-bold text-primary font-[family-name:var(--font-jetbrains-mono)]">
-                    {stat.value}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{stat.label}</span>
                 </div>
-              ))}
-            </div>
-          </div>
+
+                {/* Right: dropzone card */}
+                <div className="lg:pt-8">
+                  <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
+                    <div className="mb-5">
+                      <h2 className="text-sm font-semibold text-foreground">Upload your resume</h2>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Your data is processed securely and never shared
+                      </p>
+                    </div>
+
+                    <Dropzone
+                      onFileSelect={handleFileSelect}
+                      onError={handleError}
+                      selectedFile={selectedFile}
+                      isLoading={isLoading}
+                    />
+
+                    {error && (
+                      <div className="mt-4 flex items-center justify-between rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2.5">
+                        <p className="text-sm text-destructive">{error}</p>
+                        <button
+                          type="button"
+                          onClick={handleRetry}
+                          className="ml-4 text-sm font-medium text-destructive underline underline-offset-2 hover:text-destructive/80 shrink-0"
+                        >
+                          Try again
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Trust indicators */}
+              <div className="mt-20 pt-10 border-t border-border">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl">
+                  {[
+                    { value: "10", label: "EB-1A criteria analyzed" },
+                    { value: "< 2min", label: "Initial screening" },
+                    { value: "Free", label: "To get started" },
+                  ].map((stat) => (
+                    <div key={stat.label} className="flex items-center gap-3">
+                      <span className="text-lg font-bold text-primary font-[family-name:var(--font-jetbrains-mono)]">
+                        {stat.value}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{stat.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Survey phase */}
+          {phase === "survey" && (
+            <>
+              <StepIndicators phase={phase} />
+              <div className="max-w-3xl mx-auto">
+                <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden" style={{ height: "calc(100vh - 180px)" }}>
+                  <SurveyInline
+                    caseId={caseId ?? ""}
+                    initialData={surveyData}
+                    onComplete={handleSurveyComplete}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Evaluating / Results phase */}
+          {(phase === "evaluating" || phase === "results") && (
+            <>
+              <StepIndicators phase={phase} />
+              {caseName && (
+                <h2 className="text-lg font-semibold mb-4">{caseName}</h2>
+              )}
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Results: 3/4 */}
+                <div className="lg:col-span-3">
+                  <ResultsPanel
+                    criteria={analysisResult?.criteria ?? []}
+                    strongCount={analysisResult?.strongCount ?? 0}
+                    weakCount={analysisResult?.weakCount ?? 0}
+                    isStreaming={isStreaming}
+                    caseId={caseId ?? undefined}
+                    onBuildCase={handleBuildCase}
+                    onAddMoreInfo={handleAddMoreInfo}
+                    onCriterionUpdate={handleCriterionUpdate}
+                  />
+                </div>
+
+                {/* Progress sidebar: 1/4 */}
+                <div className="lg:col-span-1">
+                  <ExtractionProgressPanel
+                    extraction={streamingExtraction}
+                    isStreaming={isStreaming}
+                    streamPhase={streamPhase}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
       </div>
-
-      <SurveyModal
-        open={surveyOpen}
-        onOpenChange={setSurveyOpen}
-        caseId={caseId ?? ""}
-        initialData={surveyData}
-        onComplete={handleSurveyComplete}
-      />
-
-      <ResultsModal
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        criteria={analysisResult?.criteria ?? []}
-        strongCount={analysisResult?.strongCount ?? 0}
-        weakCount={analysisResult?.weakCount ?? 0}
-        isStreaming={isStreaming}
-        caseId={caseId ?? undefined}
-        onBuildCase={handleBuildCase}
-        onAddMoreInfo={handleAddMoreInfo}
-        onCriterionUpdate={handleCriterionUpdate}
-      />
     </div>
   );
 }
