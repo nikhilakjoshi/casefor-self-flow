@@ -204,6 +204,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   CITATION_REPORT: 'Citations',
   JUDGING_EVIDENCE: 'Judging',
   PASSPORT_ID: 'ID',
+  PERSONAL_STATEMENT: 'Personal Statement',
+  PETITION_LETTER: 'Petition',
   DEGREE_CERTIFICATE: 'Degree',
   OTHER: 'Other',
 }

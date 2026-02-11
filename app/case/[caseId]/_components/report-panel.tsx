@@ -10,6 +10,7 @@ import { EvidenceListPanel } from "./evidence-list-panel"
 import { CriteriaRoutingPanel } from "./criteria-routing-panel"
 import { CaseConsolidationPanel } from "./case-consolidation-panel"
 import { CaseStrategyConsolidatedPanel } from "./case-strategy-consolidated-panel"
+import { LettersPanel } from "./letters-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
 import { CRITERIA_METADATA } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
@@ -64,6 +65,7 @@ interface ReportPanelProps {
   initialGapAnalysis?: GapAnalysis | null
   initialCaseStrategy?: CaseStrategy | null
   initialCaseConsolidation?: CaseConsolidation | null
+  onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
 }
 
 function getStrengthConfig(strength: Strength) {
@@ -483,7 +485,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "strength" | "gap" | "strategy" | "evidence" | "routing" | "consolidation" | "consolidated-strategy" | "raw"
+type ReportTab = "summary" | "strength" | "gap" | "strategy" | "evidence" | "routing" | "consolidation" | "consolidated-strategy" | "letters" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -496,6 +498,7 @@ export function ReportPanel({
   initialGapAnalysis,
   initialCaseStrategy,
   initialCaseConsolidation,
+  onOpenDraft,
 }: ReportPanelProps) {
   const [analysis, setAnalysis] = useState<Analysis | null>(initialAnalysis ?? null)
   const [activeTab, setActiveTab] = useState<ReportTab>("summary")
@@ -790,6 +793,29 @@ export function ReportPanel({
             {/* Separator */}
             <div className="h-8 w-px bg-border/50 shrink-0 mb-1" />
 
+            {/* Phase 4 group */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
+                Phase 4
+              </span>
+              <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
+                <button
+                  onClick={() => setActiveTab("letters")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                    activeTab === "letters"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                  )}
+                >
+                  Letters
+                </button>
+              </div>
+            </div>
+
+            {/* Separator */}
+            <div className="h-8 w-px bg-border/50 shrink-0 mb-1" />
+
             {/* Raw Data - outside phase group */}
             <button
               onClick={() => setActiveTab("raw")}
@@ -857,6 +883,10 @@ export function ReportPanel({
         <CaseStrategyConsolidatedPanel
           initialData={initialCaseConsolidation}
         />
+      ) : activeTab === "letters" ? (
+        <div className="flex-1 overflow-y-auto">
+          <LettersPanel caseId={caseId} onOpenDraft={onOpenDraft ?? (() => {})} />
+        </div>
       ) : (
         <ExtractionRawPanel extraction={analysis.extraction ?? null} />
       )}
