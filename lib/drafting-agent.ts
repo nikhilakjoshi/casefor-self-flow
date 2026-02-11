@@ -5,11 +5,12 @@ import { db } from "./db";
 import { getCriteriaForCase, type Criterion } from "./criteria";
 import { type CriterionResult } from "./eb1a-agent";
 import { queryContext } from "./rag";
+import { getPrompt, substituteVars, resolveModel } from "./agent-prompt";
 
-const MODEL = "claude-sonnet-4-20250514";
+const FALLBACK_MODEL = "claude-sonnet-4-20250514";
 const MAX_HISTORY = 20;
 
-function buildDraftingSystemPrompt(opts: {
+function hardcodedBuildDraftingSystemPrompt(opts: {
   criteria: Criterion[];
   threshold: number;
   profile: Record<string, unknown> | null;
@@ -69,6 +70,40 @@ TOOL USAGE:
 - Call searchDocuments to find relevant content from uploaded materials.
 - Call getRecommender when drafting recommendation letters.
 - Call getCurrentDocument to see the current document content before revising.`;
+}
+
+async function buildDraftingSystemPrompt(opts: {
+  criteria: Criterion[];
+  threshold: number;
+  profile: Record<string, unknown> | null;
+  analysis: CriterionResult[] | null;
+  documentName?: string;
+  existingContent?: string | null;
+}): Promise<string> {
+  const p = await getPrompt("drafting-agent");
+  if (!p) return hardcodedBuildDraftingSystemPrompt(opts);
+
+  const criteriaList = opts.criteria
+    .map((c) => `- ${c.key}: ${c.name} -- ${c.description}`)
+    .join("\n");
+  const profileSection = opts.profile
+    ? `CURRENT APPLICANT PROFILE:\n${JSON.stringify(opts.profile, null, 2)}`
+    : "APPLICANT PROFILE: Not yet established.";
+  const analysisSection = opts.analysis
+    ? `CURRENT ANALYSIS (${opts.analysis.filter((c) => c.strength === "Strong").length} Strong, need ${opts.threshold}+):\n${opts.analysis.map((c) => `${c.criterionId}: ${c.strength} - ${c.reason}`).join("\n")}`
+    : "ANALYSIS: No analysis yet.";
+  const docSection = opts.documentName
+    ? `CURRENT DOCUMENT: "${opts.documentName}"${opts.existingContent ? `\n\nEXISTING CONTENT:\n${opts.existingContent}` : ""}`
+    : "";
+
+  return substituteVars(p.content, {
+    criteria: criteriaList,
+    threshold: String(opts.threshold),
+    profile: profileSection,
+    analysis: analysisSection,
+    documentName: docSection,
+    existingContent: "",
+  });
 }
 
 function createDraftingAgentTools(caseId: string, documentId?: string) {
@@ -195,7 +230,7 @@ export async function runDraftingAgent(opts: {
   const threshold = caseRecord?.criteriaThreshold ?? 3;
   log("context gathered - criteria:", criteria.length, "threshold:", threshold);
 
-  const instructions = buildDraftingSystemPrompt({
+  const instructions = await buildDraftingSystemPrompt({
     criteria,
     threshold,
     profile: (profile?.data as Record<string, unknown>) ?? null,
@@ -205,11 +240,12 @@ export async function runDraftingAgent(opts: {
   });
 
   const tools = createDraftingAgentTools(caseId, documentId);
+  const p = await getPrompt("drafting-agent");
 
-  log("creating ToolLoopAgent with model:", MODEL, "tools:", Object.keys(tools));
+  log("creating ToolLoopAgent with model:", p?.modelName ?? FALLBACK_MODEL, "tools:", Object.keys(tools));
 
   const agent = new ToolLoopAgent({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     instructions,
     tools,
     stopWhen: stepCountIs(7),

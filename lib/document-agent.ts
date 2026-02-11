@@ -6,11 +6,12 @@ import { getCriteriaForCase, type Criterion } from "./criteria";
 import { type CriterionResult } from "./eb1a-agent";
 import { queryContext } from "./rag";
 import { verifyDocuments } from "./document-verifier";
+import { getPrompt, substituteVars, resolveModel } from "./agent-prompt";
 
-const MODEL = "claude-sonnet-4-20250514";
+const FALLBACK_MODEL = "claude-sonnet-4-20250514";
 const MAX_HISTORY = 20;
 
-function buildDocumentSystemPrompt(opts: {
+function hardcodedBuildDocumentSystemPrompt(opts: {
   criteria: Criterion[];
   threshold: number;
   profile: Record<string, unknown> | null;
@@ -61,6 +62,33 @@ TOOL USAGE RULES:
 - Use searchDocuments to find specific content from uploaded materials.
 - Use verifyDocuments to trigger a fresh quality assessment of all documents.
 - Use getProfile and getAnalysis to understand the applicant's background and criteria standings.`;
+}
+
+async function buildDocumentSystemPrompt(opts: {
+  criteria: Criterion[];
+  threshold: number;
+  profile: Record<string, unknown> | null;
+  analysis: CriterionResult[] | null;
+}): Promise<string> {
+  const p = await getPrompt("document-agent");
+  if (!p) return hardcodedBuildDocumentSystemPrompt(opts);
+
+  const criteriaList = opts.criteria
+    .map((c) => `- ${c.key}: ${c.name} -- ${c.description}`)
+    .join("\n");
+  const profileSection = opts.profile
+    ? `CURRENT APPLICANT PROFILE:\n${JSON.stringify(opts.profile, null, 2)}`
+    : "APPLICANT PROFILE: Not yet established.";
+  const analysisSection = opts.analysis
+    ? `CURRENT ANALYSIS (${opts.analysis.filter((c) => c.strength === "Strong").length} Strong, need ${opts.threshold}+):\n${opts.analysis.map((c) => `${c.criterionId}: ${c.strength} - ${c.reason}`).join("\n")}`
+    : "ANALYSIS: No analysis yet.";
+
+  return substituteVars(p.content, {
+    criteria: criteriaList,
+    threshold: String(opts.threshold),
+    profile: profileSection,
+    analysis: analysisSection,
+  });
 }
 
 function createDocumentAgentTools(caseId: string) {
@@ -245,7 +273,7 @@ export async function runDocumentAgent(opts: {
   const threshold = caseRecord?.criteriaThreshold ?? 3;
   log("context gathered - criteria:", criteria.length, "threshold:", threshold);
 
-  const instructions = buildDocumentSystemPrompt({
+  const instructions = await buildDocumentSystemPrompt({
     criteria,
     threshold,
     profile: (profile?.data as Record<string, unknown>) ?? null,
@@ -253,11 +281,12 @@ export async function runDocumentAgent(opts: {
   });
 
   const tools = createDocumentAgentTools(caseId);
+  const p = await getPrompt("document-agent");
 
-  log("creating ToolLoopAgent with model:", MODEL, "tools:", Object.keys(tools));
+  log("creating ToolLoopAgent with model:", p?.modelName ?? FALLBACK_MODEL, "tools:", Object.keys(tools));
 
   const agent = new ToolLoopAgent({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     instructions,
     tools,
     stopWhen: stepCountIs(7),

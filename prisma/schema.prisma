@@ -405,3 +405,21 @@ model EvidenceVerification {
   @@index([caseId])
   @@index([documentId])
 }
+
+model AgentPrompt {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  name           String
+  description    String?
+  category       String   // "static" | "dynamic-system" | "dynamic-user"
+  content        String
+  defaultContent String   @default("")
+  variables      Json     @default("[]") // [{key, label, description}]
+  provider       String   @default("anthropic") // "anthropic" | "google"
+  modelName      String   @default("claude-sonnet-4-20250514")
+  temperature    Float?
+  maxTokens      Int?
+  active         Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+}

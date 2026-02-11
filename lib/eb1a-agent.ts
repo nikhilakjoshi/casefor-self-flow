@@ -2,6 +2,7 @@ import { generateText, streamText, Output } from "ai"
 import { anthropic } from "@ai-sdk/anthropic"
 import { z } from "zod"
 import { getCriteriaForType, type Criterion } from "./criteria"
+import { getPrompt, resolveModel } from "./agent-prompt"
 import {
   DetailedExtractionSchema,
   type DetailedExtraction,
@@ -32,9 +33,9 @@ export const EB1AEvaluationSchema = z.object({
 export type CriterionResult = z.infer<typeof CriterionResultSchema>
 export type EB1AEvaluation = z.infer<typeof EB1AEvaluationSchema>
 
-const MODEL = "claude-sonnet-4-20250514"
+const FALLBACK_MODEL = "claude-sonnet-4-20250514"
 
-const EXTRACTION_SYSTEM_PROMPT = `You are an EB-1A immigration expert. Extract ALL structured information from this resume/CV and map each item to the relevant EB-1A criteria. Do not use emojis in any output.
+const FALLBACK_EXTRACTION_PROMPT = `You are an EB-1A immigration expert. Extract ALL structured information from this resume/CV and map each item to the relevant EB-1A criteria. Do not use emojis in any output.
 
 THE 10 EB-1A CRITERIA:
 C1: Awards - nationally/internationally recognized prizes for excellence
@@ -80,10 +81,11 @@ export async function extractAndEvaluate(
     ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
     : ""
 
+  const p = await getPrompt("eb1a-extraction")
   const { output } = await generateText({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     output: Output.object({ schema: DetailedExtractionSchema }),
-    system: EXTRACTION_SYSTEM_PROMPT,
+    system: p?.content ?? FALLBACK_EXTRACTION_PROMPT,
     prompt: `Extract all structured information from this resume and evaluate against EB-1A criteria:\n\n${resumeText}${surveyContext}`,
   })
 
@@ -98,10 +100,11 @@ export async function extractAndEvaluateFromPdf(
     ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
     : ""
 
+  const p = await getPrompt("eb1a-extraction")
   const { output } = await generateText({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     output: Output.object({ schema: PdfExtractionSchema }),
-    system: EXTRACTION_SYSTEM_PROMPT,
+    system: p?.content ?? FALLBACK_EXTRACTION_PROMPT,
     messages: [
       {
         role: "user",
@@ -135,10 +138,11 @@ export async function streamExtractAndEvaluate(
     ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
     : ""
 
+  const p = await getPrompt("eb1a-extraction")
   return streamText({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     output: Output.object({ schema: DetailedExtractionSchema }),
-    system: EXTRACTION_SYSTEM_PROMPT,
+    system: p?.content ?? FALLBACK_EXTRACTION_PROMPT,
     prompt: `Extract all structured information from this resume and evaluate against EB-1A criteria:\n\n${resumeText}${surveyContext}`,
   })
 }
@@ -151,10 +155,11 @@ export async function streamExtractAndEvaluateFromPdf(
     ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
     : ""
 
+  const p = await getPrompt("eb1a-extraction")
   return streamText({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     output: Output.object({ schema: PdfExtractionSchema }),
-    system: EXTRACTION_SYSTEM_PROMPT,
+    system: p?.content ?? FALLBACK_EXTRACTION_PROMPT,
     messages: [
       {
         role: "user",

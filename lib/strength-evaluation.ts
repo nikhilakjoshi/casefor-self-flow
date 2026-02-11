@@ -2,10 +2,11 @@ import { streamText, Output } from "ai"
 import { anthropic } from "@ai-sdk/anthropic"
 import { db } from "./db"
 import { StrengthEvaluationSchema } from "./strength-evaluation-schema"
+import { getPrompt, resolveModel } from "./agent-prompt"
 
-const MODEL = "claude-sonnet-4-20250514"
+const FALLBACK_MODEL = "claude-sonnet-4-20250514"
 
-const SYSTEM_PROMPT = `You are a Criteria Strength Evaluator Agent for an EB-1A (Extraordinary Ability) immigration visa platform. Do not use emojis in any output.
+const FALLBACK_PROMPT = `You are a Criteria Strength Evaluator Agent for an EB-1A (Extraordinary Ability) immigration visa platform. Do not use emojis in any output.
 
 You receive the parsed resume JSON from the Resume Parser Agent. Your job is to evaluate every one of the 10 EB-1A criteria using research-validated scoring thresholds and produce a comprehensive strength assessment.
 
@@ -287,11 +288,12 @@ export async function buildEvaluationContext(caseId: string) {
 
 export async function streamStrengthEvaluation(caseId: string) {
   const context = await buildEvaluationContext(caseId)
+  const p = await getPrompt("strength-evaluator")
 
   return streamText({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     output: Output.object({ schema: StrengthEvaluationSchema }),
-    system: SYSTEM_PROMPT,
+    system: p?.content ?? FALLBACK_PROMPT,
     prompt: `Evaluate the following applicant data:\n\n${context}`,
   })
 }

@@ -1,19 +1,21 @@
 import { db } from '@/lib/db'
-import { FolderOpen, ListChecks, FileStack } from 'lucide-react'
+import { FolderOpen, ListChecks, FileStack, MessageSquare } from 'lucide-react'
 
 async function getCounts() {
-  const [caseCount, criteriaCount, templateCount] = await Promise.all([
+  const [caseCount, criteriaCount, templateCount, promptCount] = await Promise.all([
     db.case.count(),
     db.criteriaMapping.count(),
     db.template.count(),
+    db.agentPrompt.count(),
   ])
-  return { caseCount, criteriaCount, templateCount }
+  return { caseCount, criteriaCount, templateCount, promptCount }
 }
 
 const cards = [
   { key: 'caseCount' as const, label: 'Cases', icon: FolderOpen },
   { key: 'criteriaCount' as const, label: 'Criteria', icon: ListChecks },
   { key: 'templateCount' as const, label: 'Templates', icon: FileStack },
+  { key: 'promptCount' as const, label: 'Prompts', icon: MessageSquare },
 ]
 
 export default async function AdminDashboardPage() {
@@ -22,7 +24,7 @@ export default async function AdminDashboardPage() {
   return (
     <div className="p-6">
       <h1 className="text-lg font-semibold mb-6">Dashboard</h1>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         {cards.map((card) => (
           <div
             key={card.key}

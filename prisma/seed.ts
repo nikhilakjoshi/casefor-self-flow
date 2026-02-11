@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
+import { agentPromptSeeds } from './agent-prompt-seeds'
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 const adapter = new PrismaPg(pool)
@@ -124,6 +125,30 @@ async function main() {
     data: { applicationTypeId: eb1a.id },
   })
   console.log(`Backfilled ${updated.count} cases with applicationTypeId`)
+
+  // 5. Upsert AgentPrompt records
+  for (const seed of agentPromptSeeds) {
+    await prisma.agentPrompt.upsert({
+      where: { slug: seed.slug },
+      update: {
+        name: seed.name,
+        description: seed.description,
+        variables: seed.variables,
+      },
+      create: {
+        slug: seed.slug,
+        name: seed.name,
+        description: seed.description,
+        category: seed.category,
+        content: seed.content,
+        defaultContent: seed.content,
+        variables: seed.variables,
+        provider: seed.provider,
+        modelName: seed.modelName,
+      },
+    })
+  }
+  console.log(`Upserted ${agentPromptSeeds.length} AgentPrompt rows`)
 }
 
 main()

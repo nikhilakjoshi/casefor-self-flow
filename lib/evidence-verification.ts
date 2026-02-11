@@ -2,6 +2,7 @@ import { generateObject } from "ai"
 import { anthropic } from "@ai-sdk/anthropic"
 import { db } from "./db"
 import { buildEvaluationContext } from "./strength-evaluation"
+import { getPrompt, resolveModel } from "./agent-prompt"
 import {
   C1VerificationSchema,
   C2VerificationSchema,
@@ -10,7 +11,7 @@ import {
   C5VerificationSchema,
 } from "./evidence-verification-schema"
 
-const MODEL = "claude-sonnet-4-20250514"
+const FALLBACK_MODEL = "claude-sonnet-4-20250514"
 
 // ─── System Prompts ───
 
@@ -135,12 +136,20 @@ VERIFICATION CHECKLIST:
 
 Be honest and precise. Score only what the document actually shows. Do not use emojis.`
 
-const SYSTEM_PROMPTS: Record<string, string> = {
+const FALLBACK_PROMPTS: Record<string, string> = {
   C1: C1_PROMPT,
   C2: C2_PROMPT,
   C3: C3_PROMPT,
   C4: C4_PROMPT,
   C5: C5_PROMPT,
+}
+
+const CRITERION_SLUGS: Record<string, string> = {
+  C1: "ev-c1-awards",
+  C2: "ev-c2-memberships",
+  C3: "ev-c3-published",
+  C4: "ev-c4-judging",
+  C5: "ev-c5-contributions",
 }
 
 const SCHEMAS: Record<string, typeof C1VerificationSchema> = {
@@ -165,13 +174,16 @@ async function verifyCriterion(
   context: string,
 ) {
   const schema = SCHEMAS[criterion]
-  const systemPrompt = SYSTEM_PROMPTS[criterion]
-  if (!schema || !systemPrompt) throw new Error(`Unknown criterion: ${criterion}`)
+  const fallbackPrompt = FALLBACK_PROMPTS[criterion]
+  if (!schema || !fallbackPrompt) throw new Error(`Unknown criterion: ${criterion}`)
+
+  const slug = CRITERION_SLUGS[criterion]
+  const p = slug ? await getPrompt(slug) : null
 
   const { object } = await generateObject({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     schema,
-    system: systemPrompt,
+    system: p?.content ?? fallbackPrompt,
     prompt: `=== CASE CONTEXT ===\n${context}\n\n=== DOCUMENT TO VERIFY ===\n${documentText}`,
   })
 
