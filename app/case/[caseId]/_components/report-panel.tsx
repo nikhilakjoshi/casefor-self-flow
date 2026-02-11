@@ -8,11 +8,14 @@ import { GapAnalysisPanel } from "./gap-analysis-panel"
 import { CaseStrategyPanel } from "./case-strategy-panel"
 import { EvidenceListPanel } from "./evidence-list-panel"
 import { CriteriaRoutingPanel } from "./criteria-routing-panel"
+import { CaseConsolidationPanel } from "./case-consolidation-panel"
+import { CaseStrategyConsolidatedPanel } from "./case-strategy-consolidated-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
 import { CRITERIA_METADATA } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
 import type { GapAnalysis } from "@/lib/gap-analysis-schema"
 import type { CaseStrategy } from "@/lib/case-strategy-schema"
+import type { CaseConsolidation } from "@/lib/case-consolidation-schema"
 import {
   FileText,
   Award,
@@ -60,6 +63,7 @@ interface ReportPanelProps {
   initialStrengthEvaluation?: StrengthEvaluation | null
   initialGapAnalysis?: GapAnalysis | null
   initialCaseStrategy?: CaseStrategy | null
+  initialCaseConsolidation?: CaseConsolidation | null
 }
 
 function getStrengthConfig(strength: Strength) {
@@ -198,7 +202,7 @@ function ItemSummary({ item, category }: { item: Record<string, unknown>; catego
     case "grants": {
       const parts = [item.title as string]
       if (item.funder) parts.push(`from ${item.funder}`)
-      if (item.amount != null) parts.push(`${item.currency ?? "$"}${(item.amount as number).toLocaleString()}`)
+      if (item.amount != null) parts.push(`${item.currency ?? "$"}${(item.amount as number).toLocaleString("en-US")}`)
       return <span>{parts.join(" ")}</span>
     }
     case "leadership_roles": {
@@ -208,7 +212,7 @@ function ItemSummary({ item, category }: { item: Record<string, unknown>; catego
     }
     case "compensation": {
       const parts: string[] = []
-      if (item.amount != null) parts.push(`${item.currency ?? "$"}${(item.amount as number).toLocaleString()}`)
+      if (item.amount != null) parts.push(`${item.currency ?? "$"}${(item.amount as number).toLocaleString("en-US")}`)
       if (item.period) parts.push(`(${item.period})`)
       if (item.context) parts.push(`- ${item.context}`)
       return <span>{parts.join(" ")}</span>
@@ -479,7 +483,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "strength" | "gap" | "strategy" | "evidence" | "routing" | "raw"
+type ReportTab = "summary" | "strength" | "gap" | "strategy" | "evidence" | "routing" | "consolidation" | "consolidated-strategy" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -491,6 +495,7 @@ export function ReportPanel({
   initialStrengthEvaluation,
   initialGapAnalysis,
   initialCaseStrategy,
+  initialCaseConsolidation,
 }: ReportPanelProps) {
   const [analysis, setAnalysis] = useState<Analysis | null>(initialAnalysis ?? null)
   const [activeTab, setActiveTab] = useState<ReportTab>("summary")
@@ -751,6 +756,40 @@ export function ReportPanel({
             {/* Separator */}
             <div className="h-8 w-px bg-border/50 shrink-0 mb-1" />
 
+            {/* Phase 3 group */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
+                Phase 3
+              </span>
+              <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
+                <button
+                  onClick={() => setActiveTab("consolidation")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                    activeTab === "consolidation"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                  )}
+                >
+                  Consolidation
+                </button>
+                <button
+                  onClick={() => setActiveTab("consolidated-strategy")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                    activeTab === "consolidated-strategy"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                  )}
+                >
+                  Strategy
+                </button>
+              </div>
+            </div>
+
+            {/* Separator */}
+            <div className="h-8 w-px bg-border/50 shrink-0 mb-1" />
+
             {/* Raw Data - outside phase group */}
             <button
               onClick={() => setActiveTab("raw")}
@@ -808,6 +847,16 @@ export function ReportPanel({
         <EvidenceListPanel caseId={caseId} />
       ) : activeTab === "routing" ? (
         <CriteriaRoutingPanel caseId={caseId} />
+      ) : activeTab === "consolidation" ? (
+        <CaseConsolidationPanel
+          caseId={caseId}
+          initialData={initialCaseConsolidation}
+          hasCaseStrategy={!!initialCaseStrategy}
+        />
+      ) : activeTab === "consolidated-strategy" ? (
+        <CaseStrategyConsolidatedPanel
+          initialData={initialCaseConsolidation}
+        />
       ) : (
         <ExtractionRawPanel extraction={analysis.extraction ?? null} />
       )}

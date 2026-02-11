@@ -280,7 +280,7 @@ export function ExtractionRawPanel({
             <Card key={i}>
               <KV label="Title" value={g.title} />
               <KV label="Funder" value={g.funder} />
-              <KV label="Amount" value={g.amount != null ? `${g.currency ?? "$"}${g.amount.toLocaleString()}` : undefined} />
+              <KV label="Amount" value={g.amount != null ? `${g.currency ?? "$"}${g.amount.toLocaleString("en-US")}` : undefined} />
               <KV label="Role" value={g.role} />
               <KV label="Year" value={g.year} />
               <SourceTag source={g.source} />
@@ -307,7 +307,7 @@ export function ExtractionRawPanel({
         <Section title="Compensation" icon={Banknote} count={extraction.compensation.length}>
           {extraction.compensation.map((c, i) => (
             <Card key={i}>
-              <KV label="Amount" value={c.amount != null ? `${c.currency ?? "$"}${c.amount.toLocaleString()}` : undefined} />
+              <KV label="Amount" value={c.amount != null ? `${c.currency ?? "$"}${c.amount.toLocaleString("en-US")}` : undefined} />
               <KV label="Period" value={c.period} />
               <KV label="Context" value={c.context} />
               <KV label="Comparison" value={c.comparison} />
@@ -336,7 +336,7 @@ export function ExtractionRawPanel({
             <Card key={i}>
               <KV label="Description" value={cs.description} />
               <KV label="Metrics" value={cs.metrics} />
-              <KV label="Revenue" value={cs.revenue != null ? `${cs.currency ?? "$"}${cs.revenue.toLocaleString()}` : undefined} />
+              <KV label="Revenue" value={cs.revenue != null ? `${cs.currency ?? "$"}${cs.revenue.toLocaleString("en-US")}` : undefined} />
               <SourceTag source={cs.source} />
             </Card>
           ))}

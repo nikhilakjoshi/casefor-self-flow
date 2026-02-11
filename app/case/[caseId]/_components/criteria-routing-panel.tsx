@@ -146,7 +146,7 @@ function CriterionSection({
   return (
     <Collapsible defaultOpen={!isEmpty}>
       <div className={cn(
-        "rounded-lg border overflow-hidden transition-colors",
+        "rounded-lg border transition-colors",
         isEmpty ? "border-border/50 bg-muted/20" : "border-border"
       )}>
         <CollapsibleTrigger className="w-full text-left">

@@ -379,7 +379,7 @@ export function ExtractionDetailPanel({
               extra={
                 grant.amount && (
                   <span className="text-[10px] text-muted-foreground">
-                    {grant.currency ?? "$"}{grant.amount.toLocaleString()}
+                    {grant.currency ?? "$"}{grant.amount.toLocaleString("en-US")}
                   </span>
                 )
               }
