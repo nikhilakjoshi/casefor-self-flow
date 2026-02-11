@@ -7,6 +7,7 @@ import { StrengthEvaluationPanel } from "./strength-evaluation-panel"
 import { GapAnalysisPanel } from "./gap-analysis-panel"
 import { CaseStrategyPanel } from "./case-strategy-panel"
 import { EvidenceListPanel } from "./evidence-list-panel"
+import { CriteriaRoutingPanel } from "./criteria-routing-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
 import { CRITERIA_METADATA } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
@@ -478,7 +479,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "strength" | "gap" | "strategy" | "evidence" | "raw"
+type ReportTab = "summary" | "strength" | "gap" | "strategy" | "evidence" | "routing" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -733,6 +734,17 @@ export function ReportPanel({
                 >
                   Evidence List
                 </button>
+                <button
+                  onClick={() => setActiveTab("routing")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                    activeTab === "routing"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                  )}
+                >
+                  Routing
+                </button>
               </div>
             </div>
 
@@ -794,6 +806,8 @@ export function ReportPanel({
         />
       ) : activeTab === "evidence" ? (
         <EvidenceListPanel caseId={caseId} />
+      ) : activeTab === "routing" ? (
+        <CriteriaRoutingPanel caseId={caseId} />
       ) : (
         <ExtractionRawPanel extraction={analysis.extraction ?? null} />
       )}
