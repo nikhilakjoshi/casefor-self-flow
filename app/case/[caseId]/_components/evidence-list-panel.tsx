@@ -185,7 +185,7 @@ function DocumentCard({
   onReVerify: (docId: string) => void
   isReVerifying: boolean
 }) {
-  const allCriteria = ["C1", "C2", "C3", "C4", "C5"]
+  const allCriteria = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]
   const hasResults = Object.keys(entry.criteria).length > 0
   const overall = hasResults ? getOverallRecommendation(entry.criteria) : null
 
@@ -307,7 +307,7 @@ export function EvidenceListPanel({ caseId }: EvidenceListPanelProps) {
             // Mark all criteria as loading
             setLoadingCriteria((prev) => {
               const next = new Set(prev)
-              for (const c of ["C1", "C2", "C3", "C4", "C5"]) {
+              for (const c of ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]) {
                 next.add(`${docId}-${c}`)
               }
               return next
@@ -347,7 +347,7 @@ export function EvidenceListPanel({ caseId }: EvidenceListPanelProps) {
             const docId = event.documentId as string
             setLoadingCriteria((prev) => {
               const next = new Set(prev)
-              for (const c of ["C1", "C2", "C3", "C4", "C5"]) {
+              for (const c of ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]) {
                 next.delete(`${docId}-${c}`)
               }
               return next
@@ -494,7 +494,7 @@ export function EvidenceListPanel({ caseId }: EvidenceListPanelProps) {
         {documents.length === 0 && hasLoaded && (
           <div className="text-center py-8">
             <p className="text-sm text-muted-foreground">No evidence documents yet</p>
-            <p className="text-xs text-muted-foreground/70 mt-1">Upload files to verify against EB-1A criteria C1-C5</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Upload files to verify against EB-1A criteria C1-C10</p>
           </div>
         )}
 

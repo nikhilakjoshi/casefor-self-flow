@@ -6,6 +6,8 @@ import { upsertChunks } from "@/lib/pinecone"
 import {
   streamExtractAndEvaluate,
   streamExtractAndEvaluateFromPdf,
+  streamQuickProfile,
+  streamQuickProfileFromPdf,
   extractionToLegacyFormat,
   countExtractionStrengths,
   type DetailedExtraction,
@@ -141,18 +143,37 @@ async function handleFileAnalysis(
     // Pass survey data if available
     const surveyData = caseRecord.profile?.data as Record<string, unknown> | undefined
 
-    const streamResult = isPdf
-      ? await streamExtractAndEvaluateFromPdf(buffer, surveyData)
-      : await streamExtractAndEvaluate(await parseFile(file), surveyData)
+    // Start both calls in parallel: quick profile (fast) + full extraction
+    const parsedText = isPdf ? null : await parseFile(file)
+
+    const [quickResult, fullResult] = await Promise.all([
+      isPdf
+        ? streamQuickProfileFromPdf(buffer, surveyData)
+        : streamQuickProfile(parsedText!, surveyData),
+      isPdf
+        ? streamExtractAndEvaluateFromPdf(buffer, surveyData)
+        : streamExtractAndEvaluate(parsedText!, surveyData),
+    ])
 
     const encoder = new TextEncoder()
 
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          for await (const partialObject of streamResult.partialOutputStream) {
+          // Phase 1: stream quick profile (completes in ~1-2s)
+          let quickFinal: Record<string, unknown> = {}
+          for await (const partial of quickResult.partialOutputStream) {
+            quickFinal = partial as Record<string, unknown>
             controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify(partialObject)}\n\n`)
+              encoder.encode(`data: ${JSON.stringify(quickFinal)}\n\n`)
+            )
+          }
+
+          // Phase 2: stream full extraction, merging over quick profile data
+          for await (const partial of fullResult.partialOutputStream) {
+            const merged = { ...quickFinal, ...(partial as Record<string, unknown>) }
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(merged)}\n\n`)
             )
           }
           controller.close()
@@ -162,13 +183,13 @@ async function handleFileAnalysis(
       },
     })
 
-    // Save to DB in background after stream completes
-    streamResult.output.then(async (output) => {
+    // Save to DB in background after full extraction completes
+    fullResult.output.then(async (output) => {
       if (!output) return
 
       const extraction = output as DetailedExtraction
       const extractedText = extraction.extracted_text ?? ""
-      const textToChunk = extractedText || (isPdf ? "" : await parseFile(file))
+      const textToChunk = extractedText || (isPdf ? "" : (parsedText ?? await parseFile(file)))
 
       // Chunk and embed
       if (textToChunk) {
