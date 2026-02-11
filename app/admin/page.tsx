@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { db } from '@/lib/db'
 import { FolderOpen, ListChecks, FileStack, MessageSquare } from 'lucide-react'
 
