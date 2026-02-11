@@ -1176,7 +1176,32 @@ Extract the following information if present:
 Return null for fields with no data. Be precise and extract only what's explicitly stated.`,
   },
 
-  // ─── 11. survey-extractor (static, google) ───
+  // ─── 11. recommender-extractor (static, google) ───
+  {
+    slug: 'recommender-extractor',
+    name: 'Recommender Extractor',
+    description: 'Extracts structured recommender info from resumes, CVs, LinkedIn profiles, and web pages',
+    category: 'static',
+    provider: 'google',
+    modelName: 'gemini-2.5-flash',
+    variables: [],
+    content: `You are an expert at extracting structured professional information from resumes, CVs, LinkedIn profiles, and web pages. Do not use emojis in any output.
+
+Extract the following information if present:
+- name: Full name
+- title: Current professional title/position
+- organization: Current employer/organization/university
+- email: Contact email
+- phone: Phone number
+- linkedIn: LinkedIn profile URL
+- countryRegion: Country or region
+- bio: Brief professional biography (2-3 sentences summarizing career)
+- credentials: Notable credentials, degrees, fellowships (e.g. "Ph.D., IEEE Fellow, ACM Distinguished Member")
+
+Return null for fields with no data. Be precise and extract only what's explicitly stated.`,
+  },
+
+  // ─── 12. survey-extractor (static, google) ───
   {
     slug: 'survey-extractor',
     name: 'Survey Extractor',

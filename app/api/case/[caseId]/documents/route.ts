@@ -37,6 +37,7 @@ export async function GET(
       status: true,
       category: true,
       classificationConfidence: true,
+      recommenderId: true,
       createdAt: true,
     },
     orderBy: { createdAt: 'desc' },

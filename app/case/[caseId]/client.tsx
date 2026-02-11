@@ -396,6 +396,7 @@ export function CasePageClient({
               initialGapAnalysis={initialGapAnalysis}
               initialCaseStrategy={initialCaseStrategy}
               initialCaseConsolidation={initialCaseConsolidation}
+              onOpenDraft={onOpenDraft}
             />
           </div>
 

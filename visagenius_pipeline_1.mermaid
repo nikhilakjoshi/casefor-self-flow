@@ -1,0 +1,97 @@
+flowchart TD
+    classDef userAction fill:#451a03,stroke:#f59e0b,color:#fde68a,stroke-width:2px
+    classDef aiStep fill:#134e4a,stroke:#0d9488,color:#5eead4,stroke-width:1px
+    classDef output fill:#3b1764,stroke:#a855f7,color:#c084fc,stroke-width:1px
+    classDef critical fill:#450a0a,stroke:#ef4444,color:#fca5a5,stroke-width:2px
+    classDef phase fill:#1e293b,stroke:#475569,color:#e2e8f0,stroke-width:2px
+    classDef decision fill:#78350f,stroke:#f59e0b,color:#fde68a,stroke-width:2px
+
+    %% ============ PHASE 1: INITIAL ASSESSMENT ============
+    PH1[/"🔍 PHASE 1 — INITIAL ASSESSMENT"/]:::phase
+
+    U1["📄 Upload Resume / CV<br/>(PDF, TXT, DOC)"]:::userAction
+    U2["📝 Answer 5 Intake Questions<br/>Passion · Job · Resources · Plans · Why PR"]:::userAction
+
+    S1["S1: Document Classification<br/>Type detection · 99% confidence · ~1.4s"]:::aiStep
+    S2["S2: Resume Parsing & Criteria Mapping<br/>Entity extraction · C1–C10 mapping · 69 items · ~53.8s"]:::aiStep
+    S3["S3: Criteria Strength Evaluation<br/>Tier scoring (1–5) · Approval prob · RFE risk · ~29.9s"]:::aiStep
+    S4["S4: Gap Analysis & Action Plan<br/>Critical gaps · Remediation steps · Cost & timeline · ~47.5s"]:::aiStep
+    S5["S5: Case Strategy & Filing Plan<br/>Recommended criteria (4) · Filing plan · ~33.0s"]:::aiStep
+
+    O1(["📊 Assessment Outputs<br/>• Approval probability (85–95%)<br/>• Criteria satisfied (1/10)<br/>• Top 3 weaknesses<br/>• Filing recommendation: WAIT 6 MONTHS"]):::output
+
+    PH1 --> U1 & U2
+    U1 --> S1
+    S1 --> S2
+    U2 -.->|"intake context"| S4
+    U2 -.->|"intake context"| S5
+    S2 --> S3
+    S3 --> S4
+    S4 --> S5
+    S5 --> O1
+
+    %% ============ PHASE 2: EVIDENCE VERIFICATION ============
+    PH2[/"📎 PHASE 2 — EVIDENCE VERIFICATION"/]:::phase
+    O1 --> PH2
+
+    U3["📁 Upload 10–50+ Evidence Documents<br/>Patents · Articles · Salary docs · Awards · Org charts"]:::userAction
+    S6["S6: Evidence Classification<br/>Batch classify all docs · Type distribution · ~18.6s"]:::aiStep
+    S7["S7: Criteria Routing & Assignment<br/>Auto-route docs → C1–C10 · Manual reassign available"]:::aiStep
+    D1{"👤 User reviews<br/>routing & clicks<br/>Verify Evidence"}:::decision
+    S8["S8: Evidence Verification (Per Criterion)<br/>Deep verify · Red flags · Unverified claims · INCLUDE/EXCLUDE · ~29.1s"]:::aiStep
+
+    O2(["✅ Verification Outputs<br/>• 3 criteria verified · 12 red flags<br/>• Include / Exclude per document<br/>• Strong: 0 · Moderate: 0 · Weak: 3<br/>• Missing docs: 0"]):::output
+
+    PH2 --> U3
+    U3 --> S6
+    S6 --> S7
+    S7 --> D1
+    D1 -->|"✅ Verify Evidence"| S8
+    S8 --> O2
+
+    %% ============ PHASE 3: CASE CONSOLIDATION ============
+    PH3[/"🧩 PHASE 3 — CASE CONSOLIDATION"/]:::phase
+    O2 --> PH3
+
+    S9["S9: Case Consolidation & Prioritization<br/>Master synthesis · Criteria ranking (PRIMARY/BACKUP/DROP)<br/>Petition strategy · Letter strategy · Risk assessment · ~75.6s"]:::aiStep
+
+    O3(["📋 Consolidation Outputs<br/>• Primary: C8 · Backup: C5, C4, C9<br/>• Drop: C1, C2, C3, C6, C7, C10<br/>• 6 recommendation letters planned<br/>• 25-page petition structure<br/>• 5 gap remediation priorities<br/>• Kazarian Step 1 & 2 narrative"]):::output
+
+    PH3 --> S9
+    S9 --> O3
+
+    %% ============ PHASE 4: RECOMMENDATION LETTERS ============
+    PH4[/"✍️ PHASE 4 — RECOMMENDATION LETTERS"/]:::phase
+    O3 --> PH4
+
+    S10["S10: Recommender Input & Portfolio Health<br/>Add up to 20 recommenders · Name, LinkedIn, Why, Criteria<br/>Portfolio Health Scorecard (independence, diversity, coverage)"]:::userAction
+    S11["S11: Recommender Bio Research<br/>AI researches credentials · Assesses suitability"]:::aiStep
+    S12["S12: Letter Draft Generation & Iteration<br/>AI-drafted letters per recommender · Supports refinement"]:::aiStep
+
+    PH4 --> S10
+    S10 --> S11
+    S11 --> S12
+
+    %% ============ DOCUMENT GENERATION ============
+    PH5[/"📄 DOCUMENT GENERATION (Steps 13–16)"/]:::phase
+    S12 --> PH5
+
+    S13["S13: Personal Statement (Exhibit A)<br/>2–4 pages · First person · Uses intake answers<br/>Satisfies 8 CFR 204.5(h)(3)"]:::aiStep
+    S14["S14: Petition Cover Letter (I-140)<br/>Primary legal document · Kazarian two-prong test<br/>Per-criterion evidence presentation"]:::aiStep
+    S15["S15: Executive Resume (Exhibit B)<br/>USCIS-optimized · 2–4 pages · Criterion-mapped<br/>Red flag items auto-excluded"]:::aiStep
+    S16["S16: Exhibit List<br/>Standard order: A (PS) → B (Resume) → C+ (Letters)<br/>→ Evidence by Criterion → Identity Documents"]:::aiStep
+
+    PH5 --> S13 & S14 & S15 & S16
+
+    %% ============ FINAL REVIEW ============
+    PH6[/"🔒 FINAL REVIEW & FILING (Steps 17–18)"/]:::phase
+    S13 & S14 & S15 & S16 --> PH6
+
+    S17["S17: Final Review & Filing Checklist<br/>Completeness · Consistency across docs<br/>Regulatory compliance · Pipeline status"]:::aiStep
+    S18["S18: Denial Probability Engine<br/>AAO patterns 2015–2025 · Field-specific rates<br/>Kazarian Step 1 & 2 assessment · Risk mitigation"]:::critical
+
+    FINAL(["🎯 PETITION PACKAGE READY<br/>All documents generated · Reviewed · Risk-assessed<br/>Ready for attorney review & USCIS filing"]):::output
+
+    PH6 --> S17
+    S17 --> S18
+    S18 --> FINAL
