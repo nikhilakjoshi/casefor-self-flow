@@ -2,15 +2,6 @@
 
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export type Strength = "Strong" | "Weak" | "None";
@@ -22,9 +13,7 @@ interface CriterionResultData {
   evidence: string[];
 }
 
-interface ResultsModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface ResultsPanelProps {
   criteria: CriterionResultData[];
   strongCount: number;
   weakCount: number;
@@ -126,7 +115,6 @@ function CriterionCardEnhanced({
 
       if (res.ok) {
         const data = await res.json();
-        // Ensure we use the local criterionId, not from response
         onUpdate?.({
           criterionId: criterionId,
           strength: data.strength as Strength,
@@ -191,7 +179,6 @@ function CriterionCardEnhanced({
     >
       <input {...getInputProps()} />
 
-      {/* Loading overlay */}
       {isAnalyzing && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-xl z-10">
           <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-background shadow-sm">
@@ -201,7 +188,6 @@ function CriterionCardEnhanced({
         </div>
       )}
 
-      {/* Drop overlay */}
       {isDragOver && (
         <div className="absolute inset-0 flex items-center justify-center bg-primary/10 rounded-xl z-10 border-2 border-dashed border-primary">
           <div className="text-center">
@@ -251,7 +237,7 @@ function CriterionCardEnhanced({
                 className="relative pl-4 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-0.5 before:rounded-full before:bg-border"
               >
                 <p className="text-xs leading-relaxed text-stone-600 dark:text-stone-400 italic">
-                  "{quote}"
+                  &quot;{quote}&quot;
                 </p>
               </div>
             ))}
@@ -259,7 +245,6 @@ function CriterionCardEnhanced({
         </div>
       )}
 
-      {/* Add evidence section */}
       {caseId && (
         <div className="mt-4 pt-4 border-t border-stone-200/60 dark:border-stone-700/40">
           {!isExpanded ? (
@@ -369,9 +354,7 @@ function ScoreRing({ value, max, label, color }: { value: number; max: number; l
   );
 }
 
-export function ResultsModal({
-  open,
-  onOpenChange,
+export function ResultsPanel({
   criteria,
   strongCount,
   weakCount,
@@ -382,7 +365,7 @@ export function ResultsModal({
   criteriaNames,
   threshold = 3,
   onCriterionUpdate,
-}: ResultsModalProps) {
+}: ResultsPanelProps) {
   const meetsThreshold = strongCount >= threshold;
   const noneCount = criteria.length - strongCount - weakCount;
 
@@ -391,145 +374,114 @@ export function ResultsModal({
   }, [onCriterionUpdate]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={cn(
-          "max-h-[90vh] sm:w-[90vw] sm:max-w-[90vw] overflow-hidden flex flex-col",
-          "bg-card",
-          "border-border"
-        )}
-        showCloseButton={false}
-      >
-        {/* Header */}
-        <DialogHeader className="shrink-0 pb-6 border-b border-stone-200 dark:border-stone-800">
-          <div className="flex items-start justify-between">
-            <div>
-              <DialogTitle className="text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
-                EB-1A Evaluation Results
-              </DialogTitle>
-              <DialogDescription className="mt-1.5 text-stone-500 dark:text-stone-400">
-                Comprehensive analysis across the 10 USCIS criteria
-              </DialogDescription>
-            </div>
-            <DialogClose asChild>
-              <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </DialogClose>
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="shrink-0 pb-6 border-b border-stone-200 dark:border-stone-800">
+        <h1 className="text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
+          EB-1A Evaluation Results
+        </h1>
+        <p className="mt-1.5 text-stone-500 dark:text-stone-400">
+          Comprehensive analysis across the 10 USCIS criteria
+        </p>
+      </div>
+
+      {/* Summary Section */}
+      <div className="shrink-0 py-6 border-b border-stone-200 dark:border-stone-800">
+        <div className="flex items-center justify-between gap-8">
+          <div className="flex items-center gap-6">
+            <ScoreRing value={strongCount} max={10} label="Strong" color="text-emerald-500" />
+            <ScoreRing value={weakCount} max={10} label="Weak" color="text-amber-500" />
+            <ScoreRing value={noneCount} max={10} label="None" color="text-stone-400" />
           </div>
-        </DialogHeader>
 
-        {/* Summary Section */}
-        <div className="shrink-0 py-6 border-b border-stone-200 dark:border-stone-800">
-          <div className="flex items-center justify-between gap-8">
-            {/* Score Rings */}
-            <div className="flex items-center gap-6">
-              <ScoreRing value={strongCount} max={10} label="Strong" color="text-emerald-500" />
-              <ScoreRing value={weakCount} max={10} label="Weak" color="text-amber-500" />
-              <ScoreRing value={noneCount} max={10} label="None" color="text-stone-400" />
-            </div>
-
-            {/* Threshold Status - only shown when met */}
-            {meetsThreshold && (
-              <div className="flex-1 max-w-md p-4 rounded-xl border bg-emerald-500/10 border-emerald-500/30">
-                <div className="flex items-start gap-3">
-                  <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-emerald-500/20">
-                    <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
-                      Threshold Met
-                    </p>
-                    <p className="text-xs text-stone-600 dark:text-stone-400 mt-0.5">
-                      You demonstrate strong evidence in {threshold}+ criteria
-                    </p>
-                  </div>
+          {meetsThreshold && (
+            <div className="flex-1 max-w-md p-4 rounded-xl border bg-emerald-500/10 border-emerald-500/30">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-emerald-500/20">
+                  <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                    Threshold Met
+                  </p>
+                  <p className="text-xs text-stone-600 dark:text-stone-400 mt-0.5">
+                    You demonstrate strong evidence in {threshold}+ criteria
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {isStreaming && (
-              <div className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-full bg-muted">
-                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                <span className="text-xs font-medium text-stone-600 dark:text-stone-400">
-                  {criteria.length}/10 analyzed
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Criteria Cards */}
-        <div className="flex-1 overflow-y-auto py-6 -mx-6 px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {criteria.map((c, idx) => (
-              <CriterionCardEnhanced
-                key={c.criterionId}
-                criterionId={c.criterionId}
-                criterionName={getCriterionName(c.criterionId, criteriaNames)}
-                strength={c.strength}
-                reason={c.reason}
-                evidence={c.evidence}
-                index={idx}
-                caseId={caseId}
-                onUpdate={handleCriterionUpdate}
-              />
-            ))}
-            {isStreaming && (
-              <div className="flex items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed border-border bg-muted/50">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
-                </div>
-                <span className="text-sm text-stone-500 dark:text-stone-400">
-                  Analyzing criterion {criteria.length + 1} of 10...
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="shrink-0 pt-6 border-t border-stone-200 dark:border-stone-800 flex justify-between items-center">
-          <DialogClose asChild>
-            <Button
-              variant="ghost"
-              className="text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
-            >
-              Close
-            </Button>
-          </DialogClose>
-
-          {!isStreaming && (
-            meetsThreshold ? (
-              <Button
-                onClick={onBuildCase}
-                className="px-6 bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                Build Case
-                <svg className="w-4 h-4 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M5 12h14m-7-7l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </Button>
-            ) : (
-              <Button
-                onClick={onAddMoreInfo}
-                className="px-6 bg-amber-500 hover:bg-amber-600 text-white"
-              >
-                Add More Info
-                <svg className="w-4 h-4 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 5v14m-7-7h14" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </Button>
-            )
+          {isStreaming && (
+            <div className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-full bg-muted">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <span className="text-xs font-medium text-stone-600 dark:text-stone-400">
+                {criteria.length}/10 analyzed
+              </span>
+            </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+
+      {/* Criteria Cards */}
+      <div className="flex-1 overflow-y-auto py-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {criteria.map((c, idx) => (
+            <CriterionCardEnhanced
+              key={c.criterionId}
+              criterionId={c.criterionId}
+              criterionName={getCriterionName(c.criterionId, criteriaNames)}
+              strength={c.strength}
+              reason={c.reason}
+              evidence={c.evidence}
+              index={idx}
+              caseId={caseId}
+              onUpdate={handleCriterionUpdate}
+            />
+          ))}
+          {isStreaming && (
+            <div className="flex items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed border-border bg-muted/50">
+              <div className="flex gap-1">
+                <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+              <span className="text-sm text-stone-500 dark:text-stone-400">
+                Analyzing criterion {criteria.length + 1} of 10...
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="shrink-0 pt-6 border-t border-stone-200 dark:border-stone-800 flex justify-end items-center">
+        {!isStreaming && (
+          meetsThreshold ? (
+            <button
+              onClick={onBuildCase}
+              className="px-6 py-2 text-sm font-medium rounded-md bg-emerald-600 hover:bg-emerald-700 text-white transition-colors inline-flex items-center gap-2"
+            >
+              Build Case
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M5 12h14m-7-7l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              onClick={onAddMoreInfo}
+              className="px-6 py-2 text-sm font-medium rounded-md bg-amber-500 hover:bg-amber-600 text-white transition-colors inline-flex items-center gap-2"
+            >
+              Add More Info
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14m-7-7h14" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )
+        )}
+      </div>
+    </div>
   );
 }

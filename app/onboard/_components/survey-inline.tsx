@@ -1,6 +1,5 @@
 "use client";
 
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useSurvey } from "../_lib/use-survey";
 import { SurveyShell } from "./survey-shell";
 import { SurveyStepPersonal } from "./survey-step-personal";
@@ -12,28 +11,19 @@ import { SurveyStepContributions } from "./survey-step-contributions";
 import { SurveyStepLeadership } from "./survey-step-leadership";
 import { SurveyStepEvidence } from "./survey-step-evidence";
 import { SURVEY_SECTIONS } from "../_lib/survey-schema";
-import type { SurveyData, SurveySection } from "../_lib/survey-schema";
+import type { SurveyData } from "../_lib/survey-schema";
 
-interface SurveyModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface SurveyInlineProps {
   caseId: string;
   initialData?: SurveyData;
   onComplete?: () => void;
 }
 
-export function SurveyModal({
-  open,
-  onOpenChange,
+export function SurveyInline({
   caseId,
   initialData = {},
   onComplete,
-}: SurveyModalProps) {
-  const handleComplete = () => {
-    onOpenChange(false);
-    onComplete?.();
-  };
-
+}: SurveyInlineProps) {
   const {
     currentStep,
     totalSteps,
@@ -49,7 +39,7 @@ export function SurveyModal({
   } = useSurvey({
     caseId,
     initialData,
-    onComplete: handleComplete,
+    onComplete,
   });
 
   const currentSection = SURVEY_SECTIONS[currentStep];
@@ -118,22 +108,18 @@ export function SurveyModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3/5 w-full h-[90vh] p-0 gap-0 flex flex-col">
-        <SurveyShell
-          currentStep={currentStep}
-          skippedSections={skippedSections}
-          saveStatus={saveStatus}
-          onNext={nextStep}
-          onPrev={prevStep}
-          onSkip={() => skipSection(currentSection)}
-          onSkipAll={skipAll}
-          onComplete={completeSurvey}
-          isLastStep={currentStep === totalSteps - 1}
-        >
-          {renderStep()}
-        </SurveyShell>
-      </DialogContent>
-    </Dialog>
+    <SurveyShell
+      currentStep={currentStep}
+      skippedSections={skippedSections}
+      saveStatus={saveStatus}
+      onNext={nextStep}
+      onPrev={prevStep}
+      onSkip={() => skipSection(currentSection)}
+      onSkipAll={skipAll}
+      onComplete={completeSurvey}
+      isLastStep={currentStep === totalSteps - 1}
+    >
+      {renderStep()}
+    </SurveyShell>
   );
 }
