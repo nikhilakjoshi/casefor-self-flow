@@ -5,11 +5,12 @@ import { db } from "./db";
 import { queryContext, type RAGResult } from "./rag";
 import { getCriteriaForCase, type Criterion } from "./criteria";
 import { countCriteriaStrengths, type CriterionResult } from "./eb1a-agent";
+import { getPrompt, substituteVars, resolveModel } from "./agent-prompt";
 
-const MODEL = "claude-sonnet-4-20250514";
+const FALLBACK_MODEL = "claude-sonnet-4-20250514";
 const MAX_HISTORY = 20;
 
-function buildSystemPrompt(opts: {
+function hardcodedBuildSystemPrompt(opts: {
   criteria: Criterion[];
   threshold: number;
   profile: Record<string, unknown> | null;
@@ -66,6 +67,45 @@ TOOL USAGE RULES:
 - Call updateAnalysis with an array of all criteria that changed. Only include criteria whose strength should increase. Include specific evidence quotes for each.
 - For the initial greeting (no user messages yet), introduce yourself and summarize the current case state, then ask what the applicant wants to work on first.
 - Use emitIntakeForm when you need information from a skipped intake section. The form will be rendered as an interactive card in the chat.`;
+}
+
+async function buildSystemPrompt(opts: {
+  criteria: Criterion[];
+  threshold: number;
+  profile: Record<string, unknown> | null;
+  analysis: CriterionResult[] | null;
+  ragContext: string[];
+  skippedSections: string[];
+}): Promise<string> {
+  const p = await getPrompt("case-agent");
+  if (!p) return hardcodedBuildSystemPrompt(opts);
+
+  const criteriaListFull = opts.criteria
+    .map((c) => `- ${c.key}: ${c.name} -- ${c.description}`)
+    .join("\n");
+  const profileSection = opts.profile
+    ? `CURRENT APPLICANT PROFILE:\n${JSON.stringify(opts.profile, null, 2)}`
+    : "APPLICANT PROFILE: Not yet established.";
+  const analysisSection = opts.analysis
+    ? `CURRENT ANALYSIS:\n${opts.analysis.map((c) => `${c.criterionId}: ${c.strength} - ${c.reason}`).join("\n")}`
+    : "ANALYSIS: No analysis yet.";
+  const ragSection =
+    opts.ragContext.length > 0
+      ? `RELEVANT DOCUMENT EXCERPTS:\n${opts.ragContext.join("\n---\n")}`
+      : "";
+  const skippedContext =
+    opts.skippedSections.length > 0
+      ? `\nSKIPPED INTAKE SECTIONS: ${opts.skippedSections.join(", ")}. The user skipped these during intake. When relevant information is needed from these sections, use the emitIntakeForm tool to ask the user to fill in the missing info.`
+      : "";
+
+  return substituteVars(p.content, {
+    criteria: criteriaListFull,
+    threshold: String(opts.threshold),
+    profile: profileSection,
+    analysis: analysisSection,
+    ragContext: ragSection,
+    skippedSections: skippedContext,
+  });
 }
 
 export function createCaseAgentTools(caseId: string, criteria: Criterion[]) {
@@ -354,7 +394,7 @@ export async function runCaseAgent(opts: {
   const skippedSections = caseRecord?.skippedSections ?? [];
   log("context gathered - criteria:", criteria.length, "threshold:", threshold, "profile:", !!profile, "analysis:", !!analysis, "ragResults:", ragResults.length, "skippedSections:", skippedSections);
 
-  const instructions = buildSystemPrompt({
+  const instructions = await buildSystemPrompt({
     criteria,
     threshold,
     profile: (profile?.data as Record<string, unknown>) ?? null,
@@ -364,11 +404,12 @@ export async function runCaseAgent(opts: {
   });
 
   const tools = createCaseAgentTools(caseId, criteria);
+  const p = await getPrompt("case-agent");
 
-  log("creating ToolLoopAgent with model:", MODEL, "tools:", Object.keys(tools));
+  log("creating ToolLoopAgent with model:", p?.modelName ?? FALLBACK_MODEL, "tools:", Object.keys(tools));
 
   const agent = new ToolLoopAgent({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     instructions,
     tools,
     stopWhen: stepCountIs(7),

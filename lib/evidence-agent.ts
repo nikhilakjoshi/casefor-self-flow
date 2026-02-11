@@ -9,9 +9,10 @@ import { queryContext } from "./rag";
 import { Prisma, RelationshipType } from "@prisma/client";
 import { resolveVariation } from "./template-resolver";
 import { classifyDocument } from "./document-classifier";
+import { getPrompt, substituteVars, resolveModel } from "./agent-prompt";
 
-const MODEL = "claude-sonnet-4-20250514";
-const GENERATION_MODEL = "claude-sonnet-4-20250514";
+const FALLBACK_MODEL = "claude-sonnet-4-20250514";
+const FALLBACK_GENERATION_MODEL = "claude-sonnet-4-20250514";
 const STREAM_UPDATE_INTERVAL_MS = 500;
 
 interface GenerateDocumentOpts {
@@ -107,9 +108,17 @@ Requirements:
 
 Output ONLY the document content in markdown format. Do not include any meta-commentary or explanations.`;
 
+  const genPrompt = await getPrompt("evidence-doc-gen");
   const result = streamText({
-    model: anthropic(GENERATION_MODEL),
-    prompt,
+    model: genPrompt ? resolveModel(genPrompt.provider, genPrompt.modelName) : anthropic(FALLBACK_GENERATION_MODEL),
+    prompt: genPrompt ? substituteVars(genPrompt.content, {
+      systemInstruction: systemInstructionSection,
+      templateContent: templateSection,
+      profile: JSON.stringify(profile, null, 2),
+      criteria: criteriaSection || "No analysis available yet.",
+      additionalContext: additionalContext ? `## ADDITIONAL CONTEXT\n${additionalContext}` : "",
+      specificInstructions: specificInstructions ? `## SPECIFIC INSTRUCTIONS\n${specificInstructions}` : "",
+    }) : prompt,
   });
 
   let fullContent = "";
@@ -138,7 +147,7 @@ Output ONLY the document content in markdown format. Do not include any meta-com
 }
 const MAX_HISTORY = 20;
 
-function buildEvidenceSystemPrompt(opts: {
+function hardcodedBuildEvidenceSystemPrompt(opts: {
   criteria: Criterion[];
   threshold: number;
   profile: Record<string, unknown> | null;
@@ -221,6 +230,39 @@ TOOL USAGE RULES:
 - When drafting, specify relevant criterionKeys so the document is linked to the right criteria.
 - Use draftRecommendationLetter with recommenderId to leverage stored recommender context.
 - After drafting, summarize what was created and ask if revisions are needed.`;
+}
+
+async function buildEvidenceSystemPrompt(opts: {
+  criteria: Criterion[];
+  threshold: number;
+  profile: Record<string, unknown> | null;
+  analysis: CriterionResult[] | null;
+  templateNames: string[];
+}): Promise<string> {
+  const p = await getPrompt("evidence-agent");
+  if (!p) return hardcodedBuildEvidenceSystemPrompt(opts);
+
+  const criteriaList = opts.criteria
+    .map((c) => `- ${c.key}: ${c.name} -- ${c.description}`)
+    .join("\n");
+  const profileSection = opts.profile
+    ? `CURRENT APPLICANT PROFILE:\n${JSON.stringify(opts.profile, null, 2)}`
+    : "APPLICANT PROFILE: Not yet established.";
+  const analysisSection = opts.analysis
+    ? `CURRENT ANALYSIS (${opts.analysis.filter((c) => c.strength === "Strong").length} Strong, need ${opts.threshold}+):\n${opts.analysis.map((c) => `${c.criterionId}: ${c.strength} - ${c.reason}`).join("\n")}`
+    : "ANALYSIS: No analysis yet.";
+  const templateSection =
+    opts.templateNames.length > 0
+      ? `AVAILABLE TEMPLATES: ${opts.templateNames.join(", ")}`
+      : "";
+
+  return substituteVars(p.content, {
+    criteria: criteriaList,
+    threshold: String(opts.threshold),
+    profile: profileSection,
+    analysis: analysisSection,
+    templateNames: templateSection,
+  });
 }
 
 function createEvidenceAgentTools(caseId: string) {
@@ -1060,7 +1102,7 @@ export async function runEvidenceAgent(opts: {
     templates.length,
   );
 
-  const instructions = buildEvidenceSystemPrompt({
+  const instructions = await buildEvidenceSystemPrompt({
     criteria,
     threshold,
     profile: (profile?.data as Record<string, unknown>) ?? null,
@@ -1069,11 +1111,12 @@ export async function runEvidenceAgent(opts: {
   });
 
   const tools = createEvidenceAgentTools(caseId);
+  const p = await getPrompt("evidence-agent");
 
-  log("creating ToolLoopAgent with model:", MODEL, "tools:", Object.keys(tools));
+  log("creating ToolLoopAgent with model:", p?.modelName ?? FALLBACK_MODEL, "tools:", Object.keys(tools));
 
   const agent = new ToolLoopAgent({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     instructions,
     tools,
     stopWhen: stepCountIs(7),

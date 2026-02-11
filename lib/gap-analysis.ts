@@ -3,10 +3,11 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { db } from "./db"
 import { buildEvaluationContext } from "./strength-evaluation"
 import { GapAnalysisSchema } from "./gap-analysis-schema"
+import { getPrompt, resolveModel } from "./agent-prompt"
 
-const MODEL = "claude-sonnet-4-20250514"
+const FALLBACK_MODEL = "claude-sonnet-4-20250514"
 
-const SYSTEM_PROMPT = `You are a Gap Analysis Agent for an EB-1A (Extraordinary Ability) immigration visa platform. Do not use emojis in any output.
+const FALLBACK_PROMPT = `You are a Gap Analysis Agent for an EB-1A (Extraordinary Ability) immigration visa platform. Do not use emojis in any output.
 
 You receive TWO inputs concatenated together:
 1. The parsed resume JSON from the Resume Parser Agent (Agent #7)
@@ -215,11 +216,12 @@ export async function buildGapAnalysisContext(caseId: string) {
 
 export async function streamGapAnalysis(caseId: string) {
   const context = await buildGapAnalysisContext(caseId)
+  const p = await getPrompt("gap-analysis")
 
   return streamText({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     output: Output.object({ schema: GapAnalysisSchema }),
-    system: SYSTEM_PROMPT,
+    system: p?.content ?? FALLBACK_PROMPT,
     prompt: `Perform a comprehensive gap analysis on the following applicant data and strength evaluation:\n\n${context}`,
   })
 }

@@ -1,8 +1,9 @@
 import { generateText, Output } from "ai"
 import { google } from "@ai-sdk/google"
 import { z } from "zod"
+import { getPrompt, resolveModel } from "./agent-prompt"
 
-const MODEL = "gemini-2.5-flash"
+const FALLBACK_MODEL = "gemini-2.5-flash"
 
 // Schema that matches the survey structure exactly
 export const SurveyExtractionSchema = z.object({
@@ -76,7 +77,7 @@ export const SurveyExtractionSchema = z.object({
 
 export type SurveyExtraction = z.infer<typeof SurveyExtractionSchema>
 
-const SYSTEM_PROMPT = `You are an expert at extracting information from resumes and CVs for EB-1A (Extraordinary Ability) visa applications. Do not use emojis in any output.
+const FALLBACK_PROMPT = `You are an expert at extracting information from resumes and CVs for EB-1A (Extraordinary Ability) visa applications. Do not use emojis in any output.
 
 Your task is to extract information that maps to an EB-1A intake survey. The EB-1A visa requires demonstrating extraordinary ability through:
 1. Awards/recognition for excellence
@@ -103,10 +104,11 @@ Extract as much relevant information as possible from the document. For each fie
 Focus on extracting information that demonstrates extraordinary ability and national/international recognition.`
 
 export async function extractSurveyData(resumeText: string): Promise<SurveyExtraction> {
+  const p = await getPrompt("survey-extractor")
   const { output } = await generateText({
-    model: google(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : google(FALLBACK_MODEL),
     output: Output.object({ schema: SurveyExtractionSchema }),
-    system: SYSTEM_PROMPT,
+    system: p?.content ?? FALLBACK_PROMPT,
     prompt: `Extract EB-1A survey information from this resume/CV:\n\n${resumeText}`,
   })
 
@@ -114,10 +116,11 @@ export async function extractSurveyData(resumeText: string): Promise<SurveyExtra
 }
 
 export async function extractSurveyDataFromPdf(pdfBuffer: ArrayBuffer): Promise<SurveyExtraction> {
+  const p = await getPrompt("survey-extractor")
   const { output } = await generateText({
-    model: google(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : google(FALLBACK_MODEL),
     output: Output.object({ schema: SurveyExtractionSchema }),
-    system: SYSTEM_PROMPT,
+    system: p?.content ?? FALLBACK_PROMPT,
     messages: [
       {
         role: "user",

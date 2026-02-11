@@ -3,10 +3,11 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { db } from "./db"
 import { buildGapAnalysisContext } from "./gap-analysis"
 import { CaseStrategySchema } from "./case-strategy-schema"
+import { getPrompt, resolveModel } from "./agent-prompt"
 
-const MODEL = "claude-sonnet-4-20250514"
+const FALLBACK_MODEL = "claude-sonnet-4-20250514"
 
-const SYSTEM_PROMPT = `You are a Case Strategy Agent for an EB-1A (Extraordinary Ability) immigration visa platform. Do not use emojis in any output.
+const FALLBACK_PROMPT = `You are a Case Strategy Agent for an EB-1A (Extraordinary Ability) immigration visa platform. Do not use emojis in any output.
 
 You receive THREE inputs concatenated together:
 1. The parsed resume JSON from the Resume Parser Agent
@@ -163,11 +164,12 @@ export async function buildCaseStrategyContext(caseId: string) {
 
 export async function streamCaseStrategy(caseId: string) {
   const context = await buildCaseStrategyContext(caseId)
+  const p = await getPrompt("case-strategy")
 
   return streamText({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     output: Output.object({ schema: CaseStrategySchema }),
-    system: SYSTEM_PROMPT,
+    system: p?.content ?? FALLBACK_PROMPT,
     prompt: `Develop a comprehensive case strategy based on the following applicant data, strength evaluation, and gap analysis:\n\n${context}`,
   })
 }

@@ -4,8 +4,9 @@ import { z } from "zod";
 import { db } from "./db";
 import { getCriteriaForCase } from "./criteria";
 import { type CriterionResult } from "./eb1a-agent";
+import { getPrompt, substituteVars, resolveModel } from "./agent-prompt";
 
-const MODEL = "claude-sonnet-4-20250514";
+const FALLBACK_MODEL = "claude-sonnet-4-20250514";
 
 const DocumentAssessmentSchema = z.object({
   documentId: z.string(),
@@ -104,16 +105,16 @@ ${d.content?.slice(0, 3000)}${(d.content?.length ?? 0) > 3000 ? "\n... (truncate
     )
     .join("\n");
 
-  const prompt = `You are an expert EB-1A immigration petition reviewer. Your job is to assess the quality of evidence documents for an EB-1A extraordinary ability petition. Do not use emojis.
+  const FALLBACK_PROMPT = `You are an expert EB-1A immigration petition reviewer. Your job is to assess the quality of evidence documents for an EB-1A extraordinary ability petition. Do not use emojis.
 
 ## APPLICANT PROFILE
-${JSON.stringify(profileData, null, 2)}
+{{profileData}}
 
 ## CRITERIA ASSESSMENT
-${criteriaContext || "No criteria analysis available."}
+{{criteriaContext}}
 
 ## DOCUMENTS TO VERIFY
-${documentSummaries}
+{{documentSummaries}}
 
 ## YOUR TASK
 
@@ -132,10 +133,18 @@ For each document, provide:
 
 Also provide an overall assessment of the evidence package.`;
 
+  const p = await getPrompt("document-verifier");
+  const promptTemplate = p?.content ?? FALLBACK_PROMPT;
+  const prompt = substituteVars(promptTemplate, {
+    profileData: JSON.stringify(profileData, null, 2),
+    criteriaContext: criteriaContext || "No criteria analysis available.",
+    documentSummaries,
+  });
+
   console.log(`[DocumentVerifier:${caseId}] Calling LLM to verify ${docsToVerify.length} documents`);
 
   const result = await generateObject({
-    model: anthropic(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     schema: VerificationResultSchema,
     prompt,
   });

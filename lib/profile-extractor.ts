@@ -1,8 +1,9 @@
 import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
+import { getPrompt, resolveModel } from "./agent-prompt";
 
-const MODEL = "gemini-2.5-flash";
+const FALLBACK_MODEL = "gemini-2.5-flash";
 
 export const ProfileSchema = z.object({
   name: z.string().nullable(),
@@ -58,7 +59,7 @@ export const ProfileSchema = z.object({
 
 export type Profile = z.infer<typeof ProfileSchema>;
 
-const SYSTEM_PROMPT = `You are an expert at extracting structured profile information from resumes and CVs. Do not use emojis in any output.
+const FALLBACK_PROMPT = `You are an expert at extracting structured profile information from resumes and CVs. Do not use emojis in any output.
 
 Extract the following information if present:
 - name: Full name
@@ -78,10 +79,11 @@ Extract the following information if present:
 Return null for fields with no data. Be precise and extract only what's explicitly stated.`;
 
 export async function extractProfile(resumeText: string): Promise<Profile> {
+  const p = await getPrompt("profile-extractor");
   const { output } = await generateText({
-    model: google(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : google(FALLBACK_MODEL),
     output: Output.object({ schema: ProfileSchema }),
-    system: SYSTEM_PROMPT,
+    system: p?.content ?? FALLBACK_PROMPT,
     prompt: `Extract profile information from this resume:\n\n${resumeText}`,
   });
 
@@ -91,10 +93,11 @@ export async function extractProfile(resumeText: string): Promise<Profile> {
 export async function extractProfileFromPdf(
   pdfBuffer: ArrayBuffer
 ): Promise<Profile> {
+  const p = await getPrompt("profile-extractor");
   const { output } = await generateText({
-    model: google(MODEL),
+    model: p ? resolveModel(p.provider, p.modelName) : google(FALLBACK_MODEL),
     output: Output.object({ schema: ProfileSchema }),
-    system: SYSTEM_PROMPT,
+    system: p?.content ?? FALLBACK_PROMPT,
     messages: [
       {
         role: "user",

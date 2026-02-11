@@ -2,8 +2,9 @@ import { generateObject } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { db } from "./db";
+import { getPrompt, substituteVars, resolveModel } from "./agent-prompt";
 
-const MODEL = "claude-haiku-3-5-20241022";
+const FALLBACK_MODEL = "claude-haiku-3-5-20241022";
 
 const ClassificationSchema = z.object({
   category: z.enum([
@@ -35,10 +36,7 @@ export async function classifyDocument(
       ? `Filename: ${fileName}\n\nContent (first 1500 chars):\n${content.slice(0, 1500)}`
       : `Filename: ${fileName}`;
 
-    const { object } = await generateObject({
-      model: anthropic(MODEL),
-      schema: ClassificationSchema,
-      prompt: `Classify this immigration case document into one of the categories. Return the best-fit category and your confidence (0-1).
+    const FALLBACK_PROMPT = `Classify this immigration case document into one of the categories. Return the best-fit category and your confidence (0-1).
 
 Categories:
 - RESUME_CV: Resume or curriculum vitae
@@ -56,7 +54,20 @@ Categories:
 - DEGREE_CERTIFICATE: Academic degree, diploma, or transcript
 - OTHER: Does not fit any above category
 
-${input}`,
+{{fileName}}
+{{content}}`;
+
+    const p = await getPrompt("document-classifier");
+    const promptTemplate = p?.content ?? FALLBACK_PROMPT;
+    const prompt = substituteVars(promptTemplate, {
+      fileName: `Filename: ${fileName}`,
+      content: content ? `Content (first 1500 chars):\n${content.slice(0, 1500)}` : "",
+    });
+
+    const { object } = await generateObject({
+      model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
+      schema: ClassificationSchema,
+      prompt,
     });
 
     await db.document.update({

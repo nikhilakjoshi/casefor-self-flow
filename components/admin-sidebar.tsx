@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ListChecks,
   FileStack,
+  MessageSquare,
   Settings,
   ArrowLeft,
 } from "lucide-react"
@@ -27,6 +28,7 @@ const navItems = [
   { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { title: "Criteria", href: "/admin/criteria", icon: ListChecks },
   { title: "Templates", href: "/admin/templates", icon: FileStack },
+  { title: "Prompts", href: "/admin/prompts", icon: MessageSquare },
   { title: "Application Types", href: "/admin/application-types", icon: Settings },
 ]
 
