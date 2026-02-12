@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
+import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ExtractionRawPanel } from "./extraction-raw-panel"
 import { StrengthEvaluationPanel } from "./strength-evaluation-panel"
@@ -11,12 +12,14 @@ import { CriteriaRoutingPanel } from "./criteria-routing-panel"
 import { CaseConsolidationPanel } from "./case-consolidation-panel"
 import { CaseStrategyConsolidatedPanel } from "./case-strategy-consolidated-panel"
 import { LettersPanel } from "./letters-panel"
+import { DenialProbabilityPanel } from "./denial-probability-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
 import { CRITERIA_METADATA } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
 import type { GapAnalysis } from "@/lib/gap-analysis-schema"
 import type { CaseStrategy } from "@/lib/case-strategy-schema"
 import type { CaseConsolidation } from "@/lib/case-consolidation-schema"
+import type { DenialProbability } from "@/lib/denial-probability-schema"
 import {
   FileText,
   Award,
@@ -31,7 +34,14 @@ import {
   TrendingUp,
   Lightbulb,
   Banknote,
+  ShieldAlert,
 } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 type Strength = "Strong" | "Weak" | "None"
 
@@ -65,6 +75,7 @@ interface ReportPanelProps {
   initialGapAnalysis?: GapAnalysis | null
   initialCaseStrategy?: CaseStrategy | null
   initialCaseConsolidation?: CaseConsolidation | null
+  initialDenialProbability?: DenialProbability | null
   onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
 }
 
@@ -485,7 +496,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "strength" | "gap" | "strategy" | "evidence" | "routing" | "consolidation" | "consolidated-strategy" | "letters" | "raw"
+type ReportTab = "summary" | "strength" | "gap" | "strategy" | "evidence" | "routing" | "consolidation" | "consolidated-strategy" | "letters" | "denial" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -498,11 +509,29 @@ export function ReportPanel({
   initialGapAnalysis,
   initialCaseStrategy,
   initialCaseConsolidation,
+  initialDenialProbability,
   onOpenDraft,
 }: ReportPanelProps) {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "strength", "gap", "strategy", "evidence", "routing", "consolidation", "consolidated-strategy", "letters", "denial", "raw"]), [])
+  const subtabParam = searchParams.get('subtab')
+  const initialSubTab = subtabParam && validSubTabs.has(subtabParam as ReportTab)
+    ? (subtabParam as ReportTab)
+    : 'summary'
+
   const [analysis, setAnalysis] = useState<Analysis | null>(initialAnalysis ?? null)
-  const [activeTab, setActiveTab] = useState<ReportTab>("summary")
+  const [activeTab, setActiveTab] = useState<ReportTab>(initialSubTab)
   const [isLoading, setIsLoading] = useState(!initialAnalysis)
+
+  const handleSubTabChange = useCallback((tab: ReportTab) => {
+    setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('subtab', tab)
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }, [searchParams, router, pathname])
 
   useEffect(() => {
     let cancelled = false
@@ -668,6 +697,7 @@ export function ReportPanel({
 
         {/* Tabs */}
         {hasExtraction && (
+          <TooltipProvider delayDuration={300}>
           <div className="flex items-end gap-3 mt-3">
             {/* Phase 1 group */}
             <div className="flex flex-col gap-1.5">
@@ -675,50 +705,70 @@ export function ReportPanel({
                 Phase 1
               </span>
               <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
-                <button
-                  onClick={() => setActiveTab("summary")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                    activeTab === "summary"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                  )}
-                >
-                  Criteria
-                </button>
-                <button
-                  onClick={() => setActiveTab("strength")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                    activeTab === "strength"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                  )}
-                >
-                  Strength Eval
-                </button>
-                <button
-                  onClick={() => setActiveTab("gap")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                    activeTab === "gap"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                  )}
-                >
-                  Gap Analysis
-                </button>
-                <button
-                  onClick={() => setActiveTab("strategy")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                    activeTab === "strategy"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                  )}
-                >
-                  Strategy
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSubTabChange("summary")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        activeTab === "summary"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      )}
+                    >
+                      Criteria
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">EB-1A criteria breakdown with evidence mapping</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSubTabChange("strength")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        activeTab === "strength"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      )}
+                    >
+                      Strength Eval
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Tier scoring and Kazarian two-step assessment</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSubTabChange("gap")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        activeTab === "gap"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      )}
+                    >
+                      Gap Analysis
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Prioritized gaps with AAO-informed action plans</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSubTabChange("strategy")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        activeTab === "strategy"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      )}
+                    >
+                      Strategy
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Filing strategy and evidence building roadmap</TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
@@ -731,28 +781,38 @@ export function ReportPanel({
                 Phase 2
               </span>
               <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
-                <button
-                  onClick={() => setActiveTab("evidence")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                    activeTab === "evidence"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                  )}
-                >
-                  Evidence List
-                </button>
-                <button
-                  onClick={() => setActiveTab("routing")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                    activeTab === "routing"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                  )}
-                >
-                  Routing
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSubTabChange("evidence")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        activeTab === "evidence"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      )}
+                    >
+                      Evidence List
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Uploaded documents and evidence items</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSubTabChange("routing")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        activeTab === "routing"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      )}
+                    >
+                      Routing
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Document-to-criteria routing and scoring</TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
@@ -765,28 +825,38 @@ export function ReportPanel({
                 Phase 3
               </span>
               <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
-                <button
-                  onClick={() => setActiveTab("consolidation")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                    activeTab === "consolidation"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                  )}
-                >
-                  Consolidation
-                </button>
-                <button
-                  onClick={() => setActiveTab("consolidated-strategy")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                    activeTab === "consolidated-strategy"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                  )}
-                >
-                  Strategy
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSubTabChange("consolidation")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        activeTab === "consolidation"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      )}
+                    >
+                      Consolidation
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Merged analysis across all criteria and evidence</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSubTabChange("consolidated-strategy")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        activeTab === "consolidated-strategy"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      )}
+                    >
+                      Strategy
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Post-consolidation filing strategy</TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
@@ -799,17 +869,39 @@ export function ReportPanel({
                 Phase 4
               </span>
               <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
-                <button
-                  onClick={() => setActiveTab("letters")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                    activeTab === "letters"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                  )}
-                >
-                  Letters
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSubTabChange("letters")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        activeTab === "letters"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      )}
+                    >
+                      Letters
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Recommendation letter drafts and management</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSubTabChange("denial")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1",
+                        activeTab === "denial"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      )}
+                    >
+                      <ShieldAlert className="w-3 h-3" />
+                      Risk
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Denial probability, red flags, and filing recommendation</TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
@@ -817,18 +909,24 @@ export function ReportPanel({
             <div className="h-8 w-px bg-border/50 shrink-0 mb-1" />
 
             {/* Raw Data - outside phase group */}
-            <button
-              onClick={() => setActiveTab("raw")}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors mb-1",
-                activeTab === "raw"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Raw Data
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleSubTabChange("raw")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors mb-1",
+                    activeTab === "raw"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Raw Data
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Raw extraction JSON from resume parsing</TooltipContent>
+            </Tooltip>
           </div>
+          </TooltipProvider>
         )}
       </div>
 
@@ -887,6 +985,13 @@ export function ReportPanel({
         <div className="flex-1 overflow-y-auto">
           <LettersPanel caseId={caseId} onOpenDraft={onOpenDraft ?? (() => {})} />
         </div>
+      ) : activeTab === "denial" ? (
+        <DenialProbabilityPanel
+          caseId={caseId}
+          initialData={initialDenialProbability}
+          hasStrengthEval={!!initialStrengthEvaluation}
+          hasGapAnalysis={!!initialGapAnalysis}
+        />
       ) : (
         <ExtractionRawPanel extraction={analysis.extraction ?? null} />
       )}
