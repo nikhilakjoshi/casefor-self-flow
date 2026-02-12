@@ -156,6 +156,9 @@ Provide:
 2. reason: A concise explanation (2-3 sentences)
 3. evidence: Array of specific quotes or facts that support your assessment (empty if None)
 
+If the user indicates evidence is incorrect or irrelevant, exclude it from your evaluation.
+When evidence has been removed, re-evaluate strength based on remaining evidence only.
+
 Be thorough but realistic. Focus ONLY on evidence relevant to this specific criterion.`
 
     const { output } = await generateText({
@@ -244,6 +247,232 @@ Be thorough but realistic. Focus ONLY on evidence relevant to this specific crit
       JSON.stringify({
         error: err instanceof Error ? err.message : "Evaluation failed",
       }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    )
+  }
+}
+
+const EVIDENCE_CATEGORIES = [
+  "publications", "awards", "patents", "memberships", "media_coverage",
+  "judging_activities", "speaking_engagements", "grants", "leadership_roles",
+  "compensation", "exhibitions", "commercial_success", "original_contributions",
+] as const
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ caseId: string }> }
+) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  const { caseId } = await params
+
+  const caseRecord = await db.case.findUnique({
+    where: { id: caseId },
+    include: {
+      eb1aAnalyses: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
+  })
+
+  if (!caseRecord || caseRecord.userId !== session.user.id) {
+    return new Response(JSON.stringify({ error: "Not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  try {
+    const { criterionId, evidenceIndex, evidenceSource, category } = await request.json()
+
+    if (!criterionId || !CRITERIA_METADATA[criterionId as CriterionId]) {
+      return new Response(JSON.stringify({ error: "Invalid criterion ID" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+    const latestAnalysis = caseRecord.eb1aAnalyses[0]
+    if (!latestAnalysis) {
+      return new Response(JSON.stringify({ error: "No analysis found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+    const existingExtraction = latestAnalysis.extraction as Record<string, unknown> | null
+    const existingCriteria = latestAnalysis.criteria as Array<{
+      criterionId: string; strength: string; reason: string; evidence: string[]
+    }>
+
+    let updatedExtraction = existingExtraction ? { ...existingExtraction } : null
+    let updatedCriteria = [...existingCriteria]
+
+    if (evidenceSource === "key_evidence") {
+      // Remove from criteria_summary key_evidence
+      if (updatedExtraction?.criteria_summary) {
+        const criteriaSummary = (updatedExtraction.criteria_summary as Array<{
+          criterion_id: string; strength: string; summary: string
+          key_evidence: string[]; evidence_count: number
+        }>).map((s) => {
+          if (s.criterion_id !== criterionId) return s
+          const ke = [...s.key_evidence]
+          ke.splice(evidenceIndex, 1)
+          return { ...s, key_evidence: ke, evidence_count: Math.max(0, s.evidence_count - 1) }
+        })
+        updatedExtraction = { ...updatedExtraction, criteria_summary: criteriaSummary }
+      }
+      // Also remove from criteria[].evidence at same index
+      updatedCriteria = updatedCriteria.map((c) => {
+        if (c.criterionId !== criterionId) return c
+        const ev = [...c.evidence]
+        ev.splice(evidenceIndex, 1)
+        return { ...c, evidence: ev }
+      })
+    } else if (evidenceSource === "evidence") {
+      // Legacy evidence removal
+      updatedCriteria = updatedCriteria.map((c) => {
+        if (c.criterionId !== criterionId) return c
+        const ev = [...c.evidence]
+        ev.splice(evidenceIndex, 1)
+        return { ...c, evidence: ev }
+      })
+    } else if (evidenceSource === "extraction_item") {
+      // Remove extraction category item by removing criterionId from mapped_criteria
+      if (updatedExtraction && category && EVIDENCE_CATEGORIES.includes(category)) {
+        const arr = updatedExtraction[category] as Record<string, unknown>[] | undefined
+        if (arr) {
+          // Find items matching this criterion and use evidenceIndex within that filtered set
+          let matchIdx = 0
+          const updated = arr.map((item) => {
+            const mc = item.mapped_criteria as string[] | undefined
+            if (!mc?.includes(criterionId)) return item
+            if (matchIdx === evidenceIndex) {
+              matchIdx++
+              const newMc = mc.filter((id) => id !== criterionId)
+              return { ...item, mapped_criteria: newMc }
+            }
+            matchIdx++
+            return item
+          })
+          updatedExtraction = { ...updatedExtraction, [category]: updated }
+        }
+      }
+    } else {
+      return new Response(JSON.stringify({ error: "Invalid evidenceSource" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+    // Re-evaluate criterion with remaining evidence via Claude
+    const meta = CRITERIA_METADATA[criterionId as CriterionId]
+    const extractedText = updatedExtraction?.extracted_text as string | undefined
+
+    const contextParts: string[] = []
+    if (extractedText) {
+      contextParts.push(`EXISTING RESUME CONTENT:\n${extractedText.slice(0, 8000)}`)
+    }
+
+    // Gather remaining evidence for context
+    const remainingCriterion = updatedCriteria.find((c) => c.criterionId === criterionId)
+    if (remainingCriterion?.evidence?.length) {
+      contextParts.push(`REMAINING EVIDENCE:\n${remainingCriterion.evidence.join("\n")}`)
+    }
+
+    // Gather remaining extraction items
+    if (updatedExtraction) {
+      for (const cat of EVIDENCE_CATEGORIES) {
+        const arr = updatedExtraction[cat] as Record<string, unknown>[] | undefined
+        if (!arr?.length) continue
+        const matching = arr.filter((item) => {
+          const mc = item.mapped_criteria as string[] | undefined
+          return mc?.includes(criterionId)
+        })
+        if (matching.length > 0) {
+          contextParts.push(`REMAINING ${cat.toUpperCase()} ITEMS:\n${JSON.stringify(matching, null, 2)}`)
+        }
+      }
+    }
+
+    contextParts.push("NOTICE: Evidence was removed by the user. Re-evaluate based on remaining evidence only.")
+
+    const systemPrompt = `You are an EB-1A immigration expert. Evaluate the provided information ONLY for the following criterion. Do not use emojis.
+
+CRITERION ${criterionId}: ${meta.name}
+${meta.description}
+
+EVALUATION GUIDELINES:
+- Strong: Clear, compelling evidence that meets USCIS standards for this criterion
+- Weak: Some evidence but needs strengthening or more documentation
+- None: No relevant evidence found for this criterion
+
+If the user indicates evidence is incorrect or irrelevant, exclude it from your evaluation.
+When evidence has been removed, re-evaluate strength based on remaining evidence only.
+
+Provide:
+1. strength: Your assessment (Strong/Weak/None)
+2. reason: A concise explanation (2-3 sentences)
+3. evidence: Array of specific quotes or facts that support your assessment (empty if None)
+
+Be thorough but realistic. Focus ONLY on evidence relevant to this specific criterion.`
+
+    const { output } = await generateText({
+      model: anthropic(MODEL),
+      output: Output.object({ schema: CriterionEvaluationSchema }),
+      system: systemPrompt,
+      prompt: contextParts.join("\n\n---\n\n"),
+    })
+
+    if (!output) {
+      return new Response(JSON.stringify({ error: "Re-evaluation failed" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+    // Apply Claude's re-evaluation
+    updatedCriteria = updatedCriteria.map((c) =>
+      c.criterionId === criterionId ? { ...c, ...output } : c
+    )
+
+    const strongCount = updatedCriteria.filter((c) => c.strength === "Strong").length
+    const weakCount = updatedCriteria.filter((c) => c.strength === "Weak").length
+
+    if (updatedExtraction?.criteria_summary) {
+      const criteriaSummary = (updatedExtraction.criteria_summary as Array<{
+        criterion_id: string; strength: string; summary: string
+        key_evidence: string[]; evidence_count: number
+      }>).map((s) =>
+        s.criterion_id === criterionId
+          ? { ...s, strength: output.strength, summary: output.reason, key_evidence: output.evidence, evidence_count: output.evidence.length }
+          : s
+      )
+      updatedExtraction = { ...updatedExtraction, criteria_summary: criteriaSummary }
+    }
+
+    await db.eB1AAnalysis.update({
+      where: { id: latestAnalysis.id },
+      data: {
+        criteria: updatedCriteria,
+        extraction: updatedExtraction ? JSON.parse(JSON.stringify(updatedExtraction)) : undefined,
+        strongCount,
+        weakCount,
+      },
+    })
+
+    return new Response(
+      JSON.stringify({ criterionId, ...output }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    )
+  } catch (err) {
+    console.error("Evidence removal error:", err)
+    return new Response(
+      JSON.stringify({ error: err instanceof Error ? err.message : "Removal failed" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
   }
