@@ -21,7 +21,8 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   return <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{children}</h4>
 }
 
-function ClassificationBadge({ classification }: { classification: string }) {
+function ClassificationBadge({ classification }: { classification?: string }) {
+  if (!classification) return null
   const color = classification === "PRIMARY"
     ? "bg-emerald-600 text-white"
     : classification === "BACKUP"
@@ -30,7 +31,8 @@ function ClassificationBadge({ classification }: { classification: string }) {
   return <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold", color)}>{classification}</span>
 }
 
-function RiskBadge({ level }: { level: string }) {
+function RiskBadge({ level }: { level?: string }) {
+  if (!level) return null
   const color = level === "low" || level === "LOW"
     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
     : level === "medium" || level === "MODERATE" || level === "MEDIUM"
@@ -39,7 +41,8 @@ function RiskBadge({ level }: { level: string }) {
   return <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold", color)}>{level.toUpperCase()}</span>
 }
 
-function SeverityBadge({ severity }: { severity: string }) {
+function SeverityBadge({ severity }: { severity?: string }) {
+  if (!severity) return null
   const color = severity === "LOW"
     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
     : severity === "MEDIUM"
@@ -248,9 +251,9 @@ export function CaseConsolidationPanel({ caseId, initialData, hasCaseStrategy }:
                   ))}
                 </div>
               )}
-              {profile.geographic_recognition_countries?.length > 0 && (
+              {(profile.geographic_recognition_countries?.length ?? 0) > 0 && (
                 <div className="flex flex-wrap gap-1 pt-1">
-                  {profile.geographic_recognition_countries.map(c => (
+                  {profile.geographic_recognition_countries!.map(c => (
                     <span key={c} className="px-1.5 py-0.5 rounded text-[10px] bg-muted text-muted-foreground">{c}</span>
                   ))}
                 </div>
@@ -275,10 +278,9 @@ export function CaseConsolidationPanel({ caseId, initialData, hasCaseStrategy }:
                     <th className="text-left px-2 py-1.5 font-semibold text-muted-foreground">RFE</th>
                   </tr>
                 </thead>
-                <tbody>
                   {ranking.map((c, i) => (
                     <Collapsible key={i} asChild>
-                      <>
+                      <tbody>
                         <CollapsibleTrigger asChild>
                           <tr className="border-b border-border/50 last:border-0 cursor-pointer hover:bg-muted/30">
                             <td className="px-2 py-1.5 font-mono text-muted-foreground">{c.rank}</td>
@@ -305,15 +307,15 @@ export function CaseConsolidationPanel({ caseId, initialData, hasCaseStrategy }:
                                   )}
                                   <span>Step 1: {c.kazarian_step1_met ? "Met" : "Not met"}</span>
                                 </div>
-                                {c.red_flag_details?.length > 0 && (
+                                {(c.red_flag_details?.length ?? 0) > 0 && (
                                   <div className="text-red-600 dark:text-red-400">
                                     {c.red_flag_details.map((f, j) => <p key={j}>- {f}</p>)}
                                   </div>
                                 )}
-                                {c.missing_documents?.length > 0 && (
+                                {(c.missing_documents?.length ?? 0) > 0 && (
                                   <div>
                                     <span className="text-[10px] font-semibold text-muted-foreground">Missing: </span>
-                                    {c.missing_documents.join(", ")}
+                                    {c.missing_documents!.join(", ")}
                                   </div>
                                 )}
                                 {c.rfe_likely_issue && (
@@ -323,10 +325,9 @@ export function CaseConsolidationPanel({ caseId, initialData, hasCaseStrategy }:
                             </td>
                           </tr>
                         </CollapsibleContent>
-                      </>
+                      </tbody>
                     </Collapsible>
                   ))}
-                </tbody>
               </table>
             </div>
           </div>
@@ -353,7 +354,7 @@ export function CaseConsolidationPanel({ caseId, initialData, hasCaseStrategy }:
                 </div>
               )}
 
-              {inventory.evidence_to_remove?.length > 0 && (
+              {(inventory.evidence_to_remove?.length ?? 0) > 0 && (
                 <Collapsible>
                   <CollapsibleTrigger className="w-full text-left">
                     <div className="flex items-center gap-2">
@@ -378,7 +379,7 @@ export function CaseConsolidationPanel({ caseId, initialData, hasCaseStrategy }:
                 </Collapsible>
               )}
 
-              {inventory.evidence_to_obtain?.length > 0 && (
+              {(inventory.evidence_to_obtain?.length ?? 0) > 0 && (
                 <Collapsible>
                   <CollapsibleTrigger className="w-full text-left">
                     <div className="flex items-center gap-2">

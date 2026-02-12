@@ -1,11 +1,11 @@
-import { streamText, Output } from "ai"
-import { google } from "@ai-sdk/google"
+import { streamObject } from "ai"
+import { anthropic } from "@ai-sdk/anthropic"
 import { db } from "./db"
 import { buildCaseStrategyContext } from "./case-strategy"
 import { CaseConsolidationSchema } from "./case-consolidation-schema"
 import { getPrompt, resolveModel } from "./agent-prompt"
 
-const FALLBACK_MODEL = "gemini-2.5-flash"
+const FALLBACK_MODEL = "claude-sonnet-4-5-20250929"
 
 const FALLBACK_PROMPT = `You are the EB-1A Case Consolidation & Prioritization Agent. Consolidate all upstream pipeline outputs into a master case profile JSON. Do not use emojis in any output.
 
@@ -58,10 +58,13 @@ export async function streamCaseConsolidation(caseId: string) {
   const context = await buildCaseConsolidationContext(caseId)
   const p = await getPrompt("case-consolidation")
 
-  return streamText({
-    model: p ? resolveModel(p.provider, p.modelName) : google(FALLBACK_MODEL),
-    output: Output.object({ schema: CaseConsolidationSchema }),
+  return streamObject({
+    model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
+    schema: CaseConsolidationSchema,
     system: p?.content ?? FALLBACK_PROMPT,
     prompt: `Consolidate all upstream pipeline outputs into a master case profile based on the following data:\n\n${context}`,
+    providerOptions: {
+      anthropic: { structuredOutputMode: 'jsonTool' },
+    },
   })
 }
