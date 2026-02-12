@@ -35,7 +35,10 @@ import {
   Lightbulb,
   Banknote,
   ShieldAlert,
+  Trash2,
+  Loader2,
 } from "lucide-react"
+import { toast } from "sonner"
 import {
   Tooltip,
   TooltipContent,
@@ -269,6 +272,7 @@ function CriterionSection({
   const [evaluating, setEvaluating] = useState(false)
   const [showContext, setShowContext] = useState(false)
   const [contextText, setContextText] = useState("")
+  const [removing, setRemoving] = useState<string | null>(null)
 
   const meta = CRITERIA_METADATA[criterion.criterionId as keyof typeof CRITERIA_METADATA]
   const displayName = criteriaNames?.[criterion.criterionId] ?? meta?.name ?? criterion.criterionId
@@ -337,6 +341,41 @@ function CriterionSection({
       setEvaluating(false)
     }
   }, [caseId, criterion.criterionId, contextText, evaluating, onCriterionUpdated])
+
+  const handleRemoveEvidence = useCallback(async (
+    index: number,
+    source: "key_evidence" | "evidence" | "extraction_item",
+    category?: string,
+    label?: string,
+  ) => {
+    const key = `${source}-${category ?? ""}-${index}`
+    if (removing) return
+    setRemoving(key)
+    try {
+      const res = await fetch(`/api/case/${caseId}/criterion`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          criterionId: criterion.criterionId,
+          evidenceIndex: index,
+          evidenceSource: source,
+          category,
+        }),
+      })
+      if (!res.ok) throw new Error("Removal failed")
+      const data = await res.json()
+      onCriterionUpdated(criterion.criterionId, data)
+      toast("Evidence removed", {
+        description: label ? `Removed: ${label.slice(0, 80)}${label.length > 80 ? "..." : ""}` : undefined,
+        duration: 5000,
+      })
+    } catch (err) {
+      console.error("Evidence removal error:", err)
+      toast.error("Failed to remove evidence")
+    } finally {
+      setRemoving(null)
+    }
+  }, [caseId, criterion.criterionId, removing, onCriterionUpdated])
 
   return (
     <div
@@ -407,9 +446,22 @@ function CriterionSection({
             <div className="space-y-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Key Evidence</span>
               {keyEvidence.map((ev, i) => (
-                <p key={i} className="text-xs text-foreground/80 pl-2.5 border-l-2 border-stone-300 dark:border-stone-600 leading-relaxed">
-                  {ev}
-                </p>
+                <div key={i} className="group flex items-start gap-1.5">
+                  <p className="flex-1 text-xs text-foreground/80 pl-2.5 border-l-2 border-stone-300 dark:border-stone-600 leading-relaxed">
+                    {ev}
+                  </p>
+                  <button
+                    onClick={() => handleRemoveEvidence(i, "key_evidence", undefined, ev)}
+                    disabled={removing !== null}
+                    className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 mt-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 transition-all disabled:opacity-30"
+                  >
+                    {removing === `key_evidence--${i}` ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3 h-3" />
+                    )}
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -419,9 +471,22 @@ function CriterionSection({
             <div className="space-y-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Evidence</span>
               {criterion.evidence.map((ev, i) => (
-                <p key={i} className="text-xs text-foreground/80 pl-2.5 border-l-2 border-stone-300 dark:border-stone-600">
-                  {ev}
-                </p>
+                <div key={i} className="group flex items-start gap-1.5">
+                  <p className="flex-1 text-xs text-foreground/80 pl-2.5 border-l-2 border-stone-300 dark:border-stone-600">
+                    {ev}
+                  </p>
+                  <button
+                    onClick={() => handleRemoveEvidence(i, "evidence", undefined, ev)}
+                    disabled={removing !== null}
+                    className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 mt-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 transition-all disabled:opacity-30"
+                  >
+                    {removing === `evidence--${i}` ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3 h-3" />
+                    )}
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -441,8 +506,19 @@ function CriterionSection({
                       <span className="text-[11px] font-medium text-muted-foreground">{catConf.label}</span>
                     </div>
                     {items.map((item, j) => (
-                      <div key={j} className="text-xs text-foreground/80 pl-4 py-0.5">
-                        <ItemSummary item={item} category={category} />
+                      <div key={j} className="group/item flex items-center gap-1.5 text-xs text-foreground/80 pl-4 py-0.5">
+                        <span className="flex-1"><ItemSummary item={item} category={category} /></span>
+                        <button
+                          onClick={() => handleRemoveEvidence(j, "extraction_item", category)}
+                          disabled={removing !== null}
+                          className="opacity-0 group-hover/item:opacity-100 shrink-0 p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 transition-all disabled:opacity-30"
+                        >
+                          {removing === `extraction_item-${category}-${j}` ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3 h-3" />
+                          )}
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -462,14 +538,14 @@ function CriterionSection({
               onClick={() => setShowContext(true)}
               className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
             >
-              + Add context
+              + Add or update context
             </button>
           ) : (
             <div className="space-y-2">
               <textarea
                 value={contextText}
                 onChange={(e) => setContextText(e.target.value)}
-                placeholder="Paste additional context, achievements, or details..."
+                placeholder="Add context, remove incorrect evidence, or describe changes..."
                 className="w-full text-xs p-2 rounded-md border border-border bg-background resize-none focus:outline-none focus:ring-1 focus:ring-primary"
                 rows={3}
               />
