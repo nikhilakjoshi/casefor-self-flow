@@ -657,32 +657,6 @@ export function ReportPanel({
               </span>
             )}
           </h3>
-          <div
-            className={cn(
-              "flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium",
-              meetsThreshold
-                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-            )}
-          >
-            <span>
-              {analysis.strongCount}/{threshold}
-            </span>
-            <button
-              onClick={() => updateThreshold(threshold - 1)}
-              disabled={threshold <= 1}
-              className="w-4 h-4 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30"
-            >
-              -
-            </button>
-            <button
-              onClick={() => updateThreshold(threshold + 1)}
-              disabled={threshold >= 10}
-              className="w-4 h-4 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30"
-            >
-              +
-            </button>
-          </div>
         </div>
         <div className="flex gap-3 mt-2 text-xs text-stone-500">
           <span className="flex items-center gap-1">
