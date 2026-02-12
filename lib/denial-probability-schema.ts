@@ -40,8 +40,8 @@ export const DenialProbabilityPass1Schema = z.object({
     field: z.string(),
     baseline_approval_rate: z.number(),
     case_vs_typical: ComparisonLevel,
-    benchmarks: z.record(z.string(), z.unknown()),
-    profile_comparison: z.record(z.string(), z.unknown()),
+    benchmarks: z.object({}).catchall(z.unknown()),
+    profile_comparison: z.object({}).catchall(z.unknown()),
   }),
 
   criterion_risk_assessments: z.array(

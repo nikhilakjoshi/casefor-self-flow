@@ -20,13 +20,6 @@ export async function POST(
   { params }: { params: Promise<{ caseId: string }> }
 ) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    })
-  }
-
   const { caseId } = await params
 
   const caseRecord = await db.case.findUnique({
@@ -38,7 +31,14 @@ export async function POST(
     },
   })
 
-  if (!caseRecord || caseRecord.userId !== session.user.id) {
+  if (!caseRecord) {
+    return new Response(JSON.stringify({ error: "Not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  if (caseRecord.userId && caseRecord.userId !== session?.user?.id) {
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
       headers: { "Content-Type": "application/json" },
@@ -53,7 +53,7 @@ export async function POST(
   }
 
   // FormData = file upload for new analysis
-  return handleFileAnalysis(request, caseId, caseRecord)
+  return handleFileAnalysis(request, caseId, caseRecord, !session?.user?.id)
 }
 
 // Handle reanalysis - merge existing extraction with survey data
@@ -124,7 +124,8 @@ async function handleReanalysis(
 async function handleFileAnalysis(
   request: Request,
   caseId: string,
-  caseRecord: { profile: { data: unknown } | null }
+  caseRecord: { profile: { data: unknown } | null },
+  isAnonymous: boolean
 ) {
   try {
     const formData = await request.formData()
@@ -229,14 +230,18 @@ async function handleFileAnalysis(
       })
     })
 
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        "X-Case-Id": caseId,
-      },
-    })
+    const headers: Record<string, string> = {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Case-Id": caseId,
+    }
+
+    if (isAnonymous) {
+      headers["Set-Cookie"] = `pendingCaseId=${caseId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`
+    }
+
+    return new Response(stream, { headers })
   } catch (err) {
     console.error("Analyze error:", err)
     return new Response(

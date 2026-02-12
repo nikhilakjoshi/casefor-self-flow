@@ -74,7 +74,7 @@ const EvidenceToObtain = z.object({
 const EvidenceInventory = z.object({
   total_documents_uploaded: z.number(),
   total_documents_verified: z.number(),
-  by_criterion: z.record(z.string(), CriterionEvidence),
+  by_criterion: z.object({}).catchall(CriterionEvidence),
   tier_distribution: z.object({
     tier_1: z.number(),
     tier_2: z.number(),
@@ -105,7 +105,7 @@ const RecommendationLetterStrategy = z.object({
   independence_ratio: z.string(),
   geographic_distribution: z.string(),
   institutional_distribution: z.string(),
-  criteria_coverage_matrix: z.record(z.string(), z.array(z.string())),
+  criteria_coverage_matrix: z.object({}).catchall(z.array(z.string())),
   red_flags_to_avoid: z.array(z.string()),
 })
 
@@ -114,7 +114,7 @@ const PetitionStrategy = z.object({
   primary_criteria: z.array(z.string()),
   backup_criteria: z.array(z.string()),
   criteria_to_drop: z.array(z.string()),
-  drop_rationale: z.record(z.string(), z.string()),
+  drop_rationale: z.object({}).catchall(z.string()),
   kazarian_step1_assessment: z.string(),
   kazarian_step2_assessment: z.string(),
   filing_readiness: z.enum(["READY", "READY_WITH_GAPS", "NOT_READY"]),

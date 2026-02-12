@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useSession, signIn } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Dropzone } from "./_components/dropzone";
 import { ResultsPanel, type Strength } from "./_components/results-panel";
@@ -111,6 +112,7 @@ function StepIndicators({ phase }: { phase: Phase }) {
 }
 
 export default function OnboardPage() {
+  const { data: session } = useSession();
   const [phase, setPhase] = useState<Phase>("upload");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +124,7 @@ export default function OnboardPage() {
   const [surveyData, setSurveyData] = useState<SurveyData>({});
   const [streamingExtraction, setStreamingExtraction] = useState<Partial<DetailedExtraction>>({});
   const [streamPhase, setStreamPhase] = useState<StreamPhase>(null);
+  const [showAuthCta, setShowAuthCta] = useState(false);
   const fileRef = useRef<File | null>(null);
 
   const startAnalysis = useCallback(async (file: File, targetCaseId: string) => {
@@ -223,8 +226,12 @@ export default function OnboardPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        setError(errorData.error ?? "Extraction failed");
+        try {
+          const errorData = await response.json();
+          setError(errorData.error ?? "Extraction failed");
+        } catch {
+          setError("Extraction failed. Please try again.");
+        }
         setIsLoading(false);
         return;
       }
@@ -263,15 +270,21 @@ export default function OnboardPage() {
   };
 
   const handleBuildCase = () => {
-    if (caseId) {
-      window.location.href = `/case/${caseId}`;
+    if (!caseId) return;
+    if (!session) {
+      setShowAuthCta(true);
+      return;
     }
+    window.location.href = `/case/${caseId}`;
   };
 
   const handleAddMoreInfo = () => {
-    if (caseId) {
-      window.location.href = `/case/${caseId}`;
+    if (!caseId) return;
+    if (!session) {
+      setShowAuthCta(true);
+      return;
     }
+    window.location.href = `/case/${caseId}`;
   };
 
   const handleCriterionUpdate = useCallback((criterionId: string, data: CriterionResultData) => {
@@ -319,12 +332,14 @@ export default function OnboardPage() {
           </div>
           <span className="text-lg font-semibold tracking-tight">CaseFor</span>
         </Link>
-        <Link
-          href="/login"
-          className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
-        >
-          Sign In
-        </Link>
+        {!session && (
+          <Link
+            href="/login"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
+          >
+            Sign In
+          </Link>
+        )}
       </nav>
 
       {/* Main content */}
@@ -472,6 +487,32 @@ export default function OnboardPage() {
                   />
                 </div>
               </div>
+
+              {/* Auth CTA for anonymous users */}
+              {showAuthCta && !session && phase === "results" && (
+                <div className="mt-6 rounded-lg border border-primary/30 bg-primary/5 p-6 max-w-xl mx-auto">
+                  <h3 className="text-base font-semibold text-foreground mb-1">
+                    Sign in to continue
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Create an account or sign in to save your evaluation and build your case.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => signIn("google", { callbackUrl: `/case/${caseId}` })}
+                      className="px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      Continue with Google
+                    </button>
+                    <Link
+                      href={`/login?callbackUrl=${encodeURIComponent(`/case/${caseId}`)}`}
+                      className="px-4 py-2 text-sm font-medium rounded-md border border-border hover:bg-muted transition-colors"
+                    >
+                      Sign in with email
+                    </Link>
+                  </div>
+                </div>
+              )}
             </>
           )}
 

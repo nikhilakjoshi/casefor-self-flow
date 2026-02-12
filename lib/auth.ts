@@ -3,7 +3,9 @@ import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import bcrypt from 'bcryptjs'
+import { cookies } from 'next/headers'
 import { db } from './db'
+import { linkPendingCase } from './link-case'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -54,6 +56,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ user }) {
+      if (user?.id) {
+        try {
+          const cookieStore = await cookies()
+          const pendingCaseId = cookieStore.get('pendingCaseId')?.value
+          if (pendingCaseId) {
+            await linkPendingCase(user.id, pendingCaseId)
+            cookieStore.delete('pendingCaseId')
+          }
+        } catch {
+          // cookies() may throw in edge cases, don't block sign-in
+        }
+      }
+      return true
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id

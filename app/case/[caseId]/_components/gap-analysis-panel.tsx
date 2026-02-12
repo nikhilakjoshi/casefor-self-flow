@@ -360,7 +360,7 @@ export function GapAnalysisPanel({ caseId, initialData, hasStrengthEval }: GapAn
             <div className="rounded-lg border border-border p-3 space-y-3">
               <div className="flex items-center gap-2">
                 <span className={cn("px-2 py-0.5 rounded text-xs font-bold", getRecommendationColor(filing.recommendation))}>
-                  {filing.recommendation.replace(/_/g, " ")}
+                  {filing.recommendation?.replace(/_/g, " ") ?? "N/A"}
                 </span>
                 {filing.probability_gain > 0 && (
                   <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">

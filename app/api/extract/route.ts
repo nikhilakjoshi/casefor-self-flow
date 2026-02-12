@@ -7,9 +7,7 @@ import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const userId = session?.user?.id ?? null
 
   const formData = await request.formData()
   const file = formData.get("file") as File | null
@@ -25,7 +23,7 @@ export async function POST(request: Request) {
 
     const caseRecord = await db.case.create({
       data: {
-        userId: session.user.id,
+        userId,
         name: generateCaseName(),
         status: "SCREENING",
         ...(eb1aType && { applicationTypeId: eb1aType.id }),
@@ -75,11 +73,20 @@ export async function POST(request: Request) {
       }),
     ])
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       caseId: caseRecord.id,
       caseName: caseName || caseRecord.name,
       surveyData,
     })
+
+    if (!userId) {
+      res.headers.set(
+        "Set-Cookie",
+        `pendingCaseId=${caseRecord.id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`
+      )
+    }
+
+    return res
   } catch (err) {
     console.error("Extract error:", err)
     return NextResponse.json(
