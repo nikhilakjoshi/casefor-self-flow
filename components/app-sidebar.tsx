@@ -13,6 +13,11 @@ import {
   ChevronsUpDown,
   Pencil,
   Trash2,
+  LayoutDashboard,
+  ListChecks,
+  FileStack,
+  MessageSquare,
+  Settings,
 } from "lucide-react"
 
 import {
@@ -180,6 +185,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>
+                  <Link href="/dashboard">
+                    <LayoutDashboard className="size-4" />
+                    <span>Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
           <SidebarGroupLabel>Your Cases</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -227,6 +247,37 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Admin</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {[
+                { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
+                { title: "Criteria", href: "/admin/criteria", icon: ListChecks },
+                { title: "Templates", href: "/admin/templates", icon: FileStack },
+                { title: "Prompts", href: "/admin/prompts", icon: MessageSquare },
+                { title: "Application Types", href: "/admin/application-types", icon: Settings },
+              ].map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={
+                      item.href === "/admin"
+                        ? pathname === "/admin"
+                        : pathname.startsWith(item.href)
+                    }
+                  >
+                    <Link href={item.href}>
+                      <item.icon className="size-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

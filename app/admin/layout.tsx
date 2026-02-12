@@ -1,4 +1,4 @@
-import { AdminSidebar } from '@/components/admin-sidebar'
+import { AppSidebar } from '@/components/app-sidebar'
 import {
   SidebarInset,
   SidebarProvider,
@@ -13,7 +13,7 @@ export default function AdminLayout({
 }) {
   return (
     <SidebarProvider className="h-svh overflow-hidden">
-      <AdminSidebar />
+      <AppSidebar />
       <SidebarInset className="overflow-hidden">
         <header className="flex h-12 shrink-0 items-center border-b border-stone-200 dark:border-stone-800">
           <div className="flex flex-1 items-center gap-2 px-4">
