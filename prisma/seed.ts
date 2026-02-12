@@ -134,6 +134,11 @@ async function main() {
         name: seed.name,
         description: seed.description,
         variables: seed.variables,
+        provider: seed.provider,
+        modelName: seed.modelName,
+        content: seed.content,
+        defaultContent: seed.content,
+        category: seed.category,
       },
       create: {
         slug: seed.slug,

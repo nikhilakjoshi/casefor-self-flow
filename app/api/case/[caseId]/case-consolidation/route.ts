@@ -54,7 +54,7 @@ export async function POST(
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        for await (const partial of streamResult.partialOutputStream) {
+        for await (const partial of streamResult.partialObjectStream) {
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify(partial)}\n\n`)
           )
@@ -68,7 +68,7 @@ export async function POST(
   })
 
   // Save to DB after stream completes
-  streamResult.output.then(async (output) => {
+  streamResult.object.then(async (output) => {
     if (!output) return
     try {
       const latest = await db.caseConsolidation.findFirst({

@@ -580,14 +580,14 @@ Before returning JSON, verify:
 - JSON is valid`,
   },
 
-  // ─── 4. case-consolidation (static, google) ───
+  // ─── 4. case-consolidation (static, anthropic) ───
   {
     slug: 'case-consolidation',
     name: 'Case Consolidation',
     description: 'Consolidates all upstream pipeline outputs into a master case profile for petition drafting',
     category: 'static',
-    provider: 'google',
-    modelName: 'gemini-2.5-flash',
+    provider: 'anthropic',
+    modelName: 'claude-sonnet-4-5-20250929',
     variables: [],
     content: `You are the EB-1A Case Consolidation & Prioritization Agent for the VisaGenius AI platform.
 

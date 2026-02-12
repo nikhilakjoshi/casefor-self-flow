@@ -14,10 +14,6 @@ export async function GET(
   { params }: { params: Promise<{ caseId: string }> }
 ) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return new Response("Unauthorized", { status: 401 })
-  }
-
   const { caseId } = await params
 
   const caseRecord = await db.case.findUnique({
@@ -25,7 +21,8 @@ export async function GET(
     include: { profile: true },
   })
 
-  if (!caseRecord || caseRecord.userId !== session.user.id) {
+  if (!caseRecord) return new Response("Not found", { status: 404 })
+  if (caseRecord.userId && caseRecord.userId !== session?.user?.id) {
     return new Response("Not found", { status: 404 })
   }
 
@@ -41,10 +38,6 @@ export async function PATCH(
   { params }: { params: Promise<{ caseId: string }> }
 ) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return new Response("Unauthorized", { status: 401 })
-  }
-
   const { caseId } = await params
 
   const caseRecord = await db.case.findUnique({
@@ -52,7 +45,8 @@ export async function PATCH(
     include: { profile: true },
   })
 
-  if (!caseRecord || caseRecord.userId !== session.user.id) {
+  if (!caseRecord) return new Response("Not found", { status: 404 })
+  if (caseRecord.userId && caseRecord.userId !== session?.user?.id) {
     return new Response("Not found", { status: 404 })
   }
 
