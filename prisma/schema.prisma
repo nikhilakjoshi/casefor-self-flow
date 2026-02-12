@@ -167,6 +167,7 @@ model Case {
   caseStrategies         CaseStrategy[]
   evidenceVerifications  EvidenceVerification[]
   caseConsolidations    CaseConsolidation[]
+  denialProbabilities   DenialProbability[]
 }
 
 model CaseProfile {
@@ -428,6 +429,18 @@ model DocumentCriterionRouting {
 }
 
 model CaseConsolidation {
+  id        String   @id @default(cuid())
+  caseId    String
+  version   Int      @default(1)
+  data      Json
+  createdAt DateTime @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, createdAt])
+}
+
+model DenialProbability {
   id        String   @id @default(cuid())
   caseId    String
   version   Int      @default(1)
