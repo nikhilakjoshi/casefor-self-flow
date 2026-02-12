@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Rubik, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const rubik = Rubik({
@@ -35,6 +36,7 @@ export default function RootLayout({
         }
       >
         <Providers>{children}</Providers>
+        <Toaster position="bottom-right" />
       </body>
     </html>
   );
