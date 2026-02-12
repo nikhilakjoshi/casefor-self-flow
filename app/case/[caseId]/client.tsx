@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { ChatPanel } from './_components/chat-panel'
 import { ReportPanel } from './_components/report-panel'
 import { PhaseTabs } from './_components/phase-tabs'
@@ -16,6 +17,7 @@ import type { StrengthEvaluation } from '@/lib/strength-evaluation-schema'
 import type { GapAnalysis } from '@/lib/gap-analysis-schema'
 import type { CaseStrategy } from '@/lib/case-strategy-schema'
 import type { CaseConsolidation } from '@/lib/case-consolidation-schema'
+import type { DenialProbability } from '@/lib/denial-probability-schema'
 
 interface Message {
   id: string
@@ -49,6 +51,7 @@ interface CasePageClientProps {
   initialGapAnalysis?: GapAnalysis | null
   initialCaseStrategy?: CaseStrategy | null
   initialCaseConsolidation?: CaseConsolidation | null
+  initialDenialProbability?: DenialProbability | null
 }
 
 export function CasePageClient({
@@ -66,13 +69,32 @@ export function CasePageClient({
   initialGapAnalysis,
   initialCaseStrategy,
   initialCaseConsolidation,
+  initialDenialProbability,
 }: CasePageClientProps) {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const validTabs = useMemo(() => new Set(['analysis', 'evidence', 'documents'] as const), [])
+  const tabParam = searchParams.get('tab')
+  const initialTab = tabParam && validTabs.has(tabParam as 'analysis' | 'evidence' | 'documents')
+    ? (tabParam as 'analysis' | 'evidence' | 'documents')
+    : 'analysis'
+
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [analysisVersion, setAnalysisVersion] = useState(initialAnalysisVersion)
   const [threshold, setThreshold] = useState(initialThreshold)
-  const [activeTab, setActiveTab] = useState<'analysis' | 'evidence' | 'documents'>('analysis')
+  const [activeTab, setActiveTab] = useState<'analysis' | 'evidence' | 'documents'>(initialTab)
+
+  const handleTabChange = useCallback((tab: 'analysis' | 'evidence' | 'documents') => {
+    setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', tab)
+    if (tab !== 'analysis') params.delete('subtab')
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }, [searchParams, router, pathname])
   const [strongCount, setStrongCount] = useState(initialAnalysis?.strongCount ?? 0)
   const [badgeDismissed, setBadgeDismissed] = useState(false)
   const [isEvidenceLoading, setIsEvidenceLoading] = useState(false)
@@ -104,9 +126,9 @@ export function CasePageClient({
     } catch (err) {
       console.error('Failed to update case status:', err)
     }
-    setActiveTab('evidence')
+    handleTabChange('evidence')
     setBadgeDismissed(true)
-  }, [caseId])
+  }, [caseId, handleTabChange])
 
   // AI-initiated conversation on first load
   useEffect(() => {
@@ -351,7 +373,7 @@ export function CasePageClient({
 
       {/* Phase tabs */}
       <div className="shrink-0 px-4 py-2 border-b border-border flex items-center justify-between">
-        <PhaseTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <PhaseTabs activeTab={activeTab} onTabChange={handleTabChange} />
         {activeTab === 'analysis' && (
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -396,6 +418,7 @@ export function CasePageClient({
               initialGapAnalysis={initialGapAnalysis}
               initialCaseStrategy={initialCaseStrategy}
               initialCaseConsolidation={initialCaseConsolidation}
+              initialDenialProbability={initialDenialProbability}
               onOpenDraft={onOpenDraft}
             />
           </div>
