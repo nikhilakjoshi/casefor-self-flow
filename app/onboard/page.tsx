@@ -112,7 +112,7 @@ function StepIndicators({ phase }: { phase: Phase }) {
 }
 
 export default function OnboardPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [phase, setPhase] = useState<Phase>("upload");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -332,7 +332,7 @@ export default function OnboardPage() {
           </div>
           <span className="text-lg font-semibold tracking-tight">CaseFor</span>
         </Link>
-        {!session && (
+        {!session && status !== "loading" && (
           <Link
             href="/login"
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
