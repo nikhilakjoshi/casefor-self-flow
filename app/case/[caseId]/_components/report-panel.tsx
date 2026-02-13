@@ -602,6 +602,15 @@ export function ReportPanel({
   const [activeTab, setActiveTab] = useState<ReportTab>(initialSubTab)
   const [isLoading, setIsLoading] = useState(!initialAnalysis)
 
+  // Sync activeTab when URL subtab param changes externally
+  useEffect(() => {
+    const param = searchParams.get('subtab')
+    if (param && validSubTabs.has(param as ReportTab)) {
+      setActiveTab(param as ReportTab)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
   const handleSubTabChange = useCallback((tab: ReportTab) => {
     setActiveTab(tab)
     const params = new URLSearchParams(searchParams.toString())

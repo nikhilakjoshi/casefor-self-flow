@@ -116,19 +116,14 @@ export function CasePageClient({
 
   const showEvidenceBadge = activeTab === 'analysis' && strongCount >= threshold && !badgeDismissed
 
-  const handleStartEvidence = useCallback(async () => {
-    try {
-      await fetch(`/api/case/${caseId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'EVIDENCE' }),
-      })
-    } catch (err) {
-      console.error('Failed to update case status:', err)
-    }
-    handleTabChange('evidence')
+  const handleStartEvidence = useCallback(() => {
+    handleTabChange('analysis')
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', 'analysis')
+    params.set('subtab', 'evidence')
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
     setBadgeDismissed(true)
-  }, [caseId, handleTabChange])
+  }, [handleTabChange, searchParams, router, pathname])
 
   // AI-initiated conversation on first load
   useEffect(() => {
