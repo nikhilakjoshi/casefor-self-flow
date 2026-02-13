@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "./db";
 import { getPrompt, substituteVars, resolveModel } from "./agent-prompt";
 
-const FALLBACK_MODEL = "claude-haiku-3-5-20241022";
+const FALLBACK_MODEL = "claude-haiku-4-5-20251001";
 
 const ClassificationSchema = z.object({
   category: z.enum([
@@ -23,7 +23,7 @@ const ClassificationSchema = z.object({
     "DEGREE_CERTIFICATE",
     "OTHER",
   ]),
-  confidence: z.number().min(0).max(1),
+  confidence: z.number().describe("Confidence score between 0 and 1"),
 });
 
 export async function classifyDocument(

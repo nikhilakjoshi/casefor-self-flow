@@ -13,6 +13,7 @@ import {
   type DetailedExtraction,
 } from "@/lib/eb1a-agent"
 import { mergeExtractionWithSurvey } from "@/lib/merge-extraction"
+import { isS3Configured, uploadToS3, buildDocumentKey } from "@/lib/s3"
 import type { SurveyData } from "@/app/onboard/_lib/survey-schema"
 
 export async function POST(
@@ -198,7 +199,7 @@ async function handleFileAnalysis(
         const { vectorIds } = await upsertChunks(chunks, caseId)
         const ext = file.name.toLowerCase().split('.').pop()
         const docType = ext === 'pdf' ? 'PDF' : ext === 'docx' ? 'DOCX' : 'MARKDOWN' as const
-        await Promise.all([
+        const [, doc] = await Promise.all([
           db.resumeUpload.updateMany({
             where: { caseId, fileName: file.name },
             data: { pineconeVectorIds: vectorIds },
@@ -210,9 +211,21 @@ async function handleFileAnalysis(
               type: docType,
               source: 'USER_UPLOADED',
               status: 'DRAFT',
+              content: textToChunk,
             },
           }),
         ])
+
+        // Upload to S3 if configured
+        if (isS3Configured()) {
+          const key = buildDocumentKey(caseId, doc.id, file.name)
+          const s3Buffer = Buffer.from(buffer)
+          const { url } = await uploadToS3(key, s3Buffer, file.type)
+          await db.document.update({
+            where: { id: doc.id },
+            data: { s3Key: key, s3Url: url },
+          })
+        }
       }
 
       // Convert to legacy format

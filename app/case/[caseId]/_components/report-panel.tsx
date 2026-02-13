@@ -65,6 +65,7 @@ interface Analysis {
   criteriaNames?: Record<string, string>
   criteriaThreshold?: number
   mergedWithSurvey?: boolean
+  docCountsByCriterion?: Record<string, number>
 }
 
 interface ReportPanelProps {
@@ -74,6 +75,7 @@ interface ReportPanelProps {
   threshold?: number
   onThresholdChange?: (threshold: number) => void
   onStrongCountChange?: (count: number) => void
+  onDocumentsRouted?: () => void
   initialStrengthEvaluation?: StrengthEvaluation | null
   initialGapAnalysis?: GapAnalysis | null
   initialCaseStrategy?: CaseStrategy | null
@@ -257,6 +259,8 @@ function CriterionSection({
   criteriaSummary,
   extraction,
   caseId,
+  docCount,
+  onNavigateToRouting,
   onCriterionUpdated,
 }: {
   criterion: CriterionResult
@@ -264,6 +268,8 @@ function CriterionSection({
   criteriaSummary?: CriteriaSummaryItem
   extraction?: DetailedExtraction | null
   caseId: string
+  docCount: number
+  onNavigateToRouting: () => void
   onCriterionUpdated: (criterionId: string, result: { strength: Strength; reason: string; evidence: string[] }) => void
 }) {
   const config = getStrengthConfig(criterion.strength)
@@ -422,6 +428,22 @@ function CriterionSection({
         {evidenceCount > 0 && (
           <span className="text-xs text-muted-foreground shrink-0">{evidenceCount} items</span>
         )}
+        {docCount > 0 ? (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); onNavigateToRouting() }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onNavigateToRouting() } }}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 hover:bg-teal-200 dark:hover:bg-teal-900/60 transition-colors shrink-0 cursor-pointer"
+          >
+            <FileText className="w-3 h-3" />
+            {docCount} {docCount === 1 ? "doc" : "docs"}
+          </span>
+        ) : criterion.strength !== "None" ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
+            Mentioned
+          </span>
+        ) : null}
         <svg
           className={cn("w-4 h-4 text-muted-foreground shrink-0 transition-transform", expanded && "rotate-180")}
           viewBox="0 0 24 24"
@@ -581,6 +603,7 @@ export function ReportPanel({
   threshold = 3,
   onThresholdChange,
   onStrongCountChange,
+  onDocumentsRouted,
   initialStrengthEvaluation,
   initialGapAnalysis,
   initialCaseStrategy,
@@ -601,6 +624,15 @@ export function ReportPanel({
   const [analysis, setAnalysis] = useState<Analysis | null>(initialAnalysis ?? null)
   const [activeTab, setActiveTab] = useState<ReportTab>(initialSubTab)
   const [isLoading, setIsLoading] = useState(!initialAnalysis)
+
+  // Sync activeTab when URL subtab param changes externally
+  useEffect(() => {
+    const param = searchParams.get('subtab')
+    if (param && validSubTabs.has(param as ReportTab)) {
+      setActiveTab(param as ReportTab)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   const handleSubTabChange = useCallback((tab: ReportTab) => {
     setActiveTab(tab)
@@ -995,6 +1027,8 @@ export function ReportPanel({
                 criteriaSummary={cs}
                 extraction={analysis.extraction}
                 caseId={caseId}
+                docCount={analysis.docCountsByCriterion?.[c.criterionId] ?? 0}
+                onNavigateToRouting={() => handleSubTabChange("routing")}
                 onCriterionUpdated={handleCriterionUpdated}
               />
             )
@@ -1018,7 +1052,7 @@ export function ReportPanel({
           hasGapAnalysis={!!initialGapAnalysis}
         />
       ) : activeTab === "evidence" ? (
-        <EvidenceListPanel caseId={caseId} />
+        <EvidenceListPanel caseId={caseId} onDocumentsRouted={onDocumentsRouted} />
       ) : activeTab === "routing" ? (
         <CriteriaRoutingPanel caseId={caseId} />
       ) : activeTab === "consolidation" ? (

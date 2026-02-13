@@ -46,6 +46,8 @@ import {
   Users,
   PenLine,
   FilePlus,
+  ScanSearch,
+  ShieldCheck,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { RecommendersPanel } from './recommenders-panel'
@@ -58,6 +60,7 @@ interface DocumentItem {
   source: 'SYSTEM_GENERATED' | 'USER_UPLOADED'
   status: 'DRAFT' | 'FINAL'
   category?: string | null
+  evidenceVerificationCount?: number
   createdAt: string
 }
 
@@ -71,6 +74,14 @@ interface DocumentsPanelProps {
   isChatActive?: boolean
   hideChecklists?: boolean
   onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
+  onDocumentsRouted?: () => void
+}
+
+// Verification progress per-document
+interface VerifyProgress {
+  status: 'verifying' | 'complete'
+  completed: Set<string>
+  results: Record<string, { score: number; recommendation: string }>
 }
 
 interface DocumentGroup {
@@ -525,7 +536,7 @@ function PanelTabs({
   )
 }
 
-export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDraft }: DocumentsPanelProps) {
+export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDraft, onDocumentsRouted }: DocumentsPanelProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>('documents')
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [selectedDoc, setSelectedDoc] = useState<DocumentDetail | null>(null)
@@ -535,6 +546,97 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
   const [isStreaming, setIsStreaming] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DocumentItem | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Evidence verification state
+  const [verifyingDocs, setVerifyingDocs] = useState<Map<string, VerifyProgress>>(new Map())
+  const ALL_CRITERIA = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10']
+
+  const handleVerifyAsEvidence = useCallback(async (docId: string) => {
+    if (verifyingDocs.has(docId)) return
+
+    setVerifyingDocs((prev) => {
+      const next = new Map(prev)
+      next.set(docId, { status: 'verifying', completed: new Set(), results: {} })
+      return next
+    })
+
+    try {
+      const res = await fetch(`/api/case/${caseId}/evidence-verify/${docId}`, { method: 'POST' })
+      if (!res.ok) throw new Error('Verification failed')
+
+      const reader = res.body?.getReader()
+      if (!reader) return
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const event = JSON.parse(line.slice(6))
+
+            if (event.type === 'criterion_complete') {
+              const criterion = event.criterion as string
+              const result = event.result as { score: number; recommendation: string }
+              setVerifyingDocs((prev) => {
+                const next = new Map(prev)
+                const entry = next.get(docId)
+                if (entry) {
+                  const completed = new Set(entry.completed)
+                  completed.add(criterion)
+                  next.set(docId, {
+                    ...entry,
+                    completed,
+                    results: { ...entry.results, [criterion]: result },
+                  })
+                }
+                return next
+              })
+            }
+
+            if (event.type === 'doc_complete') {
+              setVerifyingDocs((prev) => {
+                const next = new Map(prev)
+                const entry = next.get(docId)
+                if (entry) next.set(docId, { ...entry, status: 'complete' })
+                return next
+              })
+              // Mark doc as verified in local state
+              setDocuments((prev) =>
+                prev.map((d) => d.id === docId ? { ...d, evidenceVerificationCount: 10 } : d)
+              )
+              onDocumentsRouted?.()
+              // Clear progress after a brief delay
+              setTimeout(() => {
+                setVerifyingDocs((prev) => {
+                  const next = new Map(prev)
+                  next.delete(docId)
+                  return next
+                })
+              }, 2000)
+            }
+          } catch {
+            // partial JSON
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Verify as evidence error:', err)
+      setVerifyingDocs((prev) => {
+        const next = new Map(prev)
+        next.delete(docId)
+        return next
+      })
+    }
+  }, [caseId, verifyingDocs, onDocumentsRouted])
 
   // Upload modal + dropzone state
   const [pendingFile, setPendingFile] = useState<File | null>(null)
@@ -1030,6 +1132,10 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
             <div className="space-y-2">
               {documentGroups.map((group) => {
                 const strength = getDocumentStrength(group.latestDoc.name)
+                const docId = group.latestDoc.id
+                const isVerified = (group.latestDoc.evidenceVerificationCount ?? 0) > 0
+                const verifyProgress = verifyingDocs.get(docId)
+                const canVerify = group.latestDoc.source === 'USER_UPLOADED' && !isVerified && !verifyProgress
 
                 return (
                   <div
@@ -1050,6 +1156,12 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
                           <StatusDot status={group.latestDoc.status} />
                           {strength && <StrengthBadge strength={strength} />}
                           {group.latestDoc.category && <CategoryBadge category={group.latestDoc.category} />}
+                          {isVerified && !verifyProgress && (
+                            <span className="text-[9px] font-semibold tracking-wide px-1.5 py-0.5 rounded border bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20 flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3" />
+                              Verified
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <TypeBadge type={group.latestDoc.type} />
@@ -1059,6 +1171,22 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
                           </span>
                         </div>
                       </div>
+
+                      {canVerify && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-xs gap-1 text-muted-foreground hover:text-teal-600 dark:hover:text-teal-400 opacity-0 group-hover:opacity-100 transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleVerifyAsEvidence(docId)
+                          }}
+                          title="Verify as evidence"
+                        >
+                          <ScanSearch className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Verify</span>
+                        </Button>
+                      )}
 
                       {onOpenDraft && group.latestDoc.type === 'MARKDOWN' && (
                         <Button
@@ -1137,6 +1265,48 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
+
+                    {/* Inline verification progress */}
+                    {verifyProgress && (
+                      <div className="px-3 pb-2.5 pt-0">
+                        <div className="flex items-center gap-2">
+                          {verifyProgress.status === 'verifying' && (
+                            <Loader2 className="w-3 h-3 text-teal-500 animate-spin shrink-0" />
+                          )}
+                          {verifyProgress.status === 'complete' && (
+                            <ShieldCheck className="w-3 h-3 text-teal-500 shrink-0" />
+                          )}
+                          <div className="flex items-center gap-1 flex-1">
+                            {ALL_CRITERIA.map((c) => {
+                              const done = verifyProgress.completed.has(c)
+                              const result = verifyProgress.results[c]
+                              const isPass = result && result.score >= 5.0
+                              return (
+                                <div
+                                  key={c}
+                                  className={cn(
+                                    'flex-1 h-1.5 rounded-full transition-all duration-300',
+                                    done
+                                      ? isPass
+                                        ? 'bg-teal-500'
+                                        : 'bg-stone-300 dark:bg-stone-600'
+                                      : verifyProgress.status === 'verifying'
+                                        ? 'bg-muted animate-pulse'
+                                        : 'bg-muted'
+                                  )}
+                                  title={done ? `${c}: ${result?.score.toFixed(1)} - ${result?.recommendation}` : c}
+                                />
+                              )
+                            })}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
+                            {verifyProgress.status === 'complete'
+                              ? 'Verified'
+                              : `${verifyProgress.completed.size}/10`}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}

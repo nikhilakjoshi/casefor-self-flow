@@ -116,19 +116,14 @@ export function CasePageClient({
 
   const showEvidenceBadge = activeTab === 'analysis' && strongCount >= threshold && !badgeDismissed
 
-  const handleStartEvidence = useCallback(async () => {
-    try {
-      await fetch(`/api/case/${caseId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'EVIDENCE' }),
-      })
-    } catch (err) {
-      console.error('Failed to update case status:', err)
-    }
-    handleTabChange('evidence')
+  const handleStartEvidence = useCallback(() => {
+    handleTabChange('analysis')
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', 'analysis')
+    params.set('subtab', 'evidence')
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
     setBadgeDismissed(true)
-  }, [caseId, handleTabChange])
+  }, [handleTabChange, searchParams, router, pathname])
 
   // AI-initiated conversation on first load
   useEffect(() => {
@@ -414,6 +409,7 @@ export function CasePageClient({
               threshold={threshold}
               onThresholdChange={setThreshold}
               onStrongCountChange={setStrongCount}
+              onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)}
               initialStrengthEvaluation={initialStrengthEvaluation}
               initialGapAnalysis={initialGapAnalysis}
               initialCaseStrategy={initialCaseStrategy}
@@ -460,7 +456,7 @@ export function CasePageClient({
         <div className="flex flex-1 overflow-hidden relative">
           {/* Documents Panel - fills remaining space */}
           <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} onOpenDraft={onOpenDraft} />
+            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} />
           </div>
 
           {/* Evidence Chat - right side, closable */}
@@ -495,7 +491,7 @@ export function CasePageClient({
         <div className="flex flex-1 overflow-hidden relative">
           {/* Documents Panel */}
           <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists onOpenDraft={onOpenDraft} />
+            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} />
           </div>
 
           {/* Document Chat - right side, closable */}

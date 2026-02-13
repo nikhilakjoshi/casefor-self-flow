@@ -4,6 +4,7 @@ import { generateCaseName } from "@/lib/case-name"
 import { parseFile } from "@/lib/file-parser"
 import { extractSurveyData, extractSurveyDataFromPdf } from "@/lib/survey-extractor"
 import { NextResponse } from "next/server"
+import { isS3Configured, uploadToS3, buildDocumentKey } from "@/lib/s3"
 
 export async function POST(request: Request) {
   const session = await auth()
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     const ext = file.name.toLowerCase().split('.').pop()
     const docType = ext === 'pdf' ? 'PDF' : ext === 'docx' ? 'DOCX' : 'MARKDOWN' as const
 
-    await Promise.all([
+    const results = await Promise.all([
       ...(caseName ? [db.case.update({ where: { id: caseRecord.id }, data: { name: caseName } })] : []),
       db.caseProfile.create({
         data: { caseId: caseRecord.id, data: surveyData as object },
@@ -72,6 +73,18 @@ export async function POST(request: Request) {
         },
       }),
     ])
+
+    // Upload to S3 if configured (doc is last element in results)
+    const doc = results[results.length - 1] as { id: string }
+    if (isS3Configured()) {
+      const key = buildDocumentKey(caseRecord.id, doc.id, file.name)
+      const s3Buffer = Buffer.from(buffer)
+      const { url } = await uploadToS3(key, s3Buffer, file.type)
+      await db.document.update({
+        where: { id: doc.id },
+        data: { s3Key: key, s3Url: url },
+      })
+    }
 
     const res = NextResponse.json({
       caseId: caseRecord.id,

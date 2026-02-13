@@ -7,6 +7,7 @@ import { upsertChunks } from "@/lib/pinecone";
 import { runIncrementalAnalysis } from "@/lib/incremental-analysis";
 import { extractPdfText } from "@/lib/pdf-extractor";
 import { classifyDocument } from "@/lib/document-classifier";
+import { isS3Configured, uploadToS3, buildDocumentKey } from "@/lib/s3";
 
 const MAX_FILES = 10;
 
@@ -84,9 +85,21 @@ async function processFile(
           type: docType,
           source: "USER_UPLOADED",
           status: "DRAFT",
+          content: text,
         },
       }),
     ]);
+
+    // Upload to S3 if configured
+    if (isS3Configured()) {
+      const key = buildDocumentKey(caseId, doc.id, file.name);
+      const s3Buffer = Buffer.from(buffer);
+      const { url } = await uploadToS3(key, s3Buffer, file.type);
+      await db.document.update({
+        where: { id: doc.id },
+        data: { s3Key: key, s3Url: url },
+      });
+    }
 
     classifyDocument(doc.id, file.name, text).catch(() => {});
 
