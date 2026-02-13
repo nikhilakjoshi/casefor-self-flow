@@ -46,7 +46,7 @@ const MODELS: Record<string, { value: string; label: string }[]> = {
   anthropic: [
     { value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
     { value: "claude-opus-4-20250514", label: "Claude Opus 4" },
-    { value: "claude-haiku-3-5-20241022", label: "Claude Haiku 3.5" },
+    { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
   ],
   google: [
     { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },

@@ -409,6 +409,7 @@ export function CasePageClient({
               threshold={threshold}
               onThresholdChange={setThreshold}
               onStrongCountChange={setStrongCount}
+              onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)}
               initialStrengthEvaluation={initialStrengthEvaluation}
               initialGapAnalysis={initialGapAnalysis}
               initialCaseStrategy={initialCaseStrategy}
@@ -455,7 +456,7 @@ export function CasePageClient({
         <div className="flex flex-1 overflow-hidden relative">
           {/* Documents Panel - fills remaining space */}
           <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} onOpenDraft={onOpenDraft} />
+            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} />
           </div>
 
           {/* Evidence Chat - right side, closable */}
@@ -490,7 +491,7 @@ export function CasePageClient({
         <div className="flex flex-1 overflow-hidden relative">
           {/* Documents Panel */}
           <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists onOpenDraft={onOpenDraft} />
+            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} />
           </div>
 
           {/* Document Chat - right side, closable */}

@@ -42,6 +42,17 @@ export async function GET(
     for (const m of mappings) criteriaNames[m.criterionKey] = m.name
   }
 
+  // Count evidence documents routed to each criterion
+  const docRoutings = await db.documentCriterionRouting.groupBy({
+    by: ["criterion"],
+    where: { document: { caseId } },
+    _count: { criterion: true },
+  })
+  const docCountsByCriterion: Record<string, number> = {}
+  for (const r of docRoutings) {
+    docCountsByCriterion[r.criterion] = r._count.criterion
+  }
+
   // Extract criteria_summary from the full extraction if available
   const extraction = analysis.extraction as DetailedExtraction | null
   const criteriaSummary = extraction?.criteria_summary ?? []
@@ -59,5 +70,6 @@ export async function GET(
     surveyVersion: analysis.surveyVersion,
     criteriaNames,
     criteriaThreshold: caseRecord.criteriaThreshold ?? 3,
+    docCountsByCriterion,
   })
 }

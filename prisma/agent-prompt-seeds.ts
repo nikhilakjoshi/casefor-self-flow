@@ -1560,7 +1560,7 @@ Also provide an overall assessment of the evidence package.`,
     description: 'Classifies uploaded documents into immigration case categories',
     category: 'dynamic-user',
     provider: 'anthropic',
-    modelName: 'claude-haiku-3-5-20241022',
+    modelName: 'claude-haiku-4-5-20251001',
     variables: [
       { key: 'fileName', label: 'File Name', description: 'Name of the uploaded file' },
       { key: 'content', label: 'Content', description: 'First 1500 chars of file content' },

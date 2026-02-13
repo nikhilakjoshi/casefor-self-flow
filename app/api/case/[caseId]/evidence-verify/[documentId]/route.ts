@@ -2,6 +2,33 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { runDocumentVerification } from "@/lib/evidence-verification"
 import { autoRouteDocument } from "@/lib/criteria-routing"
+import { isS3Configured, getSignedDownloadUrl } from "@/lib/s3"
+import { extractPdfText } from "@/lib/pdf-extractor"
+import { parseDocx } from "@/lib/file-parser"
+
+async function getDocumentText(doc: {
+  content: string | null
+  s3Key: string | null
+  type: string
+}): Promise<string | null> {
+  // Prefer inline content
+  if (doc.content && doc.content.length >= 50) return doc.content
+
+  // Fallback: download from S3 and extract
+  if (doc.s3Key && isS3Configured()) {
+    const url = await getSignedDownloadUrl(doc.s3Key)
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const buffer = await res.arrayBuffer()
+
+    if (doc.type === "PDF") return extractPdfText(buffer)
+    if (doc.type === "DOCX") return parseDocx(buffer)
+    // TXT/MD
+    return new TextDecoder().decode(buffer)
+  }
+
+  return null
+}
 
 export async function POST(
   _request: Request,
@@ -24,15 +51,23 @@ export async function POST(
 
   const document = await db.document.findFirst({
     where: { id: documentId, caseId },
-    select: { id: true, name: true, content: true },
+    select: { id: true, name: true, content: true, s3Key: true, type: true },
   })
   if (!document) {
     return Response.json({ error: "Document not found" }, { status: 404 })
   }
 
-  const text = document.content
+  const text = await getDocumentText(document)
   if (!text || text.length < 50) {
     return Response.json({ error: "Document has no extractable text" }, { status: 400 })
+  }
+
+  // Persist extracted text if it was missing
+  if (!document.content || document.content.length < 50) {
+    await db.document.update({
+      where: { id: documentId },
+      data: { content: text },
+    })
   }
 
   const encoder = new TextEncoder()

@@ -12,6 +12,7 @@ import {
   type DetailedExtraction,
 } from "@/lib/eb1a-agent"
 import { extractProfile, extractProfileFromPdf } from "@/lib/profile-extractor"
+import { isS3Configured, uploadToS3, buildDocumentKey } from "@/lib/s3"
 
 export async function POST(request: Request) {
   const session = await auth()
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
               const { vectorIds } = await upsertChunks(chunks, caseRecord.id)
               const ext = file.name.toLowerCase().split('.').pop()
               const docType = ext === 'pdf' ? 'PDF' : ext === 'docx' ? 'DOCX' : 'MARKDOWN' as const
-              await Promise.all([
+              const [, doc] = await Promise.all([
                 db.resumeUpload.create({
                   data: {
                     caseId: caseRecord.id,
@@ -116,9 +117,21 @@ export async function POST(request: Request) {
                     type: docType,
                     source: 'USER_UPLOADED',
                     status: 'DRAFT',
+                    content: textToChunk,
                   },
                 }),
               ])
+
+              // Upload to S3 if configured
+              if (isS3Configured()) {
+                const key = buildDocumentKey(caseRecord.id, doc.id, file.name)
+                const s3Buffer = Buffer.from(buffer)
+                const { url } = await uploadToS3(key, s3Buffer, file.type)
+                await db.document.update({
+                  where: { id: doc.id },
+                  data: { s3Key: key, s3Url: url },
+                })
+              }
             })()
           : Promise.resolve(),
         // Extract profile

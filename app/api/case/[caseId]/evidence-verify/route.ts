@@ -7,6 +7,7 @@ import { upsertChunks } from "@/lib/pinecone"
 import { classifyDocument } from "@/lib/document-classifier"
 import { runDocumentVerification } from "@/lib/evidence-verification"
 import { autoRouteDocument } from "@/lib/criteria-routing"
+import { isS3Configured, uploadToS3, buildDocumentKey } from "@/lib/s3"
 
 const MAX_FILES = 10
 
@@ -155,6 +156,17 @@ export async function POST(
               },
             }),
           ])
+
+          // Upload to S3 if configured
+          if (isS3Configured()) {
+            const key = buildDocumentKey(caseId, doc.id, file.name)
+            const buffer = Buffer.from(await file.arrayBuffer())
+            const { url } = await uploadToS3(key, buffer, file.type)
+            await db.document.update({
+              where: { id: doc.id },
+              data: { s3Key: key, s3Url: url },
+            })
+          }
 
           // Classify async
           classifyDocument(doc.id, file.name, text).catch(() => {})

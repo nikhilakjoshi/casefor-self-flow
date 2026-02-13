@@ -5,6 +5,7 @@ import { chunkText } from "@/lib/chunker";
 import { upsertChunks } from "@/lib/pinecone";
 import { parseDocx, parseTxt } from "@/lib/file-parser";
 import { classifyDocument } from "@/lib/document-classifier";
+import { isS3Configured, uploadToS3, buildDocumentKey } from "@/lib/s3";
 import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
@@ -81,9 +82,21 @@ async function processUploadedFile(
         type: docType,
         source: "USER_UPLOADED",
         status: "DRAFT",
+        content: text,
       },
     }),
   ]);
+
+  // Upload to S3 if configured
+  if (isS3Configured()) {
+    const key = buildDocumentKey(caseId, doc.id, file.name);
+    const s3Buffer = Buffer.from(buffer);
+    const { url } = await uploadToS3(key, s3Buffer, file.type);
+    await db.document.update({
+      where: { id: doc.id },
+      data: { s3Key: key, s3Url: url },
+    });
+  }
 
   classifyDocument(doc.id, file.name, text).catch(() => {});
 

@@ -39,11 +39,18 @@ export async function GET(
       classificationConfidence: true,
       recommenderId: true,
       createdAt: true,
+      _count: { select: { evidenceVerifications: true } },
     },
     orderBy: { createdAt: 'desc' },
   })
 
-  return NextResponse.json(documents)
+  return NextResponse.json(
+    documents.map((d) => ({
+      ...d,
+      evidenceVerificationCount: d._count.evidenceVerifications,
+      _count: undefined,
+    }))
+  )
 }
 
 export async function POST(

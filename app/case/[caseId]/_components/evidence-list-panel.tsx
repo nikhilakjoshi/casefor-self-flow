@@ -40,6 +40,7 @@ interface DocumentEntry {
 
 interface EvidenceListPanelProps {
   caseId: string
+  onDocumentsRouted?: () => void
 }
 
 function getRecommendationColor(rec: string) {
@@ -247,7 +248,7 @@ function DocumentCard({
   )
 }
 
-export function EvidenceListPanel({ caseId }: EvidenceListPanelProps) {
+export function EvidenceListPanel({ caseId, onDocumentsRouted }: EvidenceListPanelProps) {
   const [documents, setDocuments] = useState<DocumentEntry[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [loadingCriteria, setLoadingCriteria] = useState<Set<string>>(new Set())
@@ -377,12 +378,13 @@ export function EvidenceListPanel({ caseId }: EvidenceListPanelProps) {
 
       if (!res.ok) throw new Error("Upload failed")
       await processSSE(res)
+      onDocumentsRouted?.()
     } catch (err) {
       console.error("Evidence upload error:", err)
     } finally {
       setIsUploading(false)
     }
-  }, [caseId, isUploading, processSSE])
+  }, [caseId, isUploading, processSSE, onDocumentsRouted])
 
   const handleReVerify = useCallback(async (documentId: string) => {
     if (reVerifyingDocs.has(documentId)) return
@@ -400,6 +402,7 @@ export function EvidenceListPanel({ caseId }: EvidenceListPanelProps) {
       })
       if (!res.ok) throw new Error("Re-verify failed")
       await processSSE(res)
+      onDocumentsRouted?.()
     } catch (err) {
       console.error("Re-verify error:", err)
     } finally {
@@ -409,7 +412,7 @@ export function EvidenceListPanel({ caseId }: EvidenceListPanelProps) {
         return next
       })
     }
-  }, [caseId, reVerifyingDocs, processSSE])
+  }, [caseId, reVerifyingDocs, processSSE, onDocumentsRouted])
 
   const handleRunAnalysis = useCallback(async () => {
     // Trigger incremental analysis on all uploaded evidence docs
