@@ -17,9 +17,11 @@ import {
   Clock,
   Scale,
   ClipboardList,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { RecommenderForm } from './recommender-form'
 import type { RecommenderData } from './recommender-form'
+import { CsvImportModal } from './csv-import-modal'
 
 interface DocumentItem {
   id: string
@@ -200,6 +202,7 @@ export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
   const [recommenders, setRecommenders] = useState<Recommender[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAddRecommender, setShowAddRecommender] = useState(false)
+  const [showCsvImport, setShowCsvImport] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
@@ -310,6 +313,15 @@ export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
                         {allRecDocs.length} draft{allRecDocs.length !== 1 ? 's' : ''}
                       </span>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] gap-1"
+                      onClick={() => setShowCsvImport(true)}
+                    >
+                      <FileSpreadsheet className="w-3 h-3" />
+                      Import CSV
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -465,6 +477,13 @@ export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
         })}
       </div>
     </ScrollArea>
+
+    <CsvImportModal
+      caseId={caseId}
+      open={showCsvImport}
+      onOpenChange={setShowCsvImport}
+      onImported={fetchData}
+    />
 
     <Dialog open={showAddRecommender} onOpenChange={setShowAddRecommender}>
       <DialogContent className="sm:max-w-lg p-0 gap-0 max-h-[85vh] overflow-hidden" showCloseButton={false}>
