@@ -18,6 +18,7 @@ export const BaseVerificationSchema = z.object({
   red_flags: z.array(z.string()),
   recommendation: Recommendation,
   reasoning: z.string(),
+  matched_item_ids: z.array(z.string()).default([]),
 })
 
 // C1: Awards -- base schema only

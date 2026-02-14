@@ -2,6 +2,8 @@ import { generateObject } from "ai"
 import { db } from "./db"
 import { buildEvaluationContext } from "./strength-evaluation"
 import { getPrompt, resolveModel } from "./agent-prompt"
+import type { DetailedExtraction } from "./eb1a-extraction-schema"
+import { ensureItemIds } from "./extraction-item-id"
 import {
   C1VerificationSchema,
   C2VerificationSchema,
@@ -378,12 +380,58 @@ export async function buildVerificationContext(caseId: string) {
   return buildEvaluationContext(caseId)
 }
 
+// ─── Item extraction helper ───
+
+const EVIDENCE_CATEGORIES = [
+  "publications", "awards", "patents", "memberships", "media_coverage",
+  "judging_activities", "speaking_engagements", "grants", "leadership_roles",
+  "compensation", "exhibitions", "commercial_success", "original_contributions",
+] as const
+
+function getItemLabel(item: Record<string, unknown>, category: string): string {
+  switch (category) {
+    case "publications": return [item.title, item.venue, item.year].filter(Boolean).join(" | ")
+    case "awards": return [item.name, item.issuer, item.year].filter(Boolean).join(" | ")
+    case "patents": return [item.title, item.number].filter(Boolean).join(" | ")
+    case "memberships": return [item.organization, item.role].filter(Boolean).join(" | ")
+    case "media_coverage": return [item.title ?? item.outlet, item.outlet].filter(Boolean).join(" | ")
+    case "judging_activities": return [item.type, item.organization, item.venue].filter(Boolean).join(" | ")
+    case "speaking_engagements": return [item.event, item.type, item.year].filter(Boolean).join(" | ")
+    case "grants": return [item.title, item.funder].filter(Boolean).join(" | ")
+    case "leadership_roles": return [item.title, item.organization].filter(Boolean).join(" | ")
+    case "compensation": return [item.amount, item.context].filter(Boolean).join(" | ")
+    case "exhibitions": return [item.title ?? item.venue, item.venue].filter(Boolean).join(" | ")
+    case "commercial_success": return String(item.description ?? "")
+    case "original_contributions": return String(item.description ?? "")
+    default: return JSON.stringify(item)
+  }
+}
+
+function getItemsForCriterion(
+  extraction: DetailedExtraction,
+  criterion: string,
+): { id: string; label: string }[] {
+  const results: { id: string; label: string }[] = []
+  for (const cat of EVIDENCE_CATEGORIES) {
+    const arr = extraction[cat] as Record<string, unknown>[] | undefined
+    if (!arr?.length) continue
+    for (const item of arr) {
+      const mc = item.mapped_criteria as string[] | undefined
+      if (mc?.includes(criterion) && item.id) {
+        results.push({ id: item.id as string, label: getItemLabel(item, cat) })
+      }
+    }
+  }
+  return results
+}
+
 // ─── Individual Criterion Verification ───
 
 async function verifyCriterion(
   criterion: string,
   documentText: string,
   context: string,
+  criterionItems: { id: string; label: string }[],
 ) {
   const schema = SCHEMAS[criterion]
   const slug = CRITERION_SLUGS[criterion]
@@ -392,11 +440,17 @@ async function verifyCriterion(
   const row = await getPrompt(slug)
   if (!row) throw new Error(`DB prompt not found or deactivated: ${slug}`)
 
+  let itemBlock = ""
+  if (criterionItems.length > 0) {
+    const lines = criterionItems.map((i) => `  [${i.id}] ${i.label}`)
+    itemBlock = `\n\n=== EXTRACTION ITEMS FOR THIS CRITERION ===\n${lines.join("\n")}\n\nFor matched_item_ids: return the IDs of items this document specifically supports. Only include IDs from the list above.`
+  }
+
   const { object } = await generateObject({
     model: resolveModel(row.provider, row.modelName),
     schema,
     system: row.content,
-    prompt: `=== CASE CONTEXT ===\n${context}\n\n=== DOCUMENT TO VERIFY ===\n${documentText}`,
+    prompt: `=== CASE CONTEXT ===\n${context}\n\n=== DOCUMENT TO VERIFY ===\n${documentText}${itemBlock}`,
     ...(row.temperature != null && { temperature: row.temperature }),
     ...(row.maxTokens != null && { maxTokens: row.maxTokens }),
   })
@@ -420,6 +474,23 @@ export async function runDocumentVerification(
   const context = await buildVerificationContext(caseId)
   const criteria = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]
 
+  // Load extraction and ensure item IDs
+  const analysis = await db.eB1AAnalysis.findFirst({
+    where: { caseId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, extraction: true },
+  })
+  let extraction: DetailedExtraction | null = null
+  if (analysis?.extraction) {
+    extraction = analysis.extraction as DetailedExtraction
+    if (ensureItemIds(extraction)) {
+      await db.eB1AAnalysis.update({
+        where: { id: analysis.id },
+        data: { extraction: JSON.parse(JSON.stringify(extraction)) },
+      })
+    }
+  }
+
   // Get next version
   const latest = await db.evidenceVerification.findFirst({
     where: { documentId },
@@ -432,7 +503,8 @@ export async function runDocumentVerification(
 
   const settled = await Promise.allSettled(
     criteria.map(async (criterion) => {
-      const data = await verifyCriterion(criterion, documentText, context)
+      const criterionItems = extraction ? getItemsForCriterion(extraction, criterion) : []
+      const data = await verifyCriterion(criterion, documentText, context, criterionItems)
 
       // Save to DB
       await db.evidenceVerification.create({

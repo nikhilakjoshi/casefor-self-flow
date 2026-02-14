@@ -66,6 +66,7 @@ interface Analysis {
   criteriaThreshold?: number
   mergedWithSurvey?: boolean
   docCountsByCriterion?: Record<string, number>
+  docCountsByItem?: Record<string, number>
 }
 
 interface ReportPanelProps {
@@ -260,6 +261,7 @@ function CriterionSection({
   extraction,
   caseId,
   docCount,
+  docCountsByItem,
   onNavigateToRouting,
   onCriterionUpdated,
 }: {
@@ -269,6 +271,7 @@ function CriterionSection({
   extraction?: DetailedExtraction | null
   caseId: string
   docCount: number
+  docCountsByItem?: Record<string, number>
   onNavigateToRouting: () => void
   onCriterionUpdated: (criterionId: string, result: { strength: Strength; reason: string; evidence: string[] }) => void
 }) {
@@ -527,9 +530,24 @@ function CriterionSection({
                       <Icon className="w-3 h-3 text-muted-foreground" />
                       <span className="text-[11px] font-medium text-muted-foreground">{catConf.label}</span>
                     </div>
-                    {items.map((item, j) => (
+                    {items.map((item, j) => {
+                      const itemId = item.id as string | undefined
+                      const itemDocCount = itemId ? (docCountsByItem?.[itemId] ?? 0) : 0
+                      return (
                       <div key={j} className="group/item flex items-center gap-1.5 text-xs text-foreground/80 pl-4 py-0.5">
                         <span className="flex-1"><ItemSummary item={item} category={category} /></span>
+                        {itemDocCount > 0 && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); onNavigateToRouting() }}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onNavigateToRouting() } }}
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 hover:bg-teal-200 dark:hover:bg-teal-900/60 transition-colors shrink-0 cursor-pointer"
+                          >
+                            <FileText className="w-2.5 h-2.5" />
+                            {itemDocCount}
+                          </span>
+                        )}
                         <button
                           onClick={() => handleRemoveEvidence(j, "extraction_item", category)}
                           disabled={removing !== null}
@@ -542,7 +560,8 @@ function CriterionSection({
                           )}
                         </button>
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )
               })}
@@ -1028,6 +1047,7 @@ export function ReportPanel({
                 extraction={analysis.extraction}
                 caseId={caseId}
                 docCount={analysis.docCountsByCriterion?.[c.criterionId] ?? 0}
+                docCountsByItem={analysis.docCountsByItem}
                 onNavigateToRouting={() => handleSubTabChange("routing")}
                 onCriterionUpdated={handleCriterionUpdated}
               />

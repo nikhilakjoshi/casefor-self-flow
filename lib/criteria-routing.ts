@@ -14,10 +14,12 @@ export async function autoRouteDocument(caseId: string, documentId: string): Pro
   console.log(`[criteria-routing] found ${verifications.length} verification records`)
 
   // Keep only latest version per criterion
-  const latest = new Map<string, { criterion: string; score: number; recommendation: string }>()
+  const latest = new Map<string, { criterion: string; score: number; recommendation: string; matchedItemIds: string[] }>()
   for (const v of verifications) {
     if (!latest.has(v.criterion)) {
-      latest.set(v.criterion, { criterion: v.criterion, score: v.score, recommendation: v.recommendation })
+      const data = v.data as Record<string, unknown> | null
+      const matchedItemIds = Array.isArray(data?.matched_item_ids) ? (data.matched_item_ids as string[]) : []
+      latest.set(v.criterion, { criterion: v.criterion, score: v.score, recommendation: v.recommendation, matchedItemIds })
     }
   }
   console.log(`[criteria-routing] latest per criterion:`, [...latest.values()].map((v) => `${v.criterion}=${v.score}/${v.recommendation}`).join(", "))
@@ -51,10 +53,12 @@ export async function autoRouteDocument(caseId: string, documentId: string): Pro
         score: p.score,
         recommendation: p.recommendation,
         autoRouted: true,
+        matchedItemIds: p.matchedItemIds,
       },
       update: {
         score: p.score,
         recommendation: p.recommendation,
+        matchedItemIds: p.matchedItemIds,
       },
     })
     console.log(`[criteria-routing] upserted ${p.criterion} — score=${p.score} rec=${p.recommendation} id=${result.id}`)

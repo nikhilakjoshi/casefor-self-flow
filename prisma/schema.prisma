@@ -418,6 +418,7 @@ model DocumentCriterionRouting {
   score          Float
   recommendation String
   autoRouted     Boolean  @default(true)
+  matchedItemIds String[] @default([])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
