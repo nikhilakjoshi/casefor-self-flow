@@ -29,8 +29,10 @@ import {
   Mail,
   Building2,
   Loader2,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { RecommenderForm, RecommenderData } from './recommender-form'
+import { CsvImportModal } from './csv-import-modal'
 
 interface RecommenderItem {
   id: string
@@ -91,6 +93,7 @@ export function RecommendersPanel({ caseId }: RecommendersPanelProps) {
   const [editingRecommender, setEditingRecommender] = useState<RecommenderData | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<RecommenderItem | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showCsvImport, setShowCsvImport] = useState(false)
   const didFetchRef = useRef(false)
 
   const fetchRecommenders = useCallback(async () => {
@@ -196,15 +199,26 @@ export function RecommendersPanel({ caseId }: RecommendersPanelProps) {
               {recommenders.length} recommender{recommenders.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs gap-1.5"
-            onClick={() => setShowForm(true)}
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            Add
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              onClick={() => setShowCsvImport(true)}
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Import CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              onClick={() => setShowForm(true)}
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              Add
+            </Button>
+          </div>
         </div>
 
         <ScrollArea className="flex-1 min-h-0">
@@ -330,6 +344,13 @@ export function RecommendersPanel({ caseId }: RecommendersPanelProps) {
           )}
         </ScrollArea>
       </div>
+
+      <CsvImportModal
+        caseId={caseId}
+        open={showCsvImport}
+        onOpenChange={setShowCsvImport}
+        onImported={fetchRecommenders}
+      />
 
       {/* Delete confirmation dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
