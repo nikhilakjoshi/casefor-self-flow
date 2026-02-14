@@ -21,6 +21,7 @@ export type CriterionId = z.infer<typeof CriterionIdSchema>
 
 // Publication schema
 export const PublicationSchema = z.object({
+  id: z.string().optional(),
   title: z.string(),
   venue: z.string().optional(),
   venue_tier: z.enum(["top_tier", "high", "standard", "unknown"]).optional(),
@@ -34,6 +35,7 @@ export const PublicationSchema = z.object({
 
 // Award schema
 export const AwardSchema = z.object({
+  id: z.string().optional(),
   name: z.string(),
   issuer: z.string().optional(),
   year: z.number().optional(),
@@ -45,6 +47,7 @@ export const AwardSchema = z.object({
 
 // Patent schema
 export const PatentSchema = z.object({
+  id: z.string().optional(),
   title: z.string(),
   number: z.string().optional(),
   status: z.enum(["granted", "pending", "filed", "unknown"]).optional(),
@@ -56,6 +59,7 @@ export const PatentSchema = z.object({
 
 // Membership schema
 export const MembershipSchema = z.object({
+  id: z.string().optional(),
   organization: z.string(),
   role: z.string().optional(),
   selectivity_evidence: z.string().optional(),
@@ -66,6 +70,7 @@ export const MembershipSchema = z.object({
 
 // Media coverage schema
 export const MediaCoverageSchema = z.object({
+  id: z.string().optional(),
   outlet: z.string(),
   title: z.string().optional(),
   date: z.string().optional(),
@@ -77,6 +82,7 @@ export const MediaCoverageSchema = z.object({
 
 // Judging activity schema
 export const JudgingActivitySchema = z.object({
+  id: z.string().optional(),
   type: z.enum(["peer_review", "grant_panel", "competition_judge", "thesis_committee", "editorial_board", "other"]),
   organization: z.string().optional(),
   venue: z.string().optional(),
@@ -88,6 +94,7 @@ export const JudgingActivitySchema = z.object({
 
 // Speaking engagement schema
 export const SpeakingEngagementSchema = z.object({
+  id: z.string().optional(),
   event: z.string(),
   type: z.enum(["keynote", "invited", "panel", "workshop", "contributed", "other"]).optional(),
   location: z.string().optional(),
@@ -99,6 +106,7 @@ export const SpeakingEngagementSchema = z.object({
 
 // Grant schema
 export const GrantSchema = z.object({
+  id: z.string().optional(),
   title: z.string(),
   funder: z.string().optional(),
   amount: z.number().optional(),
@@ -111,6 +119,7 @@ export const GrantSchema = z.object({
 
 // Leadership role schema
 export const LeadershipRoleSchema = z.object({
+  id: z.string().optional(),
   title: z.string(),
   organization: z.string(),
   distinction: z.string().optional(),
@@ -123,6 +132,7 @@ export const LeadershipRoleSchema = z.object({
 
 // Compensation schema
 export const CompensationSchema = z.object({
+  id: z.string().optional(),
   amount: z.number().optional(),
   currency: z.string().optional(),
   period: z.enum(["annual", "monthly", "hourly", "total"]).optional(),
@@ -134,6 +144,7 @@ export const CompensationSchema = z.object({
 
 // Exhibition schema
 export const ExhibitionSchema = z.object({
+  id: z.string().optional(),
   venue: z.string(),
   title: z.string().optional(),
   type: z.enum(["solo", "group", "permanent", "touring", "other"]).optional(),
@@ -145,6 +156,7 @@ export const ExhibitionSchema = z.object({
 
 // Commercial success schema
 export const CommercialSuccessSchema = z.object({
+  id: z.string().optional(),
   description: z.string(),
   metrics: z.string().optional(),
   revenue: z.number().optional(),
@@ -155,6 +167,7 @@ export const CommercialSuccessSchema = z.object({
 
 // Original contribution (not covered by other schemas)
 export const OriginalContributionSchema = z.object({
+  id: z.string().optional(),
   description: z.string(),
   impact: z.string().optional(),
   evidence: z.string().optional(),

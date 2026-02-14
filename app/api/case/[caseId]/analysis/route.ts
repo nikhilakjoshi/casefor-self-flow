@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { NextResponse } from "next/server"
 import type { DetailedExtraction } from "@/lib/eb1a-extraction-schema"
+import { ensureItemIds } from "@/lib/extraction-item-id"
 
 export async function GET(
   request: Request,
@@ -55,7 +56,28 @@ export async function GET(
 
   // Extract criteria_summary from the full extraction if available
   const extraction = analysis.extraction as DetailedExtraction | null
+
+  // Lazy backfill: assign item IDs if missing
+  if (extraction && ensureItemIds(extraction)) {
+    await db.eB1AAnalysis.update({
+      where: { id: analysis.id },
+      data: { extraction: JSON.parse(JSON.stringify(extraction)) },
+    })
+  }
+
   const criteriaSummary = extraction?.criteria_summary ?? []
+
+  // Count docs per item via matchedItemIds
+  const routingsWithItems = await db.documentCriterionRouting.findMany({
+    where: { document: { caseId }, matchedItemIds: { isEmpty: false } },
+    select: { matchedItemIds: true },
+  })
+  const docCountsByItem: Record<string, number> = {}
+  for (const r of routingsWithItems) {
+    for (const itemId of r.matchedItemIds) {
+      docCountsByItem[itemId] = (docCountsByItem[itemId] ?? 0) + 1
+    }
+  }
 
   return NextResponse.json({
     id: analysis.id,
@@ -71,5 +93,6 @@ export async function GET(
     criteriaNames,
     criteriaThreshold: caseRecord.criteriaThreshold ?? 3,
     docCountsByCriterion,
+    docCountsByItem,
   })
 }
