@@ -892,7 +892,7 @@ export function ReportPanel({
                           : "text-muted-foreground hover:text-foreground hover:bg-background/60"
                       )}
                     >
-                      Planning
+                      Gap Analysis
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">Gap analysis, filing strategy, and evidence roadmap</TooltipContent>
@@ -992,10 +992,10 @@ export function ReportPanel({
                           : "text-muted-foreground hover:text-foreground hover:bg-background/60"
                       )}
                     >
-                      Letters
+                      Document Drafting
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Recommendation letter drafts and management</TooltipContent>
+                  <TooltipContent side="bottom">Draft recommendation letters and supporting documents</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1088,6 +1088,7 @@ export function ReportPanel({
           docCountsByItem={analysis.docCountsByItem}
           onFileDropped={refetchDocCounts}
           onDocumentsRouted={onDocumentsRouted}
+          onOpenDraft={onOpenDraft}
         />
       ) : activeTab === "routing" ? (
         <CriteriaRoutingPanel caseId={caseId} />

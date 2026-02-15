@@ -1573,3 +1573,9 @@ body {
   pointer-events: none;
   height: 0;
 }
+
+/* Persistent selection highlight when AI panel is open */
+.ai-selection-highlight {
+  background-color: oklch(0.6231 0.188 259.8145 / 0.18);
+  border-radius: 2px;
+}

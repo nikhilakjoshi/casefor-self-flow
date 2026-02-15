@@ -318,38 +318,6 @@ export function GapAnalysisPanel({ caseId, initialData, hasStrengthEval }: GapAn
         {exec && (
           <div className="space-y-2">
             <SectionHeader>Executive Summary</SectionHeader>
-            <div className="rounded-lg border border-border p-3 space-y-2">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-muted-foreground">Current Probability</span>
-                  <p className="font-semibold">{exec.current_approval_probability}%</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Projected Probability</span>
-                  <p className="font-semibold text-emerald-600 dark:text-emerald-400">{exec.projected_approval_probability}%</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Criteria Satisfied</span>
-                  <p className="font-semibold">{exec.criteria_satisfied_count}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Total Gaps</span>
-                  <p className="font-semibold">{exec.total_gaps_identified}</p>
-                </div>
-                {exec.estimated_total_investment && (
-                  <div>
-                    <span className="text-muted-foreground">Est. Investment</span>
-                    <p className="font-semibold">{exec.estimated_total_investment}</p>
-                  </div>
-                )}
-                {exec.estimated_timeline_to_ready && (
-                  <div>
-                    <span className="text-muted-foreground">Timeline</span>
-                    <p className="font-semibold">{exec.estimated_timeline_to_ready}</p>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         )}
 

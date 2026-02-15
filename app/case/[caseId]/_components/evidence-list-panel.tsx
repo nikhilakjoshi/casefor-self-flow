@@ -20,8 +20,24 @@ import {
   Lightbulb,
   Banknote,
   Loader2,
+  Plus,
+  ChevronDown,
 } from "lucide-react"
 import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { RecommenderForm } from "./recommender-form"
+import type { RecommenderData } from "./recommender-form"
+import {
+  RecommenderCard,
+  LETTER_TYPES,
+  type DocumentItem as LetterDocItem,
+  type Recommender,
+} from "./letters-panel"
+import { CsvImportModal } from "./csv-import-modal"
 
 // -- Types --
 
@@ -63,6 +79,7 @@ interface EvidenceListPanelProps {
   docCountsByItem?: Record<string, number>
   onFileDropped?: () => void
   onDocumentsRouted?: () => void
+  onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
 }
 
 // -- Shared utilities --
@@ -579,11 +596,18 @@ export function EvidenceListPanel({
   docCountsByItem,
   onFileDropped,
   onDocumentsRouted,
+  onOpenDraft,
 }: EvidenceListPanelProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadDragOver, setUploadDragOver] = useState(false)
   const [routingData, setRoutingData] = useState<RoutingData | null>(null)
   const [streamingDocs, setStreamingDocs] = useState<Set<string>>(new Set())
+  const [showAddRecommender, setShowAddRecommender] = useState(false)
+  const [showCsvImport, setShowCsvImport] = useState(false)
+  const [recommendersOpen, setRecommendersOpen] = useState(true)
+  const [evidenceOpen, setEvidenceOpen] = useState(true)
+  const [recommenders, setRecommenders] = useState<Recommender[]>([])
+  const [recLetterDocs, setRecLetterDocs] = useState<LetterDocItem[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const processSSE = useSSEProcessor()
 
@@ -602,9 +626,38 @@ export function EvidenceListPanel({
     }
   }, [caseId])
 
+  // Fetch recommenders + recommendation letter docs
+  const fetchRecommenderData = useCallback(async () => {
+    try {
+      const [recRes, docsRes] = await Promise.all([
+        fetch(`/api/case/${caseId}/recommenders`),
+        fetch(`/api/case/${caseId}/documents`),
+      ])
+      if (recRes.ok) setRecommenders(await recRes.json())
+      if (docsRes.ok) {
+        const docs: LetterDocItem[] = await docsRes.json()
+        setRecLetterDocs(docs.filter((d) => d.category === "RECOMMENDATION_LETTER"))
+      }
+    } catch (err) {
+      console.error("Failed to load recommender data:", err)
+    }
+  }, [caseId])
+
+  const getDocsForRecommender = useCallback(
+    (recommenderId: string) =>
+      recLetterDocs.filter((d) => d.recommenderId === recommenderId),
+    [recLetterDocs]
+  )
+
+  const handleRecommenderSaved = useCallback((_rec: RecommenderData) => {
+    setShowAddRecommender(false)
+    fetchRecommenderData()
+  }, [fetchRecommenderData])
+
   useEffect(() => {
     fetchRouting()
-  }, [fetchRouting])
+    fetchRecommenderData()
+  }, [fetchRouting, fetchRecommenderData])
 
   // Global upload handler (full C1-C10 verification via SSE)
   const handleUpload = useCallback(async (files: FileList | File[]) => {
@@ -712,31 +765,105 @@ export function EvidenceListPanel({
             </>
           )}
         </div>
+
       </div>
 
-      {/* Criteria list -- each card has its own per-criterion drop zone */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {allCriteria.map((cId) => {
-          const criterion = criteria?.find((c) => c.criterionId === cId)
-          const cs = criteriaSummary?.find((s) => s.criterion_id === cId)
-          const routedDocs = routingData?.routings?.[cId]?.documents ?? []
-
-          return (
-            <EvidenceCriterionCard
-              key={cId}
-              criterionId={cId}
-              criterion={criterion}
-              extraction={extraction}
-              criteriaSummary={cs}
-              criteriaNames={criteriaNames}
-              docCountsByItem={docCountsByItem}
-              routedDocs={routedDocs}
-              caseId={caseId}
-              onFileDropped={handleCriterionFileDropped}
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Recommendation Letters section */}
+        <div className="border-b border-border">
+          <button
+            onClick={() => setRecommendersOpen(!recommendersOpen)}
+            className="sticky top-0 z-10 bg-background w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors border-b border-border"
+          >
+            <ChevronDown
+              className={cn(
+                "w-4 h-4 text-muted-foreground transition-transform",
+                !recommendersOpen && "-rotate-90"
+              )}
             />
-          )
-        })}
+            <span className="text-sm font-semibold">Recommendation Letters</span>
+          </button>
+          {recommendersOpen && (
+            <div className="p-3">
+              {(() => {
+                const recLetterType = LETTER_TYPES.find((lt) => lt.key === "recommendation")!
+                return (
+                  <RecommenderCard
+                    letterType={recLetterType}
+                    recommenders={recommenders}
+                    allRecDocs={recLetterDocs}
+                    getDocsForRecommender={getDocsForRecommender}
+                    caseId={caseId}
+                    onOpenDraft={onOpenDraft ?? (() => {})}
+                    onAddRecommender={() => setShowAddRecommender(true)}
+                    onImportCsv={() => setShowCsvImport(true)}
+                    onUploaded={fetchRecommenderData}
+                  />
+                )
+              })()}
+            </div>
+          )}
+        </div>
+
+        {/* Evidence by Criterion section */}
+        <div className="border-b border-border">
+          <button
+            onClick={() => setEvidenceOpen(!evidenceOpen)}
+            className="sticky top-0 z-10 bg-background w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors border-b border-border"
+          >
+            <ChevronDown
+              className={cn(
+                "w-4 h-4 text-muted-foreground transition-transform",
+                !evidenceOpen && "-rotate-90"
+              )}
+            />
+            <span className="text-sm font-semibold">Evidence by Criterion</span>
+          </button>
+          {evidenceOpen && (
+            <div className="p-3 space-y-3">
+              {allCriteria.map((cId) => {
+                const criterion = criteria?.find((c) => c.criterionId === cId)
+                const cs = criteriaSummary?.find((s) => s.criterion_id === cId)
+                const routedDocs = routingData?.routings?.[cId]?.documents ?? []
+
+                return (
+                  <EvidenceCriterionCard
+                    key={cId}
+                    criterionId={cId}
+                    criterion={criterion}
+                    extraction={extraction}
+                    criteriaSummary={cs}
+                    criteriaNames={criteriaNames}
+                    docCountsByItem={docCountsByItem}
+                    routedDocs={routedDocs}
+                    caseId={caseId}
+                    onFileDropped={handleCriterionFileDropped}
+                  />
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
+
+      <Dialog open={showAddRecommender} onOpenChange={setShowAddRecommender}>
+        <DialogContent className="sm:max-w-lg p-0 gap-0 max-h-[85vh] overflow-hidden" showCloseButton={false}>
+          <DialogTitle className="sr-only">Add Recommender</DialogTitle>
+          <RecommenderForm
+            caseId={caseId}
+            onSave={handleRecommenderSaved}
+            onCancel={() => setShowAddRecommender(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <CsvImportModal
+        caseId={caseId}
+        open={showCsvImport}
+        onOpenChange={setShowCsvImport}
+        onImported={fetchRecommenderData}
+      />
     </div>
   )
 }

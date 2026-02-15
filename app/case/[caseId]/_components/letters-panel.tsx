@@ -42,7 +42,7 @@ import type { RecommenderData } from './recommender-form'
 import { CsvImportModal } from './csv-import-modal'
 import type { DenialProbability } from '@/lib/denial-probability-schema'
 
-interface DocumentItem {
+export interface DocumentItem {
   id: string
   name: string
   type: string
@@ -53,7 +53,7 @@ interface DocumentItem {
   createdAt: string
 }
 
-interface Recommender {
+export interface Recommender {
   id: string
   name: string
   title: string
@@ -87,15 +87,15 @@ interface LetterType {
   uscisUrl?: string
 }
 
-const LETTER_TYPES: LetterType[] = [
+export const LETTER_TYPES: LetterType[] = [
   {
-    key: 'resume',
-    title: 'Resume / CV',
-    description: 'Generate or upload your resume highlighting extraordinary ability',
-    category: 'RESUME_CV',
+    key: 'executive_resume',
+    title: 'Executive Resume',
+    description: 'AI-drafted resume tailored for your EB-1A petition',
+    category: 'EXECUTIVE_RESUME',
     icon: FileText,
-    gradient: 'from-teal-500/15 to-emerald-500/15',
-    iconColor: 'text-teal-600 dark:text-teal-400',
+    gradient: 'from-indigo-500/15 to-violet-500/15',
+    iconColor: 'text-indigo-600 dark:text-indigo-400',
     isDraftable: true,
   },
   {
@@ -217,7 +217,7 @@ const LETTER_TYPES: LetterType[] = [
   },
 ]
 
-function formatDate(dateStr: string): string {
+export function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -233,7 +233,7 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function StatusDot({ status }: { status: string }) {
+export function StatusDot({ status }: { status: string }) {
   return (
     <span
       className={cn(
@@ -245,7 +245,7 @@ function StatusDot({ status }: { status: string }) {
   )
 }
 
-function DraftRow({
+export function DraftRow({
   doc,
   caseId,
   onOpenDraft,
@@ -299,7 +299,7 @@ function DraftRow({
   )
 }
 
-const RELATIONSHIP_LABELS: Record<string, string> = {
+export const RELATIONSHIP_LABELS: Record<string, string> = {
   ACADEMIC_ADVISOR: 'Academic Advisor',
   RESEARCH_COLLABORATOR: 'Research Collaborator',
   INDUSTRY_COLLEAGUE: 'Industry Colleague',
@@ -546,7 +546,7 @@ function UploadOnlyCard({
   )
 }
 
-function RecommenderCard({
+export function RecommenderCard({
   letterType,
   recommenders,
   allRecDocs,
@@ -1020,6 +1020,7 @@ function DraftableCard({
 
 const CATEGORY_LABELS: Record<string, string> = {
   RESUME_CV: 'Resume / CV',
+  EXECUTIVE_RESUME: 'Executive Resume',
   AWARD_CERTIFICATE: 'Award Certificate',
   PUBLICATION: 'Publication',
   MEDIA_COVERAGE: 'Media Coverage',

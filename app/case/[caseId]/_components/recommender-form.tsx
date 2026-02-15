@@ -19,12 +19,6 @@ import {
 } from '@/components/ui/collapsible'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import {
   ChevronDown,
   User,
   Briefcase,
@@ -403,82 +397,82 @@ export function RecommenderForm({
         </Button>
       </div>
 
-      {/* Form content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {/* Extraction zone - create mode only */}
-        {!isEdit && (
-          <div className="space-y-3">
-            <div
-              {...getRootProps()}
-              className={cn(
-                'border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors',
-                isDragActive
-                  ? 'border-primary bg-primary/5'
-                  : 'border-muted-foreground/25 hover:border-muted-foreground/50',
-                isExtracting && 'opacity-50 pointer-events-none'
-              )}
-            >
-              <input {...getInputProps()} />
-              {isExtracting ? (
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Extracting...
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-1">
-                  <Upload className="w-5 h-5 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Drop a PDF, DOCX, or TXT to auto-fill
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  value={extractUrl}
-                  onChange={(e) => setExtractUrl(e.target.value)}
-                  placeholder="Paste profile URL..."
-                  className="h-9 pl-8"
-                  disabled={isExtracting}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      extractFromUrl()
-                    }
-                  }}
-                />
+      {/* Extraction zone - sticky, create mode only */}
+      {!isEdit && (
+        <div className="shrink-0 px-4 py-3 border-b border-border space-y-3">
+          <div
+            {...getRootProps()}
+            className={cn(
+              'border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors',
+              isDragActive
+                ? 'border-primary bg-primary/5'
+                : 'border-muted-foreground/25 hover:border-muted-foreground/50',
+              isExtracting && 'opacity-50 pointer-events-none'
+            )}
+          >
+            <input {...getInputProps()} />
+            {isExtracting ? (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Extracting...
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isExtracting || !extractUrl.trim()}
-                onClick={extractFromUrl}
-                className="h-9"
-              >
-                {isExtracting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  'Fetch'
-                )}
-              </Button>
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              For best results, upload a PDF or DOCX profile. Public URLs work well, though some sites may restrict access.
-            </p>
-
-            {extractError && (
-              <p className="text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded-md">
-                {extractError}
-              </p>
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <Upload className="w-5 h-5 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Drop a PDF, DOCX, or TXT to auto-fill
+                </p>
+              </div>
             )}
           </div>
-        )}
 
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={extractUrl}
+                onChange={(e) => setExtractUrl(e.target.value)}
+                placeholder="Paste profile URL..."
+                className="h-9 pl-8"
+                disabled={isExtracting}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    extractFromUrl()
+                  }
+                }}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isExtracting || !extractUrl.trim()}
+              onClick={extractFromUrl}
+              className="h-9"
+            >
+              {isExtracting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                'Fetch'
+              )}
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            For best results, upload a PDF or DOCX profile. Public URLs work well, though some sites may restrict access.
+          </p>
+
+          {extractError && (
+            <p className="text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded-md">
+              {extractError}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Form content */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {/* Required fields - always visible */}
         <div className="space-y-3">
           <FormField label="Full Name" required>
@@ -547,41 +541,69 @@ export function RecommenderForm({
             />
           </div>
 
-          {/* Criteria Mapping - inline row */}
+          {/* Criteria Mapping */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Criteria Mapping</label>
-            <TooltipProvider delayDuration={200}>
-              <div className="flex flex-wrap gap-1.5">
-                {Object.entries(CRITERIA_LABELS).map(([key, label]) => (
-                  <Tooltip key={key}>
-                    <TooltipTrigger asChild>
-                      <label
-                        className={cn(
-                          "inline-flex items-center gap-1.5 px-2 py-1 rounded-md border cursor-pointer transition-colors text-xs",
-                          criteriaKeys.includes(key)
-                            ? "border-primary bg-primary/10 text-foreground"
-                            : "border-border bg-muted/30 text-muted-foreground hover:border-muted-foreground/50"
-                        )}
-                      >
-                        <Checkbox
-                          checked={criteriaKeys.includes(key)}
-                          onCheckedChange={(checked) => {
-                            setCriteriaKeys((prev) =>
-                              checked
-                                ? [...prev, key]
-                                : prev.filter((k) => k !== key)
-                            )
+            <div className="rounded-lg border border-border overflow-hidden divide-y divide-border">
+              {Object.entries(CRITERIA_LABELS).map(([key, label]) => {
+                const selected = criteriaKeys.includes(key)
+                return (
+                  <div key={key} className={cn(selected && "bg-primary/[0.03]")}>
+                    <label
+                      className="flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors hover:bg-muted/40"
+                    >
+                      <Checkbox
+                        checked={selected}
+                        onCheckedChange={(checked) => {
+                          setCriteriaKeys((prev) =>
+                            checked
+                              ? [...prev, key]
+                              : prev.filter((k) => k !== key)
+                          )
+                          setContextNotes((prev) => {
+                            const next = { ...(prev ?? {}) }
+                            if (checked) {
+                              if (!(key in next)) next[key] = ''
+                            } else {
+                              delete next[key]
+                            }
+                            return Object.keys(next).length > 0 ? next : null
+                          })
+                        }}
+                        className="h-3.5 w-3.5 shrink-0"
+                      />
+                      <span className={cn(
+                        "text-[11px] font-bold shrink-0 w-7",
+                        selected ? "text-primary" : "text-muted-foreground"
+                      )}>
+                        {key}
+                      </span>
+                      <span className={cn(
+                        "text-xs truncate",
+                        selected ? "text-foreground" : "text-muted-foreground"
+                      )}>
+                        {label}
+                      </span>
+                    </label>
+                    {selected && (
+                      <div className="px-3 pb-2.5 pl-[2.75rem]">
+                        <textarea
+                          value={(contextNotes?.[key] as string) ?? ''}
+                          onChange={(e) => {
+                            setContextNotes((prev) => ({
+                              ...(prev ?? {}),
+                              [key]: e.target.value,
+                            }))
                           }}
-                          className="h-3.5 w-3.5"
+                          placeholder="How can this recommender speak to this criterion?"
+                          className="w-full min-h-[40px] px-2.5 py-1.5 rounded-md border border-input bg-background text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 placeholder:text-muted-foreground/50"
                         />
-                        <span className="font-medium">{key}</span>
-                      </label>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">{label}</TooltipContent>
-                  </Tooltip>
-                ))}
-              </div>
-            </TooltipProvider>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
 

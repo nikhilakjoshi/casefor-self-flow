@@ -133,7 +133,7 @@ export function CasePageClient({
     category?: string
   } | null>(null)
   const [intakeOpen, setIntakeOpen] = useState(initialIntakeStatus === 'PENDING')
-  const [chatOpen, setChatOpen] = useState(true)
+  const [chatOpen, setChatOpen] = useState(false)
   const initiatedRef = useRef(false)
 
   const onOpenDraft = useCallback((doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => {
@@ -434,7 +434,7 @@ export function CasePageClient({
         />
       ) : /* Tab content */
       activeTab === 'analysis' ? (
-        <div className="flex flex-1 overflow-hidden relative">
+        <div className="flex flex-1 overflow-hidden">
           <input
             ref={fileInputRef}
             type="file"
@@ -442,8 +442,6 @@ export function CasePageClient({
             className="hidden"
             onChange={handleFileInputChange}
           />
-
-          {/* Report Panel - fills remaining space */}
           <div className="flex-1 bg-muted/50 overflow-hidden">
             <ReportPanel
               caseId={caseId}
@@ -461,19 +459,37 @@ export function CasePageClient({
               onOpenDraft={onOpenDraft}
             />
           </div>
+        </div>
+      ) : activeTab === 'evidence' ? (
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex-1 bg-muted/50 overflow-hidden">
+            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} />
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex-1 bg-muted/50 overflow-hidden">
+            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} />
+          </div>
+        </div>
+      )}
 
-          {/* Chat Panel - right side, closable */}
-          {chatOpen ? (
-            <div className="w-[400px] flex flex-col overflow-hidden border-l border-stone-200 dark:border-stone-700 relative">
-              <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-border bg-background">
-                <span className="text-sm font-medium">Chat</span>
-                <button
-                  onClick={() => setChatOpen(false)}
-                  className="p-1 rounded hover:bg-muted transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+      {/* Floating chat popup */}
+      {chatOpen ? (
+        <div className="fixed bottom-5 right-5 z-50 w-[420px] h-[70vh] max-h-[700px] rounded-xl border border-border bg-background shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-200">
+          <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-border">
+            <span className="text-sm font-medium">
+              {activeTab === 'analysis' ? 'Chat' : activeTab === 'evidence' ? 'Evidence Chat' : 'Document Review'}
+            </span>
+            <button
+              onClick={() => setChatOpen(false)}
+              className="p-1 rounded hover:bg-muted transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {activeTab === 'analysis' ? (
               <ChatPanel
                 messages={messages}
                 isLoading={isLoading}
@@ -484,87 +500,29 @@ export function CasePageClient({
                 onStartEvidence={handleStartEvidence}
                 caseId={caseId}
               />
-            </div>
-          ) : (
-            <button
-              onClick={() => setChatOpen(true)}
-              className="absolute bottom-4 right-4 z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span className="text-sm font-medium">Chat</span>
-            </button>
-          )}
-        </div>
-      ) : activeTab === 'evidence' ? (
-        <div className="flex flex-1 overflow-hidden relative">
-          {/* Documents Panel - fills remaining space */}
-          <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} />
-          </div>
-
-          {/* Evidence Chat - right side, closable */}
-          {chatOpen ? (
-            <div className="w-[400px] flex flex-col overflow-hidden border-l border-stone-200 dark:border-stone-700">
-              <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-border bg-background">
-                <span className="text-sm font-medium">Evidence Chat</span>
-                <button
-                  onClick={() => setChatOpen(false)}
-                  className="p-1 rounded hover:bg-muted transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+            ) : activeTab === 'evidence' ? (
               <EvidenceChatPanel
                 caseId={caseId}
                 initialMessages={initialEvidenceMessages}
                 onLoadingChange={setIsEvidenceLoading}
               />
-            </div>
-          ) : (
-            <button
-              onClick={() => setChatOpen(true)}
-              className="absolute bottom-4 right-4 z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span className="text-sm font-medium">Chat</span>
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-1 overflow-hidden relative">
-          {/* Documents Panel */}
-          <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} />
-          </div>
-
-          {/* Document Chat - right side, closable */}
-          {chatOpen ? (
-            <div className="w-[400px] flex flex-col overflow-hidden border-l border-stone-200 dark:border-stone-700">
-              <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-border bg-background">
-                <span className="text-sm font-medium">Document Review</span>
-                <button
-                  onClick={() => setChatOpen(false)}
-                  className="p-1 rounded hover:bg-muted transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+            ) : (
               <DocumentChatPanel
                 caseId={caseId}
                 initialMessages={initialDocumentMessages}
                 onLoadingChange={setIsDocumentLoading}
               />
-            </div>
-          ) : (
-            <button
-              onClick={() => setChatOpen(true)}
-              className="absolute bottom-4 right-4 z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span className="text-sm font-medium">Chat</span>
-            </button>
-          )}
+            )}
+          </div>
         </div>
+      ) : (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-border bg-background shadow-lg hover:shadow-xl text-sm font-medium text-foreground transition-all hover:bg-muted/50"
+        >
+          <MessageSquare className="w-4 h-4" />
+          {activeTab === 'analysis' ? 'Chat' : activeTab === 'evidence' ? 'Evidence Chat' : 'Document Review'}
+        </button>
       )}
     </div>
   )

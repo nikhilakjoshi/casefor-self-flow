@@ -27,7 +27,7 @@ export function ConsolidationTab({
       <div className="border-b border-border">
         <button
           onClick={() => setConsolidationOpen(!consolidationOpen)}
-          className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors"
+          className="sticky top-0 z-10 bg-background w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors border-b border-border"
         >
           <ChevronDown
             className={cn(
@@ -50,7 +50,7 @@ export function ConsolidationTab({
       <div className="border-b border-border">
         <button
           onClick={() => setStrategyOpen(!strategyOpen)}
-          className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors"
+          className="sticky top-0 z-10 bg-background w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors border-b border-border"
         >
           <ChevronDown
             className={cn(
