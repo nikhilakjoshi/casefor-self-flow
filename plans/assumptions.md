@@ -150,3 +150,7 @@
 - E-Sign tooltip trigger uses `<span tabIndex={0}>` wrapper around disabled Button because disabled elements don't receive pointer events needed for Radix Tooltip to show; span acts as the hover target
 - E-Sign button applied to all 3 card types (UploadOnlyCard, DraftableCard, RecommenderCard) -- PRD says "all card types" which includes recommender cards even though they're per-recommender
 - PenTool icon chosen for E-Sign (lucide-react) -- visually suggests signing/writing; distinct from PenLine used for Draft
+- TemplateVariation IDs use deterministic format `{recLetterTemplateId}-{RelationshipType}` for idempotent seed upserts (same pattern as template and default variation IDs)
+- PEER_EXPERT variation is set as isDefault: true; the older generic "Default" variation (created with template) also has isDefault: true -- resolveVariation returns first isDefault match (older default), but when relationshipType is provided in profile data, the PEER_EXPERT variation wins via matchField/matchValue match before falling back to default
+- Variation content provides structural guidance (numbered sections with descriptions) rather than actual letter prose; the drafting agent LLM uses these as instructions for generating the actual letter content
+- Each variation tailored to leverage the unique perspective of the relationship type: advisor observes academic growth, collaborator evaluates technical contribution, supervisor assesses performance, mentee demonstrates knowledge transfer impact, client quantifies delivered value

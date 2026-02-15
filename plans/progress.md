@@ -1132,3 +1132,25 @@
 - R7 is now fully complete (task 1: USCIS links done earlier, task 2: e-sign placeholder done)
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R6 task 23 (global drop zone w/ auto-categorization) or R6 task 25 (per-card drop zones for draftable cards) or R9 tasks (denial risk badge/banner) or R11 tasks (template variations, template-resolver wiring)
+
+## 2026-02-15: TemplateVariation Seeds per Relationship Type (PRD R11 Task 2)
+
+### Completed
+
+- Added 7 TemplateVariation seeds in `prisma/seed.ts` for the RECOMMENDATION_LETTER template
+- One variation per RelationshipType: ACADEMIC_ADVISOR, RESEARCH_COLLABORATOR, INDUSTRY_COLLEAGUE, SUPERVISOR, MENTEE, CLIENT, PEER_EXPERT
+- Each variation: matchField='relationshipType', matchValue=<RelationshipType enum value>
+- PEER_EXPERT set as isDefault: true (generic peer expert evaluation perspective)
+- Each variation provides relationship-specific structure (5-8 sections), tone guidance, and evidence emphasis
+- Variation IDs use deterministic format `{recLetterTemplateId}-{RelationshipType}` for idempotent upserts
+- Seed runs clean: "Upserted 7 recommendation letter TemplateVariation rows"
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- Variations are matched by `resolveVariation()` in `lib/template-resolver.ts` which does case-insensitive contains match on matchField/matchValue against profile data
+- PEER_EXPERT is the default variation -- used when no matching relationship type is found or when relationship type is OTHER
+- Each variation has distinct tone guidance: Academic (scholarly), Research (collegial), Industry (business-oriented), Supervisor (evaluative), Mentee (appreciative), Client (results-oriented), Peer Expert (analytical/independent)
+- The existing default variation (id: `{templateId}-default`) still exists alongside the new PEER_EXPERT default; resolveVariation returns first isDefault match, which will be the older default since it's ordered by createdAt asc. This is fine -- the PEER_EXPERT variation takes precedence via matchField/matchValue match when relationshipType is provided.
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R11 task 1 (wire drafting agent to template-resolver) or R11 task 3 (template input fields in DraftingPanel) or R9 tasks (denial risk badge/banner) or R6 tasks (global/per-card drop zones)

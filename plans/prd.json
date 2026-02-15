@@ -487,7 +487,7 @@
       "Set one variation as isDefault: true (e.g. PEER_EXPERT or a generic version)",
       "Include guidance on tone, structure, and evidence emphasis per relationship type"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
