@@ -301,7 +301,7 @@
       "Show visual drag-over highlight on the target card",
       "Update the card's document list after successful upload"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",

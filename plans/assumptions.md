@@ -193,3 +193,7 @@
 - Template inputs appended to drafting agent system instructions (not injected into user messages) so they act as persistent context across the entire drafting conversation, not just the first message
 - `templateInputs` in draft-chat API is typed as `Record<string, string> | undefined` (loose type) rather than a strict interface; the API doesn't validate field names since the agent just uses them as freeform context
 - Only non-empty template input fields are appended to instructions; empty fields are filtered out to avoid noise
+- DraftableCard drop zones use the card's `letterType.category` for explicit category assignment; same pattern as UploadOnlyCard
+- RecommenderCard drop zone assigns `RECOMMENDATION_LETTER` category but does NOT link to a specific recommender via `recommenderId`; recommender linking only happens through the Draft flow which passes `recommenderId` to the drafting agent. Dropped files are generic rec letter uploads.
+- All 3 card types now support both drag-drop and click-to-upload via hidden file input; consistent UX across card types
+- DraftableCard auto-expands on successful upload (same as UploadOnlyCard) so user sees the newly uploaded file immediately

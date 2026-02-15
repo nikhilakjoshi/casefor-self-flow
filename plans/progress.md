@@ -1353,3 +1353,31 @@
 - Template inputs are appended to system instructions (not injected into user messages) so they persist across the drafting session
 - Pre-existing lint errors unchanged (13 errors, 26 warnings)
 - Next priority: R6 tasks (global/per-card drop zones) or R1 tasks (skip-to-survey, survey-only endpoint, resume upload/gen) or R3 tasks (evidence badges, criterion upload, analysis endpoint extension)
+
+## 2026-02-15: Per-Card Drop Zones (PRD R6 Task 25)
+
+### Completed
+
+- Added drag-drop upload to `DraftableCard` in `letters-panel.tsx`
+  - onDragOver/onDragLeave/onDrop handlers on card container
+  - Visual drag-over highlight (border-primary/50 bg-primary/5) w/ transition-colors
+  - On drop, POSTs to `/api/case/{caseId}/documents` w/ explicit `category` from card's letterType
+  - Upload button + hidden file input for click-to-upload alternative
+  - Auto-expands card on successful upload
+  - Success/error toasts via sonner
+- Added drag-drop upload to `RecommenderCard` in `letters-panel.tsx`
+  - Same drag-drop pattern as DraftableCard
+  - Drops upload w/ category `RECOMMENDATION_LETTER`
+  - Upload button in header actions area
+- Both cards: `onUploaded` callback triggers `fetchData` to refresh document list
+- Auto-classification skipped when `category` FormData field present (existing API behavior from R6 task 21)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 26 warnings)
+
+### Notes for Next Dev
+
+- DraftableCard now has both Draft + Upload buttons; Upload uses same file input pattern as UploadOnlyCard
+- RecommenderCard drop assigns category RECOMMENDATION_LETTER (not linked to specific recommender); recommender linking happens via Draft flow which passes recommenderId
+- All 3 card types (UploadOnlyCard, DraftableCard, RecommenderCard) now support drag-drop upload
+- stopPropagation on Upload button prevents card expand/collapse toggle
+- Pre-existing lint errors unchanged (13 errors, 26 warnings)
+- Next priority: R6 task 23 (global drop zone w/ auto-categorization) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges, criterion upload)

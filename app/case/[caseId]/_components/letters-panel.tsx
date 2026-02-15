@@ -543,6 +543,7 @@ function RecommenderCard({
   onOpenDraft,
   onAddRecommender,
   onImportCsv,
+  onUploaded,
 }: {
   letterType: LetterType
   recommenders: Recommender[]
@@ -552,13 +553,56 @@ function RecommenderCard({
   onOpenDraft: LettersPanelProps['onOpenDraft']
   onAddRecommender: () => void
   onImportCsv: () => void
+  onUploaded: () => void
 }) {
   const Icon = letterType.icon
   const hasContent = recommenders.length > 0 || allRecDocs.length > 0
   const [expanded, setExpanded] = useState(true)
+  const [dragOver, setDragOver] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleUpload = async (file: File) => {
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('category', 'RECOMMENDATION_LETTER')
+      const res = await fetch(`/api/case/${caseId}/documents`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (res.ok) {
+        toast.success(`Uploaded ${file.name}`)
+        onUploaded()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Upload failed')
+      }
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleUpload(file)
+  }
 
   return (
-    <div className="rounded-xl border border-border/50 bg-card/50 overflow-hidden">
+    <div
+      className={cn(
+        'rounded-xl border border-border/50 bg-card/50 overflow-hidden transition-colors',
+        dragOver && 'border-primary/50 bg-primary/5'
+      )}
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
+    >
       {/* Header */}
       <div
         className={cn(
@@ -605,6 +649,31 @@ function RecommenderCard({
             <Plus className="w-3 h-3" />
             Add
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-[11px] gap-1"
+            disabled={uploading}
+            onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click() }}
+          >
+            {uploading ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Upload className="w-3 h-3" />
+            )}
+            Upload
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.docx,.doc,.md,.txt"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) handleUpload(file)
+              e.target.value = ''
+            }}
+          />
           <Tooltip>
             <TooltipTrigger asChild>
               <span tabIndex={0} onClick={(e) => e.stopPropagation()}>
@@ -769,17 +838,64 @@ function DraftableCard({
   docs,
   caseId,
   onOpenDraft,
+  onUploaded,
 }: {
   letterType: LetterType
   docs: DocumentItem[]
   caseId: string
   onOpenDraft: LettersPanelProps['onOpenDraft']
+  onUploaded: () => void
 }) {
   const Icon = letterType.icon
   const [expanded, setExpanded] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleUpload = async (file: File) => {
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      if (letterType.category) {
+        formData.append('category', letterType.category)
+      }
+      const res = await fetch(`/api/case/${caseId}/documents`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (res.ok) {
+        toast.success(`Uploaded ${file.name}`)
+        onUploaded()
+        setExpanded(true)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Upload failed')
+      }
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleUpload(file)
+  }
 
   return (
-    <div className="rounded-xl border border-border/50 bg-card/50 overflow-hidden">
+    <div
+      className={cn(
+        'rounded-xl border border-border/50 bg-card/50 overflow-hidden transition-colors',
+        dragOver && 'border-primary/50 bg-primary/5'
+      )}
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
+    >
       <div
         className={cn(
           'flex items-center gap-3 px-4 py-3',
@@ -822,6 +938,31 @@ function DraftableCard({
             <PenLine className="w-3 h-3" />
             Draft
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-[11px] gap-1"
+            disabled={uploading}
+            onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click() }}
+          >
+            {uploading ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Upload className="w-3 h-3" />
+            )}
+            Upload
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.docx,.doc,.md,.txt"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) handleUpload(file)
+              e.target.value = ''
+            }}
+          />
           <Tooltip>
             <TooltipTrigger asChild>
               <span tabIndex={0} onClick={(e) => e.stopPropagation()}>
@@ -989,6 +1130,7 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
                 onOpenDraft={onOpenDraft}
                 onAddRecommender={() => setShowAddRecommender(true)}
                 onImportCsv={() => setShowCsvImport(true)}
+                onUploaded={fetchData}
               />
             )
           }
@@ -1016,6 +1158,7 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
               docs={docs}
               caseId={caseId}
               onOpenDraft={onOpenDraft}
+              onUploaded={fetchData}
             />
           )
         })}
