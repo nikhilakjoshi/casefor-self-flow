@@ -29,6 +29,8 @@ RECOMMENDED CRITERIA:
 For each criterion the applicant should claim, provide:
 - criterion: The criterion identifier (e.g., "C1: Awards", "C5: Original Contributions")
 - strength_assessment: Current state and what makes it viable
+- potential_strength: HIGH (strong case achievable), MEDIUM (viable with effort), LOW (marginal but worth including)
+- potential_rationale: Brief explanation of why this potential rating -- what evidence/actions make this achievable
 - effort_level: LOW (ready or near-ready), MEDIUM (needs 1-3 months work), HIGH (needs 3+ months)
 - key_actions: Specific steps to strengthen this criterion
 

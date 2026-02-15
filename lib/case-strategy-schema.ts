@@ -3,6 +3,8 @@ import { z } from "zod"
 const RecommendedCriterion = z.object({
   criterion: z.string(),
   strength_assessment: z.string(),
+  potential_strength: z.enum(["HIGH", "MEDIUM", "LOW"]),
+  potential_rationale: z.string(),
   effort_level: z.enum(["LOW", "MEDIUM", "HIGH"]),
   key_actions: z.array(z.string()),
 })

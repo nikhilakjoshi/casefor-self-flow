@@ -17,11 +17,11 @@ interface CaseStrategyPanelProps {
 
 type StrategyData = CaseStrategy["case_strategy"]
 
-function getEffortColor(effort: string) {
-  switch (effort) {
-    case "LOW": return "bg-emerald-600 text-white"
+function getPotentialColor(level: string) {
+  switch (level) {
+    case "HIGH": return "bg-emerald-600 text-white"
     case "MEDIUM": return "bg-amber-500 text-white"
-    case "HIGH": return "bg-red-600 text-white"
+    case "LOW": return "bg-red-600 text-white"
     default: return "bg-muted text-muted-foreground"
   }
 }
@@ -209,51 +209,51 @@ export function CaseStrategyPanel({ caseId, initialData, hasGapAnalysis }: CaseS
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
+        {/* Recommended Criteria */}
+        {criteria && criteria.length > 0 && (() => {
+          const sortedCriteria = [...criteria].sort((a, b) => {
+            const order: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 }
+            return (order[a.potential_strength] ?? 3) - (order[b.potential_strength] ?? 3)
+          })
+          return (
+            <div className="space-y-2">
+              <SectionHeader>Recommended Criteria</SectionHeader>
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-muted/50 border-b border-border">
+                      <th className="text-left px-2 py-1.5 font-semibold text-muted-foreground">Criterion</th>
+                      <th className="text-left px-2 py-1.5 font-semibold text-muted-foreground">Potential</th>
+                      <th className="text-left px-2 py-1.5 font-semibold text-muted-foreground">Rationale</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedCriteria.map((c, i) => (
+                      <tr key={i} className="border-b border-border/50 last:border-0">
+                        <td className="px-2 py-1.5 font-medium">{c.criterion}</td>
+                        <td className="px-2 py-1.5">
+                          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold", getPotentialColor(c.potential_strength))}>
+                            {c.potential_strength}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1.5 text-stone-600 dark:text-stone-400 max-w-[200px]">
+                          {c.potential_rationale}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Strategy Summary */}
         {summary && (
           <div className="space-y-2">
             <SectionHeader>Strategy Summary</SectionHeader>
             <div className="rounded-lg border border-border p-3">
               <p className="text-xs text-stone-700 dark:text-stone-300 leading-relaxed">{summary}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Recommended Criteria */}
-        {criteria && criteria.length > 0 && (
-          <div className="space-y-2">
-            <SectionHeader>Recommended Criteria</SectionHeader>
-            <div className="rounded-lg border border-border overflow-hidden">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-muted/50 border-b border-border">
-                    <th className="text-left px-2 py-1.5 font-semibold text-muted-foreground">Criterion</th>
-                    <th className="text-left px-2 py-1.5 font-semibold text-muted-foreground">Strength</th>
-                    <th className="text-left px-2 py-1.5 font-semibold text-muted-foreground">Effort</th>
-                    <th className="text-left px-2 py-1.5 font-semibold text-muted-foreground">Key Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {criteria.map((c, i) => (
-                    <tr key={i} className="border-b border-border/50 last:border-0">
-                      <td className="px-2 py-1.5 font-medium">{c.criterion}</td>
-                      <td className="px-2 py-1.5 text-stone-600 dark:text-stone-400 max-w-[180px]">
-                        {c.strength_assessment}
-                      </td>
-                      <td className="px-2 py-1.5">
-                        <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold", getEffortColor(c.effort_level))}>
-                          {c.effort_level}
-                        </span>
-                      </td>
-                      <td className="px-2 py-1.5 text-stone-600 dark:text-stone-400">
-                        <ul className="space-y-0.5">
-                          {c.key_actions?.map((a, j) => <li key={j}>- {a}</li>)}
-                        </ul>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         )}
