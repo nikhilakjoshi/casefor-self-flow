@@ -929,4 +929,28 @@
 - Classifier schema now matches DB enum exactly (was missing PERSONAL_STATEMENT, PETITION_LETTER before)
 - Used `prisma db push` not `prisma migrate dev` (consistent w/ project convention)
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
-- Next priority: R6 tasks 20-23,25 (letters-panel LETTER_TYPES expansion, upload-only cards, drop zones) or R4 task 13 (criteriaKeys schema) or R2 tasks 6-8 (tab merging)
+- Next priority: R6 tasks 20-23,25 (letters-panel LETTER_TYPES expansion, upload-only cards, drop zones) or R2 tasks 6-8 (tab merging)
+
+## 2026-02-15: CriteriaKeys on Recommender (PRD R4 Tasks 13-16)
+
+### Completed
+
+- Added `criteriaKeys String[] @default([])` to Recommender model in `prisma/schema.prisma`
+- Ran `prisma generate` + `prisma db push` -- schema synced w/ no data loss
+- Updated `app/api/case/[caseId]/recommenders/route.ts` POST: added `criteriaKeys: z.array(z.string()).optional().default([])` to CreateRecommenderSchema, passes through to `db.recommender.create()`
+- Updated `app/api/case/[caseId]/recommenders/[recommenderId]/route.ts` PATCH: added `criteriaKeys: z.array(z.string()).optional()` to PatchSchema, sets on update
+- GET handlers already return all fields so criteriaKeys included automatically
+- Added collapsible "Criteria Mapping" section to `recommender-form.tsx` w/ C1-C10 checkboxes using `CRITERIA_LABELS` from `lib/evidence-verification-schema.ts`
+- Added `criteriaKeys` to `RecommenderData` interface, form state, and submit payload
+- Added criteria pills to recommender sub-cards in `letters-panel.tsx`: blue pills showing C1-C10 keys, truncated to 3 w/ "+N more" overflow
+- Added `criteriaKeys` to letters-panel `Recommender` interface
+- Soft guidance text: "Select criteria this recommender can speak to (recommended: up to 5)"
+- Typecheck passes; no new lint issues (pre-existing 13 errors, 27 warnings unchanged)
+
+### Notes for Next Dev
+
+- CriteriaKeys use C1-C10 format (matching CRITERIA_LABELS from evidence-verification-schema.ts), not the DB criterionKey format (awards, membership, etc.)
+- Criteria list is static from CRITERIA_LABELS (not dynamically fetched from case analysis); sufficient for EB-1A which always has 10 criteria
+- Criteria pills on recommender cards show key (C1) with full label on hover via title attribute
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 tasks 20-23,25 (letters-panel expansion) or R2 tasks 6-8 (tab merging) or R1 tasks (skip-to-survey, resume gen)

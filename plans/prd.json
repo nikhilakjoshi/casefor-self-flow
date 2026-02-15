@@ -156,7 +156,7 @@
       "Run prisma migrate dev to generate migration",
       "Verify migration applies cleanly with no data loss"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
@@ -167,7 +167,7 @@
       "Also update PUT/PATCH handler (if exists) to accept criteriaKeys updates",
       "Return criteriaKeys in GET response"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -180,7 +180,7 @@
       "Show soft suggestion: 'Recommend selecting up to 5 criteria' but allow more",
       "On submit, send criteriaKeys array with the rest of recommender data"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -192,7 +192,7 @@
       "Map criteriaKeys (C1-C10) to short display names using CriteriaMapping or hardcoded labels",
       "Truncate display if >3 criteria, show '+N more' overflow"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",

@@ -29,6 +29,7 @@ const CreateRecommenderSchema = z.object({
   endDate: z.string().datetime().optional().nullable(),
   durationYears: z.number().optional().nullable(),
   contextNotes: z.record(z.string(), z.unknown()).optional().nullable(),
+  criteriaKeys: z.array(z.string()).optional().default([]),
 })
 
 export async function GET(
@@ -111,6 +112,7 @@ export async function POST(
       endDate: data.endDate ? new Date(data.endDate) : null,
       durationYears: data.durationYears ?? null,
       ...(data.contextNotes && { contextNotes: data.contextNotes as Prisma.InputJsonValue }),
+      criteriaKeys: data.criteriaKeys,
     },
   })
 

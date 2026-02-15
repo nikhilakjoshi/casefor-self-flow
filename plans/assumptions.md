@@ -116,3 +116,8 @@
 - Classifier schema updated to include PERSONAL_STATEMENT and PETITION_LETTER which existed in DB enum but were missing from classifier (consistency fix bundled w/ new categories)
 - G1450 form variants (G1450PPU, G1450300, G1450I40) use PRD naming convention as-is; these map to USCIS G-1450 Authorization for Credit Card Transactions with different fee designations
 - Filename pattern hints in classifier prompt are advisory guidance to LLM, not programmatic matching; LLM uses both filename and content for classification
+- CriteriaKeys on Recommender uses C1-C10 format (from CRITERIA_LABELS in evidence-verification-schema.ts), not the DB criterionKey format (awards, membership, etc.) -- consistent with how criteria routing and evidence verification reference criteria
+- Criteria list in RecommenderForm is static (C1-C10 from CRITERIA_LABELS), not dynamically fetched from case's EB1AAnalysis; EB-1A always has exactly 10 criteria so dynamic fetch is unnecessary overhead
+- `@default([])` on criteriaKeys means existing recommenders get empty array; no backfill needed
+- POST API defaults criteriaKeys to [] via Zod `.default([])`; PATCH treats it as optional (only updates when provided)
+- Criteria pills on recommender cards truncate at 3 and show "+N more" for overflow; full labels available via title tooltip

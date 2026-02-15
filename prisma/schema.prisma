@@ -355,6 +355,7 @@ model Recommender {
   endDate             DateTime?
   durationYears       Float?
   contextNotes        Json?
+  criteriaKeys        String[]         @default([])
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
 

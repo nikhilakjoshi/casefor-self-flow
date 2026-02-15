@@ -19,6 +19,7 @@ import {
   ClipboardList,
   FileSpreadsheet,
 } from 'lucide-react'
+import { CRITERIA_LABELS } from '@/lib/evidence-verification-schema'
 import { RecommenderForm } from './recommender-form'
 import type { RecommenderData } from './recommender-form'
 import { CsvImportModal } from './csv-import-modal'
@@ -40,6 +41,7 @@ interface Recommender {
   title: string
   relationshipType: string
   organization?: string | null
+  criteriaKeys?: string[]
 }
 
 interface LettersPanelProps {
@@ -381,6 +383,24 @@ export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
                                   {rec.title}
                                   {rec.organization && `, ${rec.organization}`}
                                 </p>
+                                {rec.criteriaKeys && rec.criteriaKeys.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {rec.criteriaKeys.slice(0, 3).map((key) => (
+                                      <span
+                                        key={key}
+                                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                        title={CRITERIA_LABELS[key] ?? key}
+                                      >
+                                        {key}
+                                      </span>
+                                    ))}
+                                    {rec.criteriaKeys.length > 3 && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground">
+                                        +{rec.criteriaKeys.length - 3} more
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <Button

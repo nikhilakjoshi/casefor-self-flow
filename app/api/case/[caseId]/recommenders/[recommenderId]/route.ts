@@ -65,6 +65,7 @@ const PatchSchema = z.object({
   endDate: z.string().datetime().optional().nullable(),
   durationYears: z.number().optional().nullable(),
   contextNotes: z.record(z.string(), z.unknown()).optional().nullable(),
+  criteriaKeys: z.array(z.string()).optional(),
 })
 
 export async function PATCH(request: Request, { params }: Params) {
@@ -126,6 +127,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (data.contextNotes !== undefined) {
     updateData.contextNotes = data.contextNotes as Prisma.InputJsonValue ?? Prisma.DbNull
   }
+  if (data.criteriaKeys !== undefined) updateData.criteriaKeys = data.criteriaKeys
 
   const updated = await db.recommender.update({
     where: { id: recommenderId },
