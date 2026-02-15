@@ -6,6 +6,7 @@ import { getCriteriaForCase, type Criterion } from "./criteria";
 import { type CriterionResult } from "./eb1a-agent";
 import { queryContext } from "./rag";
 import { getPrompt, substituteVars, resolveModel } from "./agent-prompt";
+import { resolveVariation } from "./template-resolver";
 
 const FALLBACK_MODEL = "claude-sonnet-4-20250514";
 const MAX_HISTORY = 20;
@@ -219,9 +220,10 @@ export async function runDraftingAgent(opts: {
   documentName?: string;
   existingContent?: string | null;
   category?: string;
+  recommenderId?: string;
   onFinish?: (text: string) => Promise<void>;
 }) {
-  const { caseId, messages, documentId, documentName, existingContent, category, onFinish } = opts;
+  const { caseId, messages, documentId, documentName, existingContent, category, recommenderId, onFinish } = opts;
   const log = (msg: string, ...args: unknown[]) =>
     console.log(`[DraftingAgent:${caseId}] ${msg}`, ...args);
 
@@ -231,7 +233,7 @@ export async function runDraftingAgent(opts: {
     getCriteriaForCase(caseId),
     db.case.findUnique({
       where: { id: caseId },
-      select: { criteriaThreshold: true },
+      select: { criteriaThreshold: true, applicationTypeId: true },
     }),
     db.caseProfile.findUnique({ where: { caseId } }),
     db.eB1AAnalysis.findFirst({
@@ -282,6 +284,26 @@ export async function runDraftingAgent(opts: {
   } else {
     instructions = await buildDraftingSystemPrompt(promptOpts);
     p = await getPrompt("drafting-agent");
+  }
+
+  // Resolve template variation for recommendation letters
+  if (category === "RECOMMENDATION_LETTER" && recommenderId) {
+    const recommender = await db.recommender.findFirst({
+      where: { id: recommenderId, caseId },
+    });
+    if (recommender) {
+      const appTypeId = caseRecord?.applicationTypeId;
+      if (appTypeId) {
+        const templateId = `${appTypeId}-RECOMMENDATION_LETTER`;
+        const variation = await resolveVariation(templateId, {
+          relationshipType: recommender.relationshipType,
+        });
+        if (variation) {
+          log("resolved template variation:", variation.label);
+          instructions += `\n\nTEMPLATE VARIATION (${variation.label}):\n${variation.content}`;
+        }
+      }
+    }
   }
 
   const tools = createDraftingAgentTools(caseId, documentId);

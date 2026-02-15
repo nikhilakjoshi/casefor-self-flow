@@ -101,6 +101,7 @@ export async function POST(
     documentName: docName,
     existingContent,
     category: category as string | undefined,
+    recommenderId: recommenderId as string | undefined,
     onFinish: async (text) => {
       if (text) {
         // Save assistant message

@@ -1154,3 +1154,27 @@
 - The existing default variation (id: `{templateId}-default`) still exists alongside the new PEER_EXPERT default; resolveVariation returns first isDefault match, which will be the older default since it's ordered by createdAt asc. This is fine -- the PEER_EXPERT variation takes precedence via matchField/matchValue match when relationshipType is provided.
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R11 task 1 (wire drafting agent to template-resolver) or R11 task 3 (template input fields in DraftingPanel) or R9 tasks (denial risk badge/banner) or R6 tasks (global/per-card drop zones)
+
+## 2026-02-15: Wire Drafting Agent to Template-Resolver (PRD R11 Task 1)
+
+### Completed
+
+- Updated `lib/drafting-agent.ts`: imported `resolveVariation` from `./template-resolver`
+- Added `recommenderId` optional param to `runDraftingAgent` opts
+- Extended `db.case.findUnique` select to include `applicationTypeId` (needed for template ID construction)
+- After building instructions, when `category === 'RECOMMENDATION_LETTER'` and `recommenderId` provided:
+  - Fetches recommender from DB to get `relationshipType`
+  - Constructs template ID as `${applicationTypeId}-RECOMMENDATION_LETTER` (matches seed convention)
+  - Calls `resolveVariation(templateId, { relationshipType })` to find best-matching variation
+  - Appends variation content to instructions as `TEMPLATE VARIATION (label):` section
+  - Falls back to default variation if no relationship-type match (handled by resolveVariation)
+- Updated `app/api/case/[caseId]/draft-chat/route.ts`: passes `recommenderId` through to `runDraftingAgent`
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- Template ID convention: `${applicationTypeId}-RECOMMENDATION_LETTER` matches seed.ts deterministic ID format
+- `resolveVariation` handles fallback to default variation internally; if no variations exist at all, returns null and no variation section appended
+- `recommenderId` already flows from UI: letters-panel -> drafting-panel -> draft-chat API -> runDraftingAgent (was being captured in draft-chat but not forwarded before this change)
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R11 task 3 (template input fields in DraftingPanel) or R11 task 4 (group rec letters by relationship type) or R9 tasks (denial risk badge/banner) or R6 tasks (global/per-card drop zones)

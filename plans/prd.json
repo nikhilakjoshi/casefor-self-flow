@@ -475,7 +475,7 @@
       "Fall back to default template variation if no match found",
       "Ensure recommender data (from getRecommender tool) feeds into the template variables"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "data",
