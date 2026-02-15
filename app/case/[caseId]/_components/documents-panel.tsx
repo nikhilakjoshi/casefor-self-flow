@@ -542,6 +542,8 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
   const [selectedDoc, setSelectedDoc] = useState<DocumentDetail | null>(null)
   const [isLoadingList, setIsLoadingList] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
+  const [isUploadingResume, setIsUploadingResume] = useState(false)
+  const resumeInputRef = useRef<HTMLInputElement>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
   const [isStreaming, setIsStreaming] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DocumentItem | null>(null)
@@ -884,6 +886,35 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
     }
   }
 
+  async function handleResumeUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    setIsUploadingResume(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('category', 'RESUME_CV')
+
+      const res = await fetch(`/api/case/${caseId}/documents`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (res.ok) {
+        await fetchDocuments()
+        fetchChecklist()
+      }
+    } catch (err) {
+      console.error('Resume upload failed:', err)
+    } finally {
+      setIsUploadingResume(false)
+    }
+  }
+
+  const resumeDoc = documents.find((d) => d.category === 'RESUME_CV')
+
   const handleEditorUpdate = useCallback(
     (markdown: string) => {
       if (!selectedDoc) return
@@ -1063,6 +1094,40 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
             onViewDocument={viewDocument}
           />
         )}
+
+        {/* Resume status */}
+        <div className="shrink-0 mb-4 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-foreground">
+                  {resumeDoc ? resumeDoc.name : 'No resume uploaded'}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {resumeDoc ? 'Resume on file' : 'Upload your resume or CV'}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[11px] gap-1 shrink-0"
+              disabled={isUploadingResume}
+              onClick={() => resumeInputRef.current?.click()}
+            >
+              <Upload className="w-3 h-3" />
+              {isUploadingResume ? 'Uploading...' : resumeDoc ? 'Replace' : 'Upload'}
+            </Button>
+          </div>
+          <input
+            ref={resumeInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.docx,.txt,.md,.markdown"
+            onChange={handleResumeUpload}
+          />
+        </div>
 
         {/* Header */}
         <div className="shrink-0 mb-4 flex items-center justify-between">

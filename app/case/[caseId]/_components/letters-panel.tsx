@@ -88,6 +88,16 @@ interface LetterType {
 
 const LETTER_TYPES: LetterType[] = [
   {
+    key: 'resume',
+    title: 'Resume / CV',
+    description: 'Generate or upload your resume highlighting extraordinary ability',
+    category: 'RESUME_CV',
+    icon: FileText,
+    gradient: 'from-teal-500/15 to-emerald-500/15',
+    iconColor: 'text-teal-600 dark:text-teal-400',
+    isDraftable: true,
+  },
+  {
     key: 'recommendation',
     title: 'Recommendation Letters',
     description: 'Letters from experts supporting your case',

@@ -1416,3 +1416,52 @@
 - Document PATCH now accepts optional `category` field; no Zod enum validation (trusted UI sends known values)
 - Pre-existing lint errors unchanged (13 errors, 25 warnings)
 - Next priority: R1 tasks (skip-to-survey, survey-only endpoint, resume upload/gen) or R3 tasks (evidence badges, criterion upload, analysis endpoint extension)
+
+## 2026-02-15: Skip-to-Survey + Resume Upload/Generation (PRD R1 Tasks 1-5)
+
+### Completed
+
+- Created `app/api/cases/create-survey-only/route.ts` POST endpoint
+  - Auth check (optional -- supports anonymous users w/ cookie like /api/extract)
+  - Creates Case w/ status SCREENING, intakeStatus PENDING, no ResumeUpload
+  - Creates empty CaseProfile (data: {})
+  - Returns `{ caseId, caseName }` for onboard page flow
+  - Sets pendingCaseId cookie for anonymous users
+- Added "Skip to Survey" button in `app/onboard/page.tsx`
+  - Appears below dropzone in upload phase w/ subtitle "No resume? Fill out the survey manually"
+  - On click, POSTs to `/api/cases/create-survey-only`, sets caseId, transitions to survey phase
+  - handleSurveyComplete updated: when no file uploaded (skip-to-survey flow), redirects to `/case/{caseId}` instead of triggering file analysis
+  - Existing file upload flow unchanged
+- Added resume upload zone in `documents-panel.tsx`
+  - Dedicated resume section between checklist and "All Documents" header
+  - Shows current resume status (filename if uploaded, "No resume uploaded" otherwise)
+  - Upload/Replace button POSTs to `/api/case/{caseId}/documents` w/ category=RESUME_CV
+  - Finds existing RESUME_CV doc from document list to show status
+- Created `app/api/case/[caseId]/generate-resume/route.ts` POST endpoint
+  - Auth check + case ownership verification
+  - Creates Document w/ category RESUME_CV, source SYSTEM_GENERATED, status DRAFT
+  - Calls `runDraftingAgent` w/ category RESUME_CV to resolve resume-drafter prompt
+  - Streams markdown resume content; saves to document on completion
+  - Returns X-Document-Id header for client
+- Added RESUME_CV to `getCategoryPromptSlug` in `lib/drafting-agent.ts` -> maps to "resume-drafter"
+- Added `resume-drafter` AgentPrompt seed in `prisma/agent-prompt-seeds.ts`
+  - Professional resume structure: header, summary, education, experience, awards, publications, patents, memberships, judging, speaking, media, skills
+  - Instructs agent to call getProfile + getAnalysis + searchDocuments before drafting
+  - Omits empty sections; quantifies impact; orders by EB-1A evidence strength
+- Added Resume/CV card to `LETTER_TYPES` in `letters-panel.tsx`
+  - First card in list w/ teal gradient, FileText icon
+  - isDraftable: true -- Draft button opens DraftingPanel w/ category RESUME_CV
+  - Upload/drop also supported via existing DraftableCard drag-drop infrastructure
+  - Existing resume documents shown on card via category filter
+- R1 is now fully complete (all 5 tasks pass)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 25 warnings)
+
+### Notes for Next Dev
+
+- Survey-only flow: onboard page -> skip to survey -> survey completes -> redirect to case page (no analysis run during onboard; user triggers analysis later from case page)
+- Resume upload in documents-panel uses the general documents POST API w/ `category` override (same pattern as letters-panel upload-only cards)
+- Resume replacement creates a new Document w/ RESUME_CV category; old resume docs remain in document list (no automatic deletion of previous versions)
+- generate-resume endpoint is a standalone one-shot generation; the Draft button on the Resume card uses the standard draft-chat flow which also resolves the resume-drafter prompt
+- resume-drafter prompt is a DB-stored AgentPrompt; requires running `npx prisma db seed` to upsert
+- Pre-existing lint errors unchanged (13 errors, 25 warnings)
+- Next priority: R3 tasks (evidence badges, criterion upload, analysis endpoint extension) -- last remaining `passes: false` features

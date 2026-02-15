@@ -8,7 +8,7 @@
       "Set phase to 'survey' and pass empty surveyData to SurveyInline component",
       "Ensure the existing handleFileSelect flow still works for users who do upload"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
@@ -21,7 +21,7 @@
       "Return { caseId, caseName } so onboard page can proceed to survey phase",
       "After survey completion, the existing /api/case/[caseId]/analyze endpoint handles analysis from survey data"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -33,7 +33,7 @@
       "If a RESUME_CV document already exists, mark it as replaced (new version) and chunk/embed the new one",
       "Show current resume status (uploaded or not) in the panel"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
@@ -46,7 +46,7 @@
       "Stream markdown resume content back to client",
       "On completion, save as Document with category RESUME_CV, source SYSTEM_GENERATED, status DRAFT"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -57,7 +57,7 @@
       "On success, open the DraftingPanel (onOpenDraft callback) with the generated document for editing",
       "Show existing resume documents on the card if any (using documents filtered by category RESUME_CV)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",

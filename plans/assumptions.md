@@ -204,3 +204,13 @@
 - CATEGORY_LABELS map kept local to letters-panel.tsx (not extracted to shared module); only used in this component
 - Document PATCH accepts `category` as a raw string; no Zod enum validation against DocumentCategory since UI sends known enum values (same pattern as POST category override)
 - Global drag overlay uses dragEnter/dragLeave counter to handle nested element events correctly; direct onDragEnter/onDragLeave on the container would flicker when cursor moves over child elements
+- Survey-only case creation endpoint (`/api/cases/create-survey-only`) does NOT require auth; anonymous users get a `pendingCaseId` cookie (same pattern as `/api/extract`)
+- Skip-to-survey flow does not trigger analysis during onboard; after survey completes, user is redirected to the case page where they can trigger analysis manually or upload a resume
+- `handleSurveyComplete` branches: if `fileRef.current` exists, runs analysis stream (existing flow); if no file (skip-to-survey), redirects to `/case/{caseId}`
+- Resume upload in documents-panel creates a new Document w/ RESUME_CV category; does NOT create a ResumeUpload record (ResumeUpload is only for the initial onboard flow)
+- Resume replacement does not delete old RESUME_CV documents; both old and new appear in document list (user can manually delete old ones)
+- `resumeDoc` in documents-panel finds the first document w/ category RESUME_CV; if multiple exist, shows the first one found (order depends on API response)
+- generate-resume endpoint uses `runDraftingAgent` (not a dedicated streamDraftingAgent function) with a one-shot user message asking for resume generation
+- Resume card placed first in LETTER_TYPES array for prominence since resume is a foundational document
+- DraftableCard's existing "Draft" button handles RESUME_CV via the standard draft-chat flow; `getCategoryPromptSlug('RESUME_CV')` resolves to `resume-drafter` prompt
+- resume-drafter AgentPrompt seed uses same variable schema as other category-specific prompts (criteria, threshold, profile, analysis, documentName, existingContent)
