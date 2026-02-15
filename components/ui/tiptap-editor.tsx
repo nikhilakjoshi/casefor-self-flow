@@ -84,6 +84,7 @@ interface TiptapEditorProps {
   caseId?: string;
   documentId?: string;
   documentName?: string;
+  inlineEditUrl?: string;
 }
 
 export function TiptapEditor({
@@ -95,6 +96,7 @@ export function TiptapEditor({
   onClose,
   caseId,
   documentName,
+  inlineEditUrl,
 }: TiptapEditorProps) {
   const isEditable = editable && !streaming;
   const lastContentRef = useRef(content);
@@ -230,7 +232,8 @@ export function TiptapEditor({
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const md = (editor.storage as any).markdown.getMarkdown() as string;
-        const res = await fetch(`/api/case/${caseId}/inline-edit`, {
+        const editUrl = inlineEditUrl || `/api/case/${caseId}/inline-edit`;
+        const res = await fetch(editUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

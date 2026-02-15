@@ -38,6 +38,12 @@ export async function POST(request: Request) {
       cookieStore.delete('pendingCaseId')
     }
 
+    // Auto-accept pending share invitations for this email
+    await db.documentShare.updateMany({
+      where: { inviteeEmail: email, status: 'PENDING' },
+      data: { inviteeId: user.id, status: 'ACCEPTED' },
+    })
+
     return NextResponse.json({
       id: user.id,
       email: user.email,
