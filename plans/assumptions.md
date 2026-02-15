@@ -161,3 +161,8 @@
 - `getDenialProbability` tool returns raw DenialProbability.data JSON (combined pass 1 + pass 2 output); no filtering or transformation applied -- agent sees full denial assessment
 - Denial awareness instructions only added to hardcoded fallback prompt (not to DB-stored AgentPrompt records); category-specific prompts (cover-letter-drafter, uscis-letter-drafter) should have denial guidance added to their AgentPrompt content separately if more targeted instructions are needed
 - Tool is available regardless of document category; the system prompt guides when the agent should call it (cover letters, personal statements, petition letters always; rec letters when addressing weak criteria)
+- `generateSeparatorPage` uses HelveticaBold for the label text (not regular Helvetica) for visual prominence on separator pages
+- Separator page includes a light gray horizontal rule (0.5pt) below the label at 60% page width for visual structure
+- Separator page footer text "Separator Page" positioned at 36pt from bottom; page numbers at 24pt -- no overlap since separator pages will also receive page numbers during assembly
+- `addPageNumbers` position is 24pt from bottom edge, centered; gray color (rgb 0.4) to be unobtrusive
+- pdf-lib `PageSizes.Letter` used as default (612 x 792 points = 8.5 x 11 inches); consumers can pass custom `[width, height]` tuple

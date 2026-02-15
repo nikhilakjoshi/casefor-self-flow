@@ -1200,3 +1200,29 @@
 - Configurable prompt (via AgentPrompt DB) does NOT include the denial awareness section; only the hardcoded fallback prompt has it. Category-specific prompts (cover-letter-drafter, uscis-letter-drafter) should be updated separately if needed.
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R9 tasks 32-33 (denial risk badge/banner in UI) or R6 task 23 (global drop zone) or R11 tasks 3-4 (template inputs, rec letter grouping) or R8 tasks 29-30 (pdf-lib utilities)
+
+## 2026-02-15: PDF Utilities - Exhibit Separator + Page Numbering (PRD R8 Tasks 29-30)
+
+### Completed
+
+- Installed `pdf-lib` (1.17.1) via pnpm
+- Created `lib/exhibit-separator.ts`: generates single-page PDF separator with centered bold label + horizontal rule
+  - `generateSeparatorPage(label, options?)`: returns `Promise<Uint8Array>`
+  - Uses HelveticaBold for label, regular Helvetica for footer
+  - Optional params: `fontSize` (default 24), `pageSize` (default Letter)
+  - Horizontal rule below label (60% width, gray)
+  - Small "Separator Page" footer text at bottom center
+- Created `lib/pdf-numbering.ts`: adds sequential page numbers to existing PDF
+  - `addPageNumbers(pdfBytes)`: returns `Promise<Uint8Array>`
+  - Loads PDF, iterates all pages, draws "Page N of M" at bottom center
+  - Uses Helvetica 10pt, gray color (rgb 0.4)
+  - Position: centered horizontally, 24pt from bottom
+- Typecheck passes clean; no new lint issues (pre-existing 13 errors, 27 warnings unchanged)
+
+### Notes for Next Dev
+
+- Both utilities return raw `Uint8Array` PDF bytes; consumers can merge via `PDFDocument.load()` + `copyPages()`
+- `generateSeparatorPage` uses `PageSizes.Letter` constant from pdf-lib (612 x 792 points)
+- Page numbering y-position is 24pt from bottom; separator footer is 36pt -- no overlap concern since separator pages get numbered too
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R8 task 28 (assemble-package endpoint, deps on these utilities) or R8 task 31 (Assemble Package UI button) or R9 tasks 32-33 (denial risk badge/banner) or R6 task 23 (global drop zone)

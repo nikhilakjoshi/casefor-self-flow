@@ -353,7 +353,7 @@
       "Accept optional styling params (font size, page size defaults to Letter)",
       "Return raw PDF bytes that can be merged into the assembled package"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -366,7 +366,7 @@
       "Use StandardFonts.Helvetica, small font size (10pt)",
       "Return modified PDF bytes"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
