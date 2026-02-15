@@ -5,7 +5,7 @@ import { TiptapEditor } from '@/components/ui/tiptap-editor'
 import { ChatInput } from '@/components/ui/chat-input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { X, Save, Loader2, ChevronDown } from 'lucide-react'
+import { ArrowLeft, X, Save, Loader2, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface DraftingDoc {
@@ -194,6 +194,17 @@ export function DraftingPanel({
     [caseId, chatMessages, docId, docName, document?.category, document?.recommenderId, isRecLetter, isStreaming]
   )
 
+  // Auto-start drafting for new documents (no existing content)
+  const didAutoDraftRef = useRef(false)
+  useEffect(() => {
+    if (didAutoDraftRef.current) return
+    if (document?.id || document?.content) return // existing doc, don't auto-draft
+    if (!document?.name && !document?.category) return // no context to draft from
+    didAutoDraftRef.current = true
+    const instruction = `Draft a ${document?.name || 'document'}`
+    sendInstruction(instruction)
+  }, [document?.id, document?.content, document?.name, document?.category, sendInstruction])
+
   const handleSave = useCallback(async (content?: string) => {
     const saveContent = content ?? editorContentRef.current
     if (!docId || !saveContent) return
@@ -223,6 +234,14 @@ export function DraftingPanel({
       {/* Top bar */}
       <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-border">
         <div className="flex items-center gap-3 min-w-0 flex-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={onClose}
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
           <input
             type="text"
             value={docName}

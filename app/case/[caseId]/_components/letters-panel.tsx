@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import {
@@ -1090,6 +1091,7 @@ function CategoryPickerDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[85vh] overflow-hidden" showCloseButton={false}>
+        <DialogTitle className="sr-only">Categorize Document</DialogTitle>
         <div className="p-4 space-y-3">
           <div>
             <h3 className="text-sm font-semibold">Categorize Document</h3>
@@ -1413,6 +1415,7 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
 
     <Dialog open={showAddRecommender} onOpenChange={setShowAddRecommender}>
       <DialogContent className="sm:max-w-lg p-0 gap-0 max-h-[85vh] overflow-hidden" showCloseButton={false}>
+        <DialogTitle className="sr-only">Add Recommender</DialogTitle>
         <RecommenderForm
           caseId={caseId}
           onSave={handleRecommenderSaved}
