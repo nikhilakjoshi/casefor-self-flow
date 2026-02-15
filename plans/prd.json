@@ -1,468 +1,516 @@
 [
   {
-    "category": "functional",
-    "description": "Import queryContext from RAG module in evidence-agent.ts",
+    "category": "ui",
+    "description": "R1: Add 'Skip to Survey' button on onboard page so users without resume go straight to survey",
     "steps": [
-      "Open lib/evidence-agent.ts",
-      "Add import: import { queryContext } from './rag'",
-      "Verify import resolves correctly"
-    ],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Add searchDocuments tool to Evidence Agent for RAG-based document search",
-    "steps": [
-      "Open lib/evidence-agent.ts",
-      "In createEvidenceAgentTools function, add new tool 'searchDocuments'",
-      "Schema: z.object({ query: z.string(), topK: z.number().optional().default(5) })",
-      "Execute: call queryContext(caseId, query, topK), return { results }",
-      "Add description: 'Search uploaded documents and case materials for relevant information'"
-    ],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Update Evidence Agent system prompt to mention document search capability",
-    "steps": [
-      "Open lib/evidence-agent.ts",
-      "Find buildEvidenceSystemPrompt function",
-      "Add section: 'DOCUMENT SEARCH: Use searchDocuments tool to find relevant content from uploaded documents when needed.'"
+      "In app/onboard/page.tsx, add a 'Skip to Survey' button below the dropzone in the 'upload' phase",
+      "On click, create a case via POST /api/cases (or new survey-only endpoint from task 2) with no file",
+      "Set phase to 'survey' and pass empty surveyData to SurveyInline component",
+      "Ensure the existing handleFileSelect flow still works for users who do upload"
     ],
     "passes": true
   },
   {
     "category": "api",
-    "description": "Change upload route from single file to multiple files input",
+    "description": "R1: Survey-only case creation endpoint that creates a case without resume and runs EB-1A analysis from survey data alone",
     "steps": [
-      "Open app/api/case/[caseId]/upload/route.ts",
-      "Change formData.get('file') to formData.getAll('files')",
-      "Add validation: max 10 files",
-      "Add validation: reject if no files provided"
+      "Create app/api/cases/create-survey-only/route.ts with POST handler",
+      "Auth check via await auth(), verify user session",
+      "Create Case record with status SCREENING, intakeStatus PENDING (no ResumeUpload)",
+      "Create empty CaseProfile record (data: {})",
+      "Return { caseId, caseName } so onboard page can proceed to survey phase",
+      "After survey completion, the existing /api/case/[caseId]/analyze endpoint handles analysis from survey data"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R1: Allow resume upload/replace at any point during the case from documents panel",
+    "steps": [
+      "In app/case/[caseId]/_components/documents-panel.tsx, add a dedicated 'Upload Resume' zone or button",
+      "On upload, POST file to /api/case/[caseId]/upload with category hint RESUME_CV",
+      "Create ResumeUpload record and Document record with category RESUME_CV",
+      "If a RESUME_CV document already exists, mark it as replaced (new version) and chunk/embed the new one",
+      "Show current resume status (uploaded or not) in the panel"
     ],
     "passes": true
   },
   {
     "category": "api",
-    "description": "Add BatchUploadResponse interface for multi-file upload response",
+    "description": "R1: Resume generation endpoint that creates a new resume from case data using drafting agent",
     "steps": [
-      "Open app/api/case/[caseId]/upload/route.ts",
-      "Add interface BatchUploadResponse with: results array (fileName, success, chunksCreated?, analysisStatus?, error?), totalSuccess, totalFailed"
+      "Create app/api/case/[caseId]/generate-resume/route.ts with POST handler",
+      "Auth check + case ownership verification",
+      "Call drafting agent (lib/drafting-agent.ts streamDraftingAgent) with a resume-generation system prompt",
+      "Agent uses getProfile(), getAnalysis() tools to gather case data",
+      "Stream markdown resume content back to client",
+      "On completion, save as Document with category RESUME_CV, source SYSTEM_GENERATED, status DRAFT"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R1: Add 'Generate Resume' button in Letters panel that triggers resume generation from case data",
+    "steps": [
+      "In app/case/[caseId]/_components/letters-panel.tsx, add a Resume card to LETTER_TYPES array with category RESUME_CV",
+      "Wire the card's create action to call POST /api/case/[caseId]/generate-resume",
+      "On success, open the DraftingPanel (onOpenDraft callback) with the generated document for editing",
+      "Show existing resume documents on the card if any (using documents filtered by category RESUME_CV)"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R2: Create CriteriaTab component merging Criteria + StrengthEval into single tab with collapsible sections",
+    "steps": [
+      "Create app/case/[caseId]/_components/criteria-tab.tsx as a new 'use client' component",
+      "Accept same props as report-panel passes to ExtractionRawPanel and StrengthEvaluationPanel",
+      "Render two Collapsible sections (use Radix Collapsible or existing accordion pattern)",
+      "Section 1: 'Criteria' containing ExtractionRawPanel content",
+      "Section 2: 'Strength Evaluation' containing StrengthEvaluationPanel content",
+      "Default: Criteria section expanded, StrengthEval collapsed"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R2: Create PlanningTab component merging GapAnalysis + Strategy into single tab with collapsible sections",
+    "steps": [
+      "Create app/case/[caseId]/_components/planning-tab.tsx as a new 'use client' component",
+      "Accept same props as report-panel passes to GapAnalysisPanel and CaseStrategyPanel",
+      "Render two Collapsible sections",
+      "Section 1: 'Gap Analysis' containing GapAnalysisPanel content",
+      "Section 2: 'Case Strategy' containing CaseStrategyPanel content",
+      "Default: Gap Analysis expanded, Strategy collapsed"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R2: Update report-panel.tsx Phase 1 from 4 tabs to 2 merged tabs (Criteria, Planning)",
+    "steps": [
+      "In app/case/[caseId]/_components/report-panel.tsx, find the Phase 1 tab definitions",
+      "Replace 4 tabs (ExtractionRawPanel, StrengthEvaluationPanel, GapAnalysisPanel, CaseStrategyPanel) with 2 tabs",
+      "Tab 1: 'Criteria' renders CriteriaTab component",
+      "Tab 2: 'Planning' renders PlanningTab component",
+      "Pass through all required props (caseId, analysis data, evaluation data, etc.)",
+      "Remove direct imports of the 4 replaced panels if no longer used elsewhere"
     ],
     "passes": true
   },
   {
     "category": "api",
-    "description": "Wrap file processing in Promise.allSettled for parallel execution",
+    "description": "R3: Modify POST /criterion to upload and tag dropped doc as evidence for that criterion",
     "steps": [
-      "Open app/api/case/[caseId]/upload/route.ts",
-      "Extract single-file processing logic into async function processFile(file: File)",
-      "Map files array through processFile",
-      "Wrap in Promise.allSettled() for parallel processing with error isolation"
+      "In app/api/case/[caseId]/criterion/route.ts, ensure multipart/form-data handling persists the uploaded file as a Document",
+      "Set document.criterionId to the target criterion",
+      "Create a DocumentCriterionRouting record linking the document to the criterion (autoRouted: false)",
+      "After upload, trigger evidence-verification (lib/evidence-verification.ts) to evaluate relevance",
+      "Return the evaluation result (relevant/partial/not relevant) in the streaming response"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R3: Show evidence badges (orange 'Evidence Required' / green 'Evidence in Vault') per evidence item in criterion cards",
+    "steps": [
+      "In app/case/[caseId]/_components/report-panel.tsx, find where criteria_summary key_evidence items are rendered",
+      "Fetch docCountsByItem from the /analysis endpoint response (already returns docCountsByCriterion)",
+      "For each evidence item, check if matching DocumentCriterionRouting exists with matchedItemIds",
+      "If doc exists for item: show green 'Evidence in Vault' badge",
+      "If no doc: show orange 'Evidence Required' badge",
+      "Use small inline Badge component (from components/ui) with appropriate colors"
     ],
     "passes": true
   },
   {
     "category": "api",
-    "description": "Run incremental analysis per file and track status",
+    "description": "R3: Extend /analysis endpoint to return per-evidence-item document counts for badge computation",
     "steps": [
-      "In processFile function, call runIncrementalAnalysis after successful chunking",
-      "Track analysis status: 'queued', 'completed', 'failed'",
-      "Include analysisStatus in per-file result object"
-    ],
-    "passes": true
-  },
-  {
-    "category": "api",
-    "description": "Return batch response with per-file status from upload route",
-    "steps": [
-      "After Promise.allSettled completes, map results to BatchUploadResponse format",
-      "Count totalSuccess and totalFailed",
-      "Return NextResponse.json(batchResponse)",
-      "Use 207 Multi-Status if partial failures, 200 if all success, 400 if all fail"
+      "In app/api/case/[caseId]/analysis/route.ts, query DocumentCriterionRouting records for the case",
+      "Group by criterion and matchedItemIds to build a map of itemId -> document count",
+      "Add docCountsByItem to the response: Record<string, Record<string, number>> (criterion -> itemId -> count)",
+      "Ensure the existing docCountsByCriterion still works alongside new field"
     ],
     "passes": true
   },
   {
     "category": "ui",
-    "description": "Remove maxFiles constraint from upload-zone dropzone config",
+    "description": "R3: Show post-drop analysis feedback (relevant/partial/not relevant) after dropping doc on criterion",
     "steps": [
-      "Open app/case/[caseId]/_components/upload-zone.tsx",
-      "Find useDropzone config",
-      "Change maxFiles: 1 to maxFiles: 10"
-    ],
-    "passes": true
-  },
-  {
-    "category": "ui",
-    "description": "Add per-file state tracking for multi-file uploads",
-    "steps": [
-      "Open app/case/[caseId]/_components/upload-zone.tsx",
-      "Add interface FileUploadState: { file: File, status: 'pending'|'uploading'|'analyzing'|'success'|'error', progress: number, error?: string }",
-      "Add state: const [fileStates, setFileStates] = useState<FileUploadState[]>([])"
-    ],
-    "passes": true
-  },
-  {
-    "category": "ui",
-    "description": "Update onDrop handler to queue multiple files",
-    "steps": [
-      "Modify onDrop callback to accept multiple files",
-      "Map acceptedFiles to initial FileUploadState objects with status: 'pending'",
-      "setFileStates with new array"
-    ],
-    "passes": true
-  },
-  {
-    "category": "ui",
-    "description": "Create file list UI with individual progress indicators",
-    "steps": [
-      "Use frontend-design skill for polished UI",
-      "Render list of queued files",
-      "Show file name, size, status icon (spinner/check/x)",
-      "Show progress bar per file",
-      "Use color coding: gray=pending, blue=uploading, yellow=analyzing, green=success, red=error"
-    ],
-    "passes": true
-  },
-  {
-    "category": "ui",
-    "description": "Add remove file button before upload starts",
-    "steps": [
-      "Add X button next to each pending file",
-      "onClick: filter file from fileStates array",
-      "Only show remove button when status is 'pending'"
-    ],
-    "passes": true
-  },
-  {
-    "category": "ui",
-    "description": "Handle batch upload response and update per-file states",
-    "steps": [
-      "Parse BatchUploadResponse from fetch",
-      "Map response.results to update fileStates",
-      "Match by fileName to update status and error fields",
-      "Call onUploadComplete only if totalSuccess > 0"
-    ],
-    "passes": true
-  },
-  {
-    "category": "ui",
-    "description": "Display partial failure states gracefully",
-    "steps": [
-      "If some files failed, show success count and failure count summary",
-      "Keep failed files visible with error message",
-      "Allow retry button for failed files (optional enhancement)"
+      "In app/case/[caseId]/_components/report-panel.tsx, find the drop handler for criterion file drops",
+      "After POST /criterion completes, parse the evidence-verification result from the response",
+      "If relevant: show success toast with extracted key evidence points, update badge to green",
+      "If partially relevant: show warning dialog listing extracted points + flagged gaps",
+      "If not relevant: show warning toast suggesting better-fit criteria based on DocumentCriterionRouting scores",
+      "Use existing toast/notification pattern from the codebase"
     ],
     "passes": true
   },
   {
     "category": "data",
-    "description": "Add xlsx npm dependency for Excel parsing",
+    "description": "R4: Add criteriaKeys String[] field to Recommender model for criteria-to-recommender mapping",
     "steps": [
-      "Run: pnpm add xlsx",
-      "Verify package added to package.json"
-    ],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Update SupportedFileType to include new formats",
-    "steps": [
-      "Open lib/file-parser.ts",
-      "Change: export type SupportedFileType = 'docx' | 'txt' | 'pdf' | 'md' | 'csv' | 'xlsx' | 'xls'"
-    ],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Add parseMarkdown function to file-parser.ts",
-    "steps": [
-      "Open lib/file-parser.ts",
-      "Add: export async function parseMarkdown(buffer: ArrayBuffer): Promise<string>",
-      "Implementation: new TextDecoder('utf-8').decode(buffer).trim()",
-      "Validate min 100 chars, throw FileParseError if empty"
-    ],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Add parseCsv function with markdown table output",
-    "steps": [
-      "Open lib/file-parser.ts",
-      "Add: export async function parseCsv(buffer: ArrayBuffer): Promise<string>",
-      "Split by newlines, split rows by comma",
-      "Build markdown table: header row | separator row | data rows",
-      "Validate non-empty, throw FileParseError if empty"
-    ],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Add parseExcel function with multi-sheet markdown table output",
-    "steps": [
-      "Open lib/file-parser.ts",
-      "Add: export async function parseExcel(buffer: ArrayBuffer): Promise<string>",
-      "Import xlsx: const XLSX = await import('xlsx')",
-      "Read workbook: XLSX.read(buffer, { type: 'array' })",
-      "Loop SheetNames, convert each sheet to markdown table with ## sheetName header",
-      "Validate non-empty output, throw FileParseError if empty"
-    ],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Update parseFile switch to handle new file types",
-    "steps": [
-      "Open lib/file-parser.ts",
-      "Add case 'md': return parseMarkdown(buffer)",
-      "Add case 'csv': return parseCsv(buffer)",
-      "Add case 'xlsx': case 'xls': return parseExcel(buffer)"
+      "In prisma/schema.prisma, find the Recommender model",
+      "Add field: criteriaKeys String[] @default([])",
+      "Run prisma migrate dev to generate migration",
+      "Verify migration applies cleanly with no data loss"
     ],
     "passes": true
   },
   {
     "category": "api",
-    "description": "Add switch cases for new file types in upload route",
+    "description": "R4: Accept criteriaKeys in POST /recommenders endpoint",
     "steps": [
-      "Open app/api/case/[caseId]/upload/route.ts",
-      "Import parseMarkdown, parseCsv, parseExcel from lib/file-parser",
-      "Add case for .md extension: call parseMarkdown",
-      "Add case for .csv extension: call parseCsv",
-      "Add case for .xlsx, .xls extensions: call parseExcel"
+      "In app/api/case/[caseId]/recommenders/route.ts, update CreateRecommenderSchema to include criteriaKeys: z.array(z.string()).optional().default([])",
+      "Pass criteriaKeys through to prisma.recommender.create() data",
+      "Also update PUT/PATCH handler (if exists) to accept criteriaKeys updates",
+      "Return criteriaKeys in GET response"
     ],
     "passes": true
   },
   {
     "category": "ui",
-    "description": "Update accept MIME types in upload-zone.tsx",
+    "description": "R4: Add criteria multi-select checkboxes to RecommenderForm modal",
     "steps": [
-      "Open app/case/[caseId]/_components/upload-zone.tsx",
-      "Update accept object to include: text/markdown: ['.md'], text/csv: ['.csv'], application/vnd.ms-excel: ['.xls'], application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: ['.xlsx']"
+      "In app/case/[caseId]/_components/recommender-form.tsx, add a new collapsible section 'Criteria Mapping'",
+      "Fetch available criteria from the case's EB1AAnalysis (criteria_summary with criterion IDs C1-C10)",
+      "Render checkboxes for each criterion (use Checkbox from components/ui)",
+      "Store selected criteriaKeys in form state, include in RecommenderData type",
+      "Show soft suggestion: 'Recommend selecting up to 5 criteria' but allow more",
+      "On submit, send criteriaKeys array with the rest of recommender data"
     ],
     "passes": true
   },
   {
     "category": "ui",
-    "description": "Update accept MIME types in onboard dropzone.tsx",
+    "description": "R4: Display criteria tags/pills on recommender cards in Letters panel",
     "steps": [
-      "Open app/onboard/_components/dropzone.tsx",
-      "Update accept object to include same new MIME types as upload-zone"
-    ],
-    "passes": true
-  },
-  {
-    "category": "data",
-    "description": "Add RelationshipType enum to Prisma schema",
-    "steps": [
-      "Open prisma/schema.prisma",
-      "Add enum RelationshipType { ACADEMIC_ADVISOR, RESEARCH_COLLABORATOR, INDUSTRY_COLLEAGUE, SUPERVISOR, MENTEE, CLIENT, PEER_EXPERT, OTHER }"
-    ],
-    "passes": true
-  },
-  {
-    "category": "data",
-    "description": "Add Recommender model to Prisma schema",
-    "steps": [
-      "Open prisma/schema.prisma",
-      "Add model Recommender with: id (cuid), caseId, name, title, relationshipType, relationshipContext (required)",
-      "Add optional fields: email, phone, linkedIn, countryRegion, organization, bio, credentials, startDate, endDate, durationYears, contextNotes (Json?)",
-      "Add createdAt, updatedAt timestamps",
-      "Add relation: case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)",
-      "Add @@index([caseId])"
-    ],
-    "passes": true
-  },
-  {
-    "category": "data",
-    "description": "Add recommenders relation to Case model",
-    "steps": [
-      "Open prisma/schema.prisma",
-      "Find Case model",
-      "Add: recommenders Recommender[]"
-    ],
-    "passes": true
-  },
-  {
-    "category": "data",
-    "description": "Add recommenderId foreign key to Document model",
-    "steps": [
-      "Open prisma/schema.prisma",
-      "Find Document model",
-      "Add: recommenderId String?",
-      "Add: recommender Recommender? @relation(fields: [recommenderId], references: [id])"
-    ],
-    "passes": true
-  },
-  {
-    "category": "data",
-    "description": "Add documents relation to Recommender model",
-    "steps": [
-      "Open prisma/schema.prisma",
-      "In Recommender model, add: documents Document[]"
-    ],
-    "passes": true
-  },
-  {
-    "category": "data",
-    "description": "Run Prisma migration for Recommender model",
-    "steps": [
-      "Run: npx prisma migrate dev --name add_recommender_model",
-      "Verify migration succeeds",
-      "Run: npx prisma generate"
-    ],
-    "passes": true
-  },
-  {
-    "category": "api",
-    "description": "Create GET /api/case/[caseId]/recommenders endpoint",
-    "steps": [
-      "Create file: app/api/case/[caseId]/recommenders/route.ts",
-      "Add GET handler with auth check and case ownership verification",
-      "Query: db.recommender.findMany({ where: { caseId }, orderBy: { createdAt: 'desc' } })",
-      "Return NextResponse.json(recommenders)"
-    ],
-    "passes": true
-  },
-  {
-    "category": "api",
-    "description": "Create POST /api/case/[caseId]/recommenders endpoint",
-    "steps": [
-      "In app/api/case/[caseId]/recommenders/route.ts, add POST handler",
-      "Add Zod schema validating required fields: name, title, relationshipType, relationshipContext",
-      "All other fields optional",
-      "Create recommender with db.recommender.create({ data: { caseId, ...validatedData } })",
-      "Return 201 with created recommender"
-    ],
-    "passes": true
-  },
-  {
-    "category": "api",
-    "description": "Create GET /api/case/[caseId]/recommenders/[recommenderId] endpoint",
-    "steps": [
-      "Create file: app/api/case/[caseId]/recommenders/[recommenderId]/route.ts",
-      "Add GET handler with auth check",
-      "Query: db.recommender.findUnique with caseId filter for security",
-      "Include documents relation in query",
-      "Return 404 if not found, otherwise return recommender"
-    ],
-    "passes": true
-  },
-  {
-    "category": "api",
-    "description": "Create PATCH /api/case/[caseId]/recommenders/[recommenderId] endpoint",
-    "steps": [
-      "In [recommenderId]/route.ts, add PATCH handler",
-      "Allow partial updates - all fields optional in Zod schema",
-      "Verify recommender exists and belongs to case",
-      "Update with db.recommender.update",
-      "Return updated recommender"
-    ],
-    "passes": true
-  },
-  {
-    "category": "api",
-    "description": "Create DELETE /api/case/[caseId]/recommenders/[recommenderId] endpoint",
-    "steps": [
-      "In [recommenderId]/route.ts, add DELETE handler",
-      "Verify recommender exists and belongs to case",
-      "Delete with db.recommender.delete",
-      "Return 204 No Content"
-    ],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Add saveRecommender tool to Evidence Agent",
-    "steps": [
-      "Open lib/evidence-agent.ts",
-      "Add saveRecommender tool to createEvidenceAgentTools",
-      "Schema: recommenderId (optional for update), name, title, relationshipType, relationshipContext (required), all others optional, contextNotes as Json",
-      "Execute: if recommenderId, update existing; else create new via db.recommender",
-      "Return { success: true, recommenderId, name }"
-    ],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Add listRecommenders tool to Evidence Agent",
-    "steps": [
-      "In createEvidenceAgentTools, add listRecommenders tool",
-      "Schema: empty object (no inputs)",
-      "Execute: db.recommender.findMany({ where: { caseId }, select: { id, name, title, relationshipType } })",
-      "Return { recommenders: [...] }"
-    ],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Add getRecommender tool to Evidence Agent",
-    "steps": [
-      "In createEvidenceAgentTools, add getRecommender tool",
-      "Schema: z.object({ recommenderId: z.string() })",
-      "Execute: db.recommender.findUnique with all fields",
-      "Return full recommender object or null"
-    ],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Update draftRecommendationLetter tool to support recommenderId",
-    "steps": [
-      "Find draftRecommendationLetter in evidence-agent.ts",
-      "Add optional recommenderId to input schema",
-      "If recommenderId provided, fetch recommender and use their data",
-      "When creating document, include recommenderId in db.document.create",
-      "Use contextNotes from recommender for richer personalization in generation"
+      "In app/case/[caseId]/_components/letters-panel.tsx, find where recommender cards are rendered",
+      "For each recommender, read its criteriaKeys array",
+      "Render criteria as small Badge/pill components below the recommender name",
+      "Map criteriaKeys (C1-C10) to short display names using CriteriaMapping or hardcoded labels",
+      "Truncate display if >3 criteria, show '+N more' overflow"
     ],
     "passes": true
   },
   {
     "category": "ui",
-    "description": "Create RecommenderForm component with collapsible sections",
+    "description": "R5: Create ConsolidationTab merging Consolidation + Strategy into single tab with collapsible sections",
     "steps": [
-      "Create file: app/case/[caseId]/_components/recommender-form.tsx",
-      "Use frontend-design skill for polished form UI",
-      "Add sections: Contact Info (collapsible), Professional (collapsible), Relationship (collapsible)",
-      "Required fields: name, title, relationshipType (dropdown), relationshipContext (textarea)",
-      "All other fields optional with appropriate inputs",
-      "onSubmit: POST/PATCH to /api/case/{caseId}/recommenders[/{id}]",
-      "Props: caseId, recommender? (for edit mode), onSave, onCancel"
+      "Create app/case/[caseId]/_components/consolidation-tab.tsx as a new 'use client' component",
+      "Accept same props as report-panel passes to CaseConsolidationPanel and CaseStrategyConsolidatedPanel",
+      "Render two Collapsible sections",
+      "Section 1: 'Consolidation' containing CaseConsolidationPanel content",
+      "Section 2: 'Strategy' containing CaseStrategyConsolidatedPanel content",
+      "Default: Consolidation expanded, Strategy collapsed"
     ],
     "passes": true
   },
   {
     "category": "ui",
-    "description": "Create RecommendersPanel component for listing recommenders",
+    "description": "R5: Update report-panel.tsx Phase 3 from 2 tabs to 1 merged Consolidation tab",
     "steps": [
-      "Create file: app/case/[caseId]/_components/recommenders-panel.tsx",
-      "Fetch recommenders from /api/case/{caseId}/recommenders",
-      "Display as cards: avatar (initials), name, title, relationship type badge",
-      "Add 'Add Recommender' button that opens RecommenderForm",
-      "Card actions: Edit (opens form), Delete (with confirm), Generate Letter"
+      "In app/case/[caseId]/_components/report-panel.tsx, find Phase 3 tab definitions",
+      "Replace 2 tabs (CaseConsolidationPanel, CaseStrategyConsolidatedPanel) with single 'Consolidation' tab",
+      "Render ConsolidationTab component in the single tab",
+      "Pass through all required props (caseId, consolidation data, strategy data)"
+    ],
+    "passes": true
+  },
+  {
+    "category": "data",
+    "description": "R6: Add new DocumentCategory enum values for USCIS forms and additional document types",
+    "steps": [
+      "In prisma/schema.prisma, find the DocumentCategory enum",
+      "Add values: COVER_LETTER, USCIS_ADVISORY_LETTER, G1450PPU, G1450300, G1450I40, G28, I140, I907",
+      "Run prisma migrate dev to generate migration",
+      "Verify no conflicts with existing category values (15 existing: RESUME_CV through OTHER)"
     ],
     "passes": true
   },
   {
     "category": "ui",
-    "description": "Add Recommenders tab to documents-panel.tsx",
+    "description": "R6: Expand LETTER_TYPES in letters-panel with placeholder cards for all document categories",
     "steps": [
-      "Open app/case/[caseId]/_components/documents-panel.tsx",
-      "Add tab selector at top: Documents | Recommenders",
-      "Import and render RecommendersPanel when Recommenders tab active",
-      "Pass caseId prop to RecommendersPanel",
-      "Maintain existing documents list as default tab"
+      "In app/case/[caseId]/_components/letters-panel.tsx, find the LETTER_TYPES array",
+      "Add entries for all new document types with appropriate metadata:",
+      "  Draftable: COVER_LETTER, USCIS_ADVISORY_LETTER, RESUME_CV (new from R1)",
+      "  Upload-only: G1450PPU, G1450300, G1450I40, G28, I140, I907",
+      "Each entry: { label, category (matching DocumentCategory enum), isDraftable: boolean, isPerRecommender: false }",
+      "Upload-only entries should have isDraftable: false and render upload-only card variant"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R6: Create upload-only document cards with drop zone and status badge for USCIS forms",
+    "steps": [
+      "In app/case/[caseId]/_components/letters-panel.tsx, create an UploadOnlyCard component (or variant)",
+      "Render a drop zone (reuse existing dropzone pattern from documents-panel.tsx)",
+      "On file drop, POST to /api/case/[caseId]/documents with category set to the card's DocumentCategory",
+      "Show upload status badge: 'N Files Uploaded' or empty placeholder state",
+      "Apply to cards: G1450PPU, G1450300, G1450I40, G28, I140, I907"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R6: Make document cards expandable to show uploaded files with metadata (filename, uploader, date)",
+    "steps": [
+      "In app/case/[caseId]/_components/letters-panel.tsx, wrap each card in a Collapsible component",
+      "Collapsed state: show card header + status badge",
+      "Expanded state: list all documents for that category (query from case documents filtered by category)",
+      "Each document row: filename, upload date (formatted), source (USER_UPLOADED/SYSTEM_GENERATED)",
+      "Add click-to-expand/collapse toggle on card header"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R6: Add global drop zone to Letters panel with AI auto-categorization (>70% auto, else prompt)",
+    "steps": [
+      "In app/case/[caseId]/_components/letters-panel.tsx, wrap the panel content in a global drop zone overlay",
+      "On file drop, POST to /api/case/[caseId]/documents (which calls classifyDocument in lib/document-classifier.ts)",
+      "Read classificationConfidence from the response",
+      "If confidence > 0.7: auto-assign category, show toast confirming category",
+      "If confidence <= 0.7: show a modal/dialog asking user to select the correct category from DocumentCategory options",
+      "Update the document record with the confirmed category"
     ],
     "passes": true
   },
   {
     "category": "functional",
-    "description": "Update Evidence Agent system prompt with recommender instructions",
+    "description": "R6: Extend document-classifier to support all new document categories (USCIS forms, cover letter, etc.)",
     "steps": [
-      "Open lib/evidence-agent.ts",
-      "In buildEvidenceSystemPrompt, add RECOMMENDER section",
-      "Instructions: proactively save recommender details when mentioned, use listRecommenders before drafting letters, link generated letters to recommenders",
-      "Mention: essential fields are name, title, type, context; store nuanced info in contextNotes (freeform JSON)"
+      "In lib/document-classifier.ts, find the ClassificationSchema categories enum",
+      "Add new categories: COVER_LETTER, USCIS_ADVISORY_LETTER, G1450PPU, G1450300, G1450I40, G28, I140, I907",
+      "Update the classification prompt to describe each new category so the AI can identify them",
+      "Add filename pattern hints (e.g. 'g-28' in filename -> G28 category)",
+      "Test with sample filenames to verify classification accuracy"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R6: Add per-card drop zones for manual category assignment by dropping file directly on a card",
+    "steps": [
+      "In app/case/[caseId]/_components/letters-panel.tsx, add onDragOver/onDrop handlers to each document card",
+      "On file drop onto a specific card, POST to /api/case/[caseId]/documents with explicit category override",
+      "Skip auto-classification (or override the result) since user manually chose the category",
+      "Show visual drag-over highlight on the target card",
+      "Update the card's document list after successful upload"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R7: Add 'Fill on USCIS' external links on upload-only form cards pointing to blank PDF forms on uscis.gov",
+    "steps": [
+      "In app/case/[caseId]/_components/letters-panel.tsx, add external link buttons on upload-only cards",
+      "Map form types to USCIS URLs: I-140, I-907, G-28 (these have public PDFs on uscis.gov)",
+      "Render as <a href={url} target='_blank' rel='noopener noreferrer'> with external link icon",
+      "For G-1450 variants, link to the appropriate USCIS page or note they are fillable online",
+      "Style as secondary action button below the upload zone"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R7: Add placeholder disabled e-sign button with 'Coming soon' tooltip on document cards",
+    "steps": [
+      "In app/case/[caseId]/_components/letters-panel.tsx, add an 'E-Sign' button to each document card footer",
+      "Set button as disabled with cursor-not-allowed styling",
+      "Wrap in Tooltip component (from components/ui) showing 'Coming soon'",
+      "Apply to all card types (draftable and upload-only)",
+      "No backend wiring needed -- UI placeholder only"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "R8: Create /assemble-package endpoint that merges all FINAL-status documents into single PDF using pdf-lib",
+    "steps": [
+      "Create app/api/case/[caseId]/assemble-package/route.ts with POST handler",
+      "Auth check + case ownership verification",
+      "Query all Document records for the case with status FINAL",
+      "For each document: fetch PDF content from S3 (s3Key) or convert markdown to PDF",
+      "Use pdf-lib (npm install pdf-lib) to merge all PDFs in order",
+      "Call exhibit-separator utility (task 29) to insert separator pages between sections",
+      "Call page-numbering utility (task 30) to add sequential page numbers",
+      "Return the assembled PDF as a downloadable response (Content-Type: application/pdf)"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "R8: Create exhibit separator page generator utility using pdf-lib",
+    "steps": [
+      "Create lib/exhibit-separator.ts",
+      "Export function generateSeparatorPage(label: string): Promise<Uint8Array> that creates a single-page PDF",
+      "Use pdf-lib PDFDocument.create() to make a page with centered exhibit label (e.g. 'Exhibit A - Awards')",
+      "Use pdf-lib StandardFonts.Helvetica for text rendering",
+      "Accept optional styling params (font size, page size defaults to Letter)",
+      "Return raw PDF bytes that can be merged into the assembled package"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "R8: Create page-numbering utility that adds sequential page numbers across assembled PDF using pdf-lib",
+    "steps": [
+      "Create lib/pdf-numbering.ts",
+      "Export function addPageNumbers(pdfBytes: Uint8Array): Promise<Uint8Array>",
+      "Load PDF with pdf-lib PDFDocument.load(pdfBytes)",
+      "Iterate all pages, draw page number at bottom center (e.g. 'Page 1 of N')",
+      "Use StandardFonts.Helvetica, small font size (10pt)",
+      "Return modified PDF bytes"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R8: Add 'Assemble Package' button in Letters panel that triggers assembly and provides PDF download",
+    "steps": [
+      "In app/case/[caseId]/_components/letters-panel.tsx, add an 'Assemble Package' button at the top or bottom of the panel",
+      "On click, POST to /api/case/[caseId]/assemble-package",
+      "Show loading spinner during assembly",
+      "On success, trigger browser download of the returned PDF blob",
+      "Show error toast if no FINAL documents exist or assembly fails",
+      "Optionally show a summary of what will be included before assembling"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R9: Show denial risk badge/pill in case page header bar sourced from denial-probability API",
+    "steps": [
+      "In app/case/[caseId]/client.tsx, fetch denial probability data from GET /api/case/[caseId]/denial-probability",
+      "Extract overall_assessment.risk_level (LOW|MEDIUM|HIGH|VERY_HIGH) and denial_probability_pct",
+      "Render a Badge/pill in the case header area (near case name or status)",
+      "Color-code: green=LOW, yellow=MEDIUM, orange=HIGH, red=VERY_HIGH",
+      "Show percentage on hover via Tooltip"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R9: Show denial risk summary banner in Letters panel referencing denial engine findings",
+    "steps": [
+      "In app/case/[caseId]/_components/letters-panel.tsx, add a DenialRiskBanner component at the top",
+      "Fetch denial probability data (pass via props from client.tsx or fetch directly)",
+      "Show risk level, denial probability percentage, and top risk factors",
+      "Use Alert component (from components/ui) with appropriate variant (warning/destructive)",
+      "Link to the DenialProbabilityPanel for full details",
+      "Collapse/hide if no denial data available yet"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "R9: Pass denial engine data into drafting agent context so generated documents address weaknesses",
+    "steps": [
+      "In lib/drafting-agent.ts, add a new tool getDenialProbability(caseId) to the agent's tool set",
+      "Tool queries DenialProbability table for latest record for the case",
+      "Returns risk factors, common denial reasons, weak criteria, and probability breakdown",
+      "Update the system prompt to instruct the agent to proactively address identified weaknesses when drafting",
+      "Agent can now reference denial data when generating cover letters, personal statements, and recommendation letters"
+    ],
+    "passes": true
+  },
+  {
+    "category": "data",
+    "description": "R10: Add template seeds for Cover Letter and USCIS Advisory Letters in Prisma seed file",
+    "steps": [
+      "In prisma/seed.ts, add Template records for COVER_LETTER and USCIS_ADVISORY_LETTER",
+      "Template type: use existing TemplateType enum (add COVER_LETTER and USCIS_ADVISORY if needed, or use OTHER)",
+      "Include systemInstruction with drafting guidance for each letter type",
+      "Add corresponding AgentPrompt seed records with slug 'cover-letter-drafter' and 'uscis-letter-drafter'",
+      "Set provider: 'anthropic', modelName: 'claude-sonnet-4-20250514'"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "R10: Add cover letter drafting prompt to drafting agent incorporating case data, criteria, and denial context",
+    "steps": [
+      "In prisma/seed.ts, create AgentPrompt with slug 'cover-letter-drafter'",
+      "Prompt content: instruct agent to write EB-1A cover letter citing criteria strength, evidence inventory, and addressing denial risks",
+      "In lib/drafting-agent.ts, detect when document category is COVER_LETTER and load the cover-letter-drafter prompt",
+      "Use resolvePrompt pattern (existing in agent-prompt.ts) to fetch the configurable prompt",
+      "Include variables for applicant name, target criteria, filing strategy"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "R10: Add USCIS advisory/expert opinion letters drafting prompt to drafting agent",
+    "steps": [
+      "In prisma/seed.ts, create AgentPrompt with slug 'uscis-letter-drafter'",
+      "Prompt content: instruct agent to write expert opinion letters for USCIS, citing specific criteria evidence and expert qualifications",
+      "In lib/drafting-agent.ts, detect when document category is USCIS_ADVISORY_LETTER and load uscis-letter-drafter prompt",
+      "Include variables for expert name, credentials, relationship to applicant, target criteria"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R10: Wire Cover Letter and USCIS Letters placeholder cards to DraftingPanel for in-app drafting",
+    "steps": [
+      "In app/case/[caseId]/_components/letters-panel.tsx, find COVER_LETTER and USCIS_ADVISORY_LETTER card entries",
+      "Wire the 'Create' button to call onOpenDraft callback with appropriate category and template info",
+      "DraftingPanel (drafting-panel.tsx) receives the category and sends it to POST /api/case/[caseId]/draft-chat",
+      "The draft-chat endpoint uses streamDraftingAgent which will resolve the category-specific prompt",
+      "Show existing drafts on the card (filter case documents by category)"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "R11: Wire drafting agent to use template-resolver for auto-generating recommendation letters from templates",
+    "steps": [
+      "In lib/drafting-agent.ts, when generating a RECOMMENDATION_LETTER document, call resolveVariation(templateId, profileData) from lib/template-resolver.ts",
+      "Use the matched TemplateVariation.content as additional context in the system prompt",
+      "The variation provides relationship-type-specific language and structure",
+      "Fall back to default template variation if no match found",
+      "Ensure recommender data (from getRecommender tool) feeds into the template variables"
+    ],
+    "passes": true
+  },
+  {
+    "category": "data",
+    "description": "R11: Add TemplateVariation seeds per recommender relationship type for recommendation letters",
+    "steps": [
+      "In prisma/seed.ts, find or create the RECOMMENDATION_LETTER Template record",
+      "Add TemplateVariation records for each RelationshipType: ACADEMIC_ADVISOR, RESEARCH_COLLABORATOR, INDUSTRY_COLLEAGUE, SUPERVISOR, MENTEE, CLIENT, PEER_EXPERT",
+      "Each variation: matchField='relationshipType', matchValue=<type>, content=<relationship-specific letter structure>",
+      "Set one variation as isDefault: true (e.g. PEER_EXPERT or a generic version)",
+      "Include guidance on tone, structure, and evidence emphasis per relationship type"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R11: Add template input fields (relationship context, key contributions) in DraftingPanel for rec letter drafting",
+    "steps": [
+      "In app/case/[caseId]/_components/drafting-panel.tsx, detect when drafting a RECOMMENDATION_LETTER document",
+      "Show a collapsible 'Template Inputs' panel above the editor",
+      "Fields: relationship context (text), key contributions to highlight (text), specific achievements to reference (text), recommender's expertise area (text)",
+      "Pass these inputs as additional context to the draft-chat API when sending messages",
+      "Pre-fill fields from recommender data (recommender.relationshipContext, recommender.bio) if available"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "R11: Group/split recommendation letter cards in Letters panel by recommender relationship type",
+    "steps": [
+      "In app/case/[caseId]/_components/letters-panel.tsx, find where recommendation letter cards are rendered (isPerRecommender section)",
+      "Group recommenders by relationshipType (ACADEMIC_ADVISOR, RESEARCH_COLLABORATOR, etc.)",
+      "Render section headers for each relationship type group",
+      "Within each group, show recommender cards as before (name, title, draft status)",
+      "Use RelationshipType display labels (e.g. 'Academic Advisors', 'Industry Colleagues')",
+      "Handle empty groups gracefully (hide section if no recommenders of that type)"
     ],
     "passes": true
   }

@@ -458,6 +458,73 @@ async function verifyCriterion(
   return object
 }
 
+// ─── Run Single Criterion Verification for a Document ───
+
+export interface SingleCriterionVerificationResult {
+  criterion: string
+  score: number
+  recommendation: string
+  verified_claims: string[]
+  unverified_claims: string[]
+  missing_documentation: string[]
+  red_flags: string[]
+  matched_item_ids: string[]
+  reasoning: string
+}
+
+export async function runSingleCriterionVerification(
+  caseId: string,
+  documentId: string,
+  documentText: string,
+  criterion: string,
+): Promise<SingleCriterionVerificationResult> {
+  const context = await buildVerificationContext(caseId)
+
+  // Load extraction and ensure item IDs
+  const analysis = await db.eB1AAnalysis.findFirst({
+    where: { caseId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, extraction: true },
+  })
+  let extraction: DetailedExtraction | null = null
+  if (analysis?.extraction) {
+    extraction = analysis.extraction as DetailedExtraction
+    if (ensureItemIds(extraction)) {
+      await db.eB1AAnalysis.update({
+        where: { id: analysis.id },
+        data: { extraction: JSON.parse(JSON.stringify(extraction)) },
+      })
+    }
+  }
+
+  const criterionItems = extraction ? getItemsForCriterion(extraction, criterion) : []
+  const data = await verifyCriterion(criterion, documentText, context, criterionItems)
+
+  // Get next version
+  const latest = await db.evidenceVerification.findFirst({
+    where: { documentId },
+    orderBy: { version: "desc" },
+    select: { version: true },
+  })
+  const version = (latest?.version ?? 0) + 1
+
+  // Save verification result
+  const typed = data as SingleCriterionVerificationResult
+  await db.evidenceVerification.create({
+    data: {
+      caseId,
+      documentId,
+      criterion,
+      version,
+      data: JSON.parse(JSON.stringify(data)),
+      score: typed.score,
+      recommendation: typed.recommendation,
+    },
+  })
+
+  return typed
+}
+
 // ─── Run All 10 Criteria for a Document ───
 
 export interface DocumentVerificationResults {

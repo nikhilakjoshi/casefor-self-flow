@@ -248,9 +248,37 @@ export default function OnboardPage() {
     }
   }, []);
 
+  const handleSkipToSurvey = useCallback(async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/cases/create-survey-only", {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.error ?? "Failed to create case");
+        setIsLoading(false);
+        return;
+      }
+      const { caseId: newCaseId, caseName: newCaseName } = await response.json();
+      setCaseId(newCaseId);
+      setCaseName(newCaseName || null);
+      setSurveyData({});
+      setIsLoading(false);
+      setPhase("survey");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setIsLoading(false);
+    }
+  }, []);
+
   const handleSurveyComplete = useCallback(() => {
     if (caseId && fileRef.current) {
       startAnalysis(fileRef.current, caseId);
+    } else if (caseId) {
+      // Survey-only flow: no file uploaded, go straight to case page
+      window.location.href = `/case/${caseId}`;
     }
   }, [caseId, startAnalysis]);
 
@@ -403,6 +431,20 @@ export default function OnboardPage() {
                       selectedFile={selectedFile}
                       isLoading={isLoading}
                     />
+
+                    <div className="mt-4 text-center">
+                      <button
+                        type="button"
+                        onClick={handleSkipToSurvey}
+                        disabled={isLoading}
+                        className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors disabled:opacity-50"
+                      >
+                        {isLoading ? "Creating case..." : "Skip to Survey"}
+                      </button>
+                      <p className="text-[11px] text-muted-foreground/70 mt-1">
+                        No resume? Fill out the survey manually
+                      </p>
+                    </div>
 
                     {error && (
                       <div className="mt-4 flex items-center justify-between rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2.5">

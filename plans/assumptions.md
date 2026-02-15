@@ -112,3 +112,113 @@
 - Retry button for failed files not implemented; user can re-drop failed files instead
 - Upload button shows dynamic count of pending files (e.g., "Upload 3 file(s)")
 - "Clear completed" button only appears when at least one file succeeded
+- New DocumentCategory values placed before OTHER to keep OTHER as the last/catch-all value
+- Classifier schema updated to include PERSONAL_STATEMENT and PETITION_LETTER which existed in DB enum but were missing from classifier (consistency fix bundled w/ new categories)
+- G1450 form variants (G1450PPU, G1450300, G1450I40) use PRD naming convention as-is; these map to USCIS G-1450 Authorization for Credit Card Transactions with different fee designations
+- Filename pattern hints in classifier prompt are advisory guidance to LLM, not programmatic matching; LLM uses both filename and content for classification
+- CriteriaKeys on Recommender uses C1-C10 format (from CRITERIA_LABELS in evidence-verification-schema.ts), not the DB criterionKey format (awards, membership, etc.) -- consistent with how criteria routing and evidence verification reference criteria
+- Criteria list in RecommenderForm is static (C1-C10 from CRITERIA_LABELS), not dynamically fetched from case's EB1AAnalysis; EB-1A always has exactly 10 criteria so dynamic fetch is unnecessary overhead
+- `@default([])` on criteriaKeys means existing recommenders get empty array; no backfill needed
+- POST API defaults criteriaKeys to [] via Zod `.default([])`; PATCH treats it as optional (only updates when provided)
+- Criteria pills on recommender cards truncate at 3 and show "+N more" for overflow; full labels available via title tooltip
+- CriteriaTab uses `criteriaContent: React.ReactNode` prop rather than duplicating CriterionSection rendering logic; keeps analysis state management in report-panel
+- Old URL subtab values "strength", "gap", "strategy" fall back to "summary" default; no backward-compatibility shim needed since these are session-only URL params not persisted/shared
+- Collapsible sections in CriteriaTab/PlanningTab use manual useState + conditional rendering rather than Radix Collapsible primitive; sub-panels manage their own scroll/overflow internally and work better without Collapsible animation wrapper
+- PlanningTab derives `hasGapAnalysis` for CaseStrategyPanel from `!!initialGapAnalysis` rather than accepting it as a separate prop; reduces prop surface
+- ConsolidationTab accepts `initialCaseStrategy` as boolean (not full CaseStrategy object) since CaseConsolidationPanel only needs `hasCaseStrategy: boolean`; report-panel derives it via `!!initialCaseStrategy`
+- Old URL subtab value "consolidated-strategy" falls back to "summary" default; no backward-compatibility shim needed (session-only URL params)
+- Old generic "USCIS Form" card (category: null) replaced with individual form cards per USCIS form type (I140, I907, G28, G1450PPU, G1450300, G1450I40); no backward-compat needed since old card had no real functionality
+- Documents POST API `category` field is a raw string cast to `DocumentCategory` enum; no Zod validation against enum values since UI sends known enum strings
+- When `category` is provided in FormData, auto-classification via `classifyDocument` is skipped (user/UI explicitly set the category)
+- UploadOnlyCard uses native HTML drag-drop (onDragOver/onDrop) instead of react-dropzone; simpler for single-file uploads and avoids adding per-card dropzone instances
+- RESUME_CV not included in LETTER_TYPES yet; deferred to R1 implementation (skip-to-survey, resume upload/generation)
+- RecommenderCard defaults to expanded=true since recommender sub-cards are the primary interactive content; other card types default to collapsed since file lists are secondary
+- Expandable cards use manual useState + conditional rendering (not Radix Collapsible) for consistency w/ CriteriaTab/PlanningTab/ConsolidationTab pattern
+- Click-to-expand only enabled when docs exist (no chevron shown on empty cards); prevents confusing toggle on empty state
+- UploadOnlyCard auto-expands on successful upload so user sees the newly uploaded file immediately
+- stopPropagation on action buttons (Upload/Draft/Add/Import CSV) prevents header click-to-toggle when clicking buttons
+- USCIS URLs use form landing pages (e.g., /i-140, /g-28) not direct PDF URLs; landing pages include filing instructions and link to the fillable PDF
+- G-1450 variants (PPU, 300, I40) all share the same USCIS URL (/g-1450) since they are the same form used for different fee designations
+- "Fill on USCIS" link uses native `<a>` tag styled as outline button (not shadcn Button) to avoid button-inside-link accessibility issues
+- uscisUrl field is optional on LetterType; only upload-only USCIS form cards set it (draftable cards don't need external form links)
+- Added `COVER_LETTER` and `USCIS_ADVISORY` to TemplateType enum (not reusing OTHER) for cleaner type discrimination and admin filtering
+- Category-specific drafting prompts (`cover-letter-drafter`, `uscis-letter-drafter`) use same {{var}} template variables as the generic `drafting-agent` prompt; agent resolves category slug first, falls back to generic if no category-specific prompt found
+- `getCategoryPromptSlug()` returns null for categories without dedicated prompts (e.g., RECOMMENDATION_LETTER, PERSONAL_STATEMENT); these use the generic drafting-agent prompt -- future category prompts can be added by extending the switch statement + adding AgentPrompt seeds
+- R10 task 4 (wire Cover Letter / USCIS cards to DraftingPanel) was already implemented: DraftableCard passes `category` via `onOpenDraft`, DraftingPanel sends it in POST body to draft-chat, no additional UI wiring needed
+- Denial engine data not yet incorporated into cover letter / USCIS advisory prompts; prompts instruct agent to address weaknesses proactively but don't query DenialProbability table (deferred to R9 task 34)
+- `draft-chat/route.ts` passes `category` as `string | undefined` to `runDraftingAgent`; no Zod validation on category value since it originates from trusted UI (DocumentCategory enum values)
+- E-Sign tooltip trigger uses `<span tabIndex={0}>` wrapper around disabled Button because disabled elements don't receive pointer events needed for Radix Tooltip to show; span acts as the hover target
+- E-Sign button applied to all 3 card types (UploadOnlyCard, DraftableCard, RecommenderCard) -- PRD says "all card types" which includes recommender cards even though they're per-recommender
+- PenTool icon chosen for E-Sign (lucide-react) -- visually suggests signing/writing; distinct from PenLine used for Draft
+- TemplateVariation IDs use deterministic format `{recLetterTemplateId}-{RelationshipType}` for idempotent seed upserts (same pattern as template and default variation IDs)
+- PEER_EXPERT variation is set as isDefault: true; the older generic "Default" variation (created with template) also has isDefault: true -- resolveVariation returns first isDefault match (older default), but when relationshipType is provided in profile data, the PEER_EXPERT variation wins via matchField/matchValue match before falling back to default
+- Variation content provides structural guidance (numbered sections with descriptions) rather than actual letter prose; the drafting agent LLM uses these as instructions for generating the actual letter content
+- Each variation tailored to leverage the unique perspective of the relationship type: advisor observes academic growth, collaborator evaluates technical contribution, supervisor assesses performance, mentee demonstrates knowledge transfer impact, client quantifies delivered value
+- Template-resolver wiring only activates when both `category === 'RECOMMENDATION_LETTER'` AND `recommenderId` is provided; drafting without a recommender (e.g. generic rec letter) uses default prompt without variation
+- Template ID for resolveVariation constructed as `${applicationTypeId}-RECOMMENDATION_LETTER` matching seed.ts convention; requires case to have an applicationTypeId set (null appTypeId skips variation resolution)
+- Variation content appended to instructions (not replacing them); agent sees both base drafting prompt + relationship-specific variation guidance
+- `recommenderId` was already captured in draft-chat route from request body but not forwarded to `runDraftingAgent` before this change; the data flow was UI -> API -> (dropped) -> agent
+- `getDenialProbability` tool returns raw DenialProbability.data JSON (combined pass 1 + pass 2 output); no filtering or transformation applied -- agent sees full denial assessment
+- Denial awareness instructions only added to hardcoded fallback prompt (not to DB-stored AgentPrompt records); category-specific prompts (cover-letter-drafter, uscis-letter-drafter) should have denial guidance added to their AgentPrompt content separately if more targeted instructions are needed
+- Tool is available regardless of document category; the system prompt guides when the agent should call it (cover letters, personal statements, petition letters always; rec letters when addressing weak criteria)
+- `generateSeparatorPage` uses HelveticaBold for the label text (not regular Helvetica) for visual prominence on separator pages
+- Separator page includes a light gray horizontal rule (0.5pt) below the label at 60% page width for visual structure
+- Separator page footer text "Separator Page" positioned at 36pt from bottom; page numbers at 24pt -- no overlap since separator pages will also receive page numbers during assembly
+- `addPageNumbers` position is 24pt from bottom edge, centered; gray color (rgb 0.4) to be unobtrusive
+- pdf-lib `PageSizes.Letter` used as default (612 x 792 points = 8.5 x 11 inches); consumers can pass custom `[width, height]` tuple
+- Assembly order follows USCIS filing convention: forms (I-140, G-28, I-907, G-1450s) -> narrative docs (cover letter, petition, personal statement, advisory letters, rec letters) -> evidence (resume, awards, publications, etc.) -> other
+- `markdownToPdf` is a simple pdf-lib text renderer -- handles headings (bold), word wrapping, pagination; does not render rich markdown (tables, images, lists with bullets). Sufficient for current document content which is primarily prose.
+- Documents without S3 key and without inline content are silently skipped during assembly; no error for individual doc failures (graceful degradation)
+- Exhibit labels use A-Z for first 26 categories, then numeric (27, 28...) for overflow -- unlikely to exceed 26 in practice since there are 24 DocumentCategory values
+- `downloadFromS3` added to lib/s3.ts uses `transformToByteArray()` which is available on AWS SDK v3 response body; returns `Uint8Array`
+- `Response` body requires `Buffer.from(uint8Array)` conversion since Next.js/Node `Response` doesn't accept raw `Uint8Array` as body
+- Filename for downloaded PDF derived from `case.name` (not a `caseName` field) with non-alphanumeric chars replaced by underscore
+- Assemble Package button disabled state computed inline via `documents.filter(d => d.status === 'FINAL').length === 0`; no useMemo since doc list is typically small (<50 items)
+- Download uses createObjectURL + programmatic `<a>` click pattern; revokeObjectURL called after click to avoid memory leaks
+- Filename for download extracted from Content-Disposition header via regex; falls back to "package.pdf" if header missing or unparseable
+- Assemble Package button placed at bottom of letters panel card list (not top) to keep primary document workflow uninterrupted
+- Denial risk badge in header uses `initialDenialProbability` prop directly (not client-fetched from GET API); data already flows from page.tsx SSR -> client.tsx -> report-panel -> letters-panel, avoiding extra API call
+- Denial risk badge hidden entirely when no denial data exists (no empty/placeholder state)
+- DenialRiskBanner in letters-panel defaults to collapsed state to avoid overwhelming the panel; user clicks to expand for summary + red flags
+- Used inline styled div for DenialRiskBanner instead of shadcn Alert component (not installed); styled w/ cn() for risk-level-specific colors
+- Banner shows top 3 red flags max (sliced from `data.red_flags`); full list available in DenialProbabilityPanel
+- PRD step "Link to DenialProbabilityPanel for full details" not implemented as direct link; user can navigate via report-panel tabs. Adding an in-panel link would require tab-switching callbacks that add complexity for minimal gain.
+- Denial data is static for the session (uses initialDenialProbability prop, not re-fetched); acceptable since denial assessments are infrequent operations
+- Recommender grouping uses IIFE inside JSX (`(() => { ... })()`) rather than extracting to a separate component or useMemo; the recommenders array is typically small (<20) so no perf concern
+- Group sort order follows RELATIONSHIP_LABELS key order (hardcoded object key insertion order); unknown relationship types pushed to end via indexOf returning -1 mapped to 999
+- Section headers use singular label from RELATIONSHIP_LABELS (e.g. "Academic Advisor"), not plural (e.g. "Academic Advisors"); count in parentheses disambiguates
+- PRD step "Use RelationshipType display labels (e.g. 'Academic Advisors', 'Industry Colleagues')" implemented w/ singular labels + count suffix instead of plural form; simpler implementation, no separate plural label map needed
+- Template inputs sent via ref (`templateInputsRef.current`) to avoid re-creating sendInstruction callback on every keystroke in the template fields; inputs are read at send time, not captured in closure
+- Pre-fill maps recommender.relationshipContext to relationshipContext field and recommender.bio to expertiseArea field; keyContributions and specificAchievements have no natural pre-fill source from recommender data so start empty
+- Template inputs appended to drafting agent system instructions (not injected into user messages) so they act as persistent context across the entire drafting conversation, not just the first message
+- `templateInputs` in draft-chat API is typed as `Record<string, string> | undefined` (loose type) rather than a strict interface; the API doesn't validate field names since the agent just uses them as freeform context
+- Only non-empty template input fields are appended to instructions; empty fields are filtered out to avoid noise
+- DraftableCard drop zones use the card's `letterType.category` for explicit category assignment; same pattern as UploadOnlyCard
+- RecommenderCard drop zone assigns `RECOMMENDATION_LETTER` category but does NOT link to a specific recommender via `recommenderId`; recommender linking only happens through the Draft flow which passes `recommenderId` to the drafting agent. Dropped files are generic rec letter uploads.
+- All 3 card types now support both drag-drop and click-to-upload via hidden file input; consistent UX across card types
+- DraftableCard auto-expands on successful upload (same as UploadOnlyCard) so user sees the newly uploaded file immediately
+- Global drop zone uses `classifySync=true` FormData field to make classification synchronous; the existing fire-and-forget behavior is preserved when this field is absent (backward-compatible)
+- `classifyDocument` return type changed from `Promise<void>` to `Promise<ClassificationResult | null>`; existing callers using `.catch(() => {})` are unaffected since they discard the return value
+- Auto-categorization threshold is 0.7 (>0.7 = auto-assign, <=0.7 = prompt user); matches PRD specification exactly
+- CategoryPickerDialog highlights the AI-suggested category even for low-confidence classifications; user can still select any category
+- CATEGORY_LABELS map kept local to letters-panel.tsx (not extracted to shared module); only used in this component
+- Document PATCH accepts `category` as a raw string; no Zod enum validation against DocumentCategory since UI sends known enum values (same pattern as POST category override)
+- Global drag overlay uses dragEnter/dragLeave counter to handle nested element events correctly; direct onDragEnter/onDragLeave on the container would flicker when cursor moves over child elements
+- Survey-only case creation endpoint (`/api/cases/create-survey-only`) does NOT require auth; anonymous users get a `pendingCaseId` cookie (same pattern as `/api/extract`)
+- Skip-to-survey flow does not trigger analysis during onboard; after survey completes, user is redirected to the case page where they can trigger analysis manually or upload a resume
+- `handleSurveyComplete` branches: if `fileRef.current` exists, runs analysis stream (existing flow); if no file (skip-to-survey), redirects to `/case/{caseId}`
+- Resume upload in documents-panel creates a new Document w/ RESUME_CV category; does NOT create a ResumeUpload record (ResumeUpload is only for the initial onboard flow)
+- Resume replacement does not delete old RESUME_CV documents; both old and new appear in document list (user can manually delete old ones)
+- `resumeDoc` in documents-panel finds the first document w/ category RESUME_CV; if multiple exist, shows the first one found (order depends on API response)
+- generate-resume endpoint uses `runDraftingAgent` (not a dedicated streamDraftingAgent function) with a one-shot user message asking for resume generation
+- Resume card placed first in LETTER_TYPES array for prominence since resume is a foundational document
+- DraftableCard's existing "Draft" button handles RESUME_CV via the standard draft-chat flow; `getCategoryPromptSlug('RESUME_CV')` resolves to `resume-drafter` prompt
+- resume-drafter AgentPrompt seed uses same variable schema as other category-specific prompts (criteria, threshold, profile, analysis, documentName, existingContent)
+- `runSingleCriterionVerification` runs a single criterion evaluation (not all 10) for performance; saves EvidenceVerification record and returns result directly
+- Criterion POST creates DocumentCriterionRouting w/ `autoRouted: false` since user explicitly dropped file on that criterion; distinguished from auto-routed records from full document verification
+- Evidence verification in criterion POST is non-fatal (try/catch); if verification fails, the basic criterion evaluation result still returns successfully
+- Evidence badges show on extraction items (Supporting Items section); orange "Evidence Required" shown even when `docCountsByItem` is undefined/empty for that item (assumes no docs = required)
+- R3 Task 10 (analysis endpoint per-item counts) was already implemented before R3 work began; no changes needed to analysis endpoint
+- `refetchDocCounts` re-fetches the full analysis endpoint but only updates `docCountsByCriterion` and `docCountsByItem` in state; criterion data unchanged (already updated via `onCriterionUpdated`)
+- Post-drop verification feedback uses toast notification pattern (via sonner) consistent w/ rest of app; no modal/dialog for partial relevance (simpler than PRD suggested)
+- Moved `useCallback` hooks (refetchDocCounts, handleCriterionUpdated) before early return in ReportPanel to fix pre-existing rules-of-hooks lint error

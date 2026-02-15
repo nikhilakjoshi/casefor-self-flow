@@ -6,6 +6,7 @@ import { getCriteriaForCase, type Criterion } from "./criteria";
 import { type CriterionResult } from "./eb1a-agent";
 import { queryContext } from "./rag";
 import { getPrompt, substituteVars, resolveModel } from "./agent-prompt";
+import { resolveVariation } from "./template-resolver";
 
 const FALLBACK_MODEL = "claude-sonnet-4-20250514";
 const MAX_HISTORY = 20;
@@ -69,7 +70,14 @@ TOOL USAGE:
 - Call getProfile and getAnalysis before drafting to use real applicant data.
 - Call searchDocuments to find relevant content from uploaded materials.
 - Call getRecommender when drafting recommendation letters.
-- Call getCurrentDocument to see the current document content before revising.`;
+- Call getCurrentDocument to see the current document content before revising.
+- Call getDenialProbability to check for denial risk factors, red flags, and weak criteria -- then proactively address these weaknesses in the document.
+
+DENIAL RISK AWARENESS:
+- Before drafting cover letters, personal statements, or petition letters, always call getDenialProbability.
+- If denial data exists, address identified red flags and weak criteria directly in the document.
+- For recommendation letters, ensure the letter reinforces criteria flagged as weak or at risk of RFE.
+- Reference specific evidence that counters the denial risk factors identified.`;
 }
 
 async function buildDraftingSystemPrompt(opts: {
@@ -197,7 +205,36 @@ function createDraftingAgentTools(caseId: string, documentId?: string) {
         };
       },
     }),
+
+    getDenialProbability: tool({
+      description:
+        "Fetch the latest denial probability assessment for this case. Returns risk factors, weak criteria, red flags, recommendations, and probability breakdown. Use before drafting to proactively address weaknesses.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        console.log(`${logPrefix} [getDenialProbability] Called`);
+        const latest = await db.denialProbability.findFirst({
+          where: { caseId },
+          orderBy: { createdAt: "desc" },
+        });
+        if (!latest) return { exists: false, data: null };
+        return { exists: true, data: latest.data };
+      },
+    }),
   };
+}
+
+/** Map DocumentCategory to category-specific prompt slug */
+function getCategoryPromptSlug(category?: string): string | null {
+  switch (category) {
+    case "COVER_LETTER":
+      return "cover-letter-drafter";
+    case "USCIS_ADVISORY_LETTER":
+      return "uscis-letter-drafter";
+    case "RESUME_CV":
+      return "resume-drafter";
+    default:
+      return null;
+  }
 }
 
 export async function runDraftingAgent(opts: {
@@ -206,19 +243,22 @@ export async function runDraftingAgent(opts: {
   documentId?: string;
   documentName?: string;
   existingContent?: string | null;
+  category?: string;
+  recommenderId?: string;
+  templateInputs?: Record<string, string>;
   onFinish?: (text: string) => Promise<void>;
 }) {
-  const { caseId, messages, documentId, documentName, existingContent, onFinish } = opts;
+  const { caseId, messages, documentId, documentName, existingContent, category, recommenderId, templateInputs, onFinish } = opts;
   const log = (msg: string, ...args: unknown[]) =>
     console.log(`[DraftingAgent:${caseId}] ${msg}`, ...args);
 
-  log("runDraftingAgent called, messages:", messages.length);
+  log("runDraftingAgent called, messages:", messages.length, "category:", category);
 
   const [criteria, caseRecord, profile, analysis] = await Promise.all([
     getCriteriaForCase(caseId),
     db.case.findUnique({
       where: { id: caseId },
-      select: { criteriaThreshold: true },
+      select: { criteriaThreshold: true, applicationTypeId: true },
     }),
     db.caseProfile.findUnique({ where: { caseId } }),
     db.eB1AAnalysis.findFirst({
@@ -230,17 +270,79 @@ export async function runDraftingAgent(opts: {
   const threshold = caseRecord?.criteriaThreshold ?? 3;
   log("context gathered - criteria:", criteria.length, "threshold:", threshold);
 
-  const instructions = await buildDraftingSystemPrompt({
+  const promptOpts = {
     criteria,
     threshold,
     profile: (profile?.data as Record<string, unknown>) ?? null,
     analysis: analysis ? (analysis.criteria as CriterionResult[]) : null,
     documentName,
     existingContent,
-  });
+  };
+
+  // Try category-specific prompt first, fall back to generic drafting-agent prompt
+  const categorySlug = getCategoryPromptSlug(category);
+  let instructions: string;
+  let p = categorySlug ? await getPrompt(categorySlug) : null;
+  if (p) {
+    log("using category-specific prompt:", categorySlug);
+    const criteriaList = criteria
+      .map((c) => `- ${c.key}: ${c.name} -- ${c.description}`)
+      .join("\n");
+    const profileSection = promptOpts.profile
+      ? `CURRENT APPLICANT PROFILE:\n${JSON.stringify(promptOpts.profile, null, 2)}`
+      : "APPLICANT PROFILE: Not yet established.";
+    const analysisSection = promptOpts.analysis
+      ? `CURRENT ANALYSIS (${promptOpts.analysis.filter((c) => c.strength === "Strong").length} Strong, need ${threshold}+):\n${promptOpts.analysis.map((c) => `${c.criterionId}: ${c.strength} - ${c.reason}`).join("\n")}`
+      : "ANALYSIS: No analysis yet.";
+    const docSection = documentName
+      ? `CURRENT DOCUMENT: "${documentName}"${existingContent ? `\n\nEXISTING CONTENT:\n${existingContent}` : ""}`
+      : "";
+
+    instructions = substituteVars(p.content, {
+      criteria: criteriaList,
+      threshold: String(threshold),
+      profile: profileSection,
+      analysis: analysisSection,
+      documentName: docSection,
+      existingContent: "",
+    });
+  } else {
+    instructions = await buildDraftingSystemPrompt(promptOpts);
+    p = await getPrompt("drafting-agent");
+  }
+
+  // Resolve template variation for recommendation letters
+  if (category === "RECOMMENDATION_LETTER" && recommenderId) {
+    const recommender = await db.recommender.findFirst({
+      where: { id: recommenderId, caseId },
+    });
+    if (recommender) {
+      const appTypeId = caseRecord?.applicationTypeId;
+      if (appTypeId) {
+        const templateId = `${appTypeId}-RECOMMENDATION_LETTER`;
+        const variation = await resolveVariation(templateId, {
+          relationshipType: recommender.relationshipType,
+        });
+        if (variation) {
+          log("resolved template variation:", variation.label);
+          instructions += `\n\nTEMPLATE VARIATION (${variation.label}):\n${variation.content}`;
+        }
+      }
+    }
+  }
+
+  // Append user-provided template inputs for recommendation letters
+  if (templateInputs) {
+    const filled = Object.entries(templateInputs)
+      .filter(([, v]) => v && v.trim())
+      .map(([k, v]) => `- ${k}: ${v.trim()}`)
+      .join("\n");
+    if (filled) {
+      instructions += `\n\nUSER-PROVIDED TEMPLATE INPUTS:\n${filled}\nUse these inputs to personalize and ground the document.`;
+    }
+  }
 
   const tools = createDraftingAgentTools(caseId, documentId);
-  const p = await getPrompt("drafting-agent");
 
   log("creating ToolLoopAgent with model:", p?.modelName ?? FALLBACK_MODEL, "tools:", Object.keys(tools));
 

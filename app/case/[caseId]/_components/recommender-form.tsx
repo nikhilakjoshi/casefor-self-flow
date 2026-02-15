@@ -17,6 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   ChevronDown,
   User,
@@ -27,7 +28,9 @@ import {
   Upload,
   Globe,
   Sparkles,
+  Scale,
 } from 'lucide-react'
+import { CRITERIA_LABELS } from '@/lib/evidence-verification-schema'
 
 // Relationship type options matching Prisma enum
 const RELATIONSHIP_TYPES = [
@@ -60,6 +63,7 @@ export interface RecommenderData {
   endDate?: string | null
   durationYears?: number | null
   contextNotes?: Record<string, unknown> | null
+  criteriaKeys?: string[]
 }
 
 interface RecommenderFormProps {
@@ -161,6 +165,9 @@ export function RecommenderForm({
 
   const [contextNotes, setContextNotes] = useState<Record<string, unknown> | null>(
     recommender?.contextNotes ?? null
+  )
+  const [criteriaKeys, setCriteriaKeys] = useState<string[]>(
+    recommender?.criteriaKeys ?? []
   )
   const [isExtracting, setIsExtracting] = useState(false)
   const [extractError, setExtractError] = useState<string | null>(null)
@@ -324,6 +331,7 @@ export function RecommenderForm({
           if (!isNaN(parsed)) payload.durationYears = parsed
         }
         if (contextNotes) payload.contextNotes = contextNotes
+        if (criteriaKeys.length > 0) payload.criteriaKeys = criteriaKeys
 
         const url = isEdit
           ? `/api/case/${caseId}/recommenders/${recommender.id}`
@@ -367,6 +375,7 @@ export function RecommenderForm({
       endDate,
       durationYears,
       contextNotes,
+      criteriaKeys,
       onSave,
     ]
   )
@@ -638,6 +647,35 @@ export function RecommenderForm({
                 className="h-9"
               />
             </FormField>
+          </FormSection>
+
+          <FormSection title="Criteria Mapping" icon={Scale}>
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Select criteria this recommender can speak to (recommended: up to 5)
+            </p>
+            <div className="space-y-2">
+              {Object.entries(CRITERIA_LABELS).map(([key, label]) => (
+                <label
+                  key={key}
+                  className="flex items-center gap-2 cursor-pointer group"
+                >
+                  <Checkbox
+                    checked={criteriaKeys.includes(key)}
+                    onCheckedChange={(checked) => {
+                      setCriteriaKeys((prev) =>
+                        checked
+                          ? [...prev, key]
+                          : prev.filter((k) => k !== key)
+                      )
+                    }}
+                  />
+                  <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+                    <span className="font-medium text-foreground">{key}</span>
+                    {' '}{label}
+                  </span>
+                </label>
+              ))}
+            </div>
           </FormSection>
         </div>
       </div>

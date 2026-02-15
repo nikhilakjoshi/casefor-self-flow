@@ -8,6 +8,7 @@ import {
   deleteFromS3,
 } from '@/lib/s3'
 import { classifyDocument } from '@/lib/document-classifier'
+import type { DocumentCategory } from '@prisma/client'
 
 type Params = { params: Promise<{ caseId: string; docId: string }> }
 
@@ -55,6 +56,7 @@ const PatchSchema = z.object({
   content: z.string().optional(),
   status: z.enum(['DRAFT', 'FINAL']).optional(),
   name: z.string().min(1).optional(),
+  category: z.string().optional(),
 })
 
 export async function PATCH(request: Request, { params }: Params) {
@@ -87,14 +89,18 @@ export async function PATCH(request: Request, { params }: Params) {
   const parsed = PatchSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Invalid fields. Accepts: content (string), status (DRAFT|FINAL), name (string)' },
+      { error: 'Invalid fields. Accepts: content (string), status (DRAFT|FINAL), name (string), category (string)' },
       { status: 400 }
     )
   }
 
+  const updateData: Record<string, unknown> = { ...parsed.data }
+  if (parsed.data.category) {
+    updateData.category = parsed.data.category as DocumentCategory
+  }
   const updated = await db.document.update({
     where: { id: docId },
-    data: parsed.data,
+    data: updateData,
   })
 
   if (parsed.data.content) {

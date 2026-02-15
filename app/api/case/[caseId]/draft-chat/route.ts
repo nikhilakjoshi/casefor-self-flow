@@ -28,6 +28,7 @@ export async function POST(
     documentName,
     category,
     recommenderId,
+    templateInputs,
   } = body;
 
   let docId = documentId as string | undefined;
@@ -100,6 +101,9 @@ export async function POST(
     documentId: docId,
     documentName: docName,
     existingContent,
+    category: category as string | undefined,
+    recommenderId: recommenderId as string | undefined,
+    templateInputs: templateInputs as Record<string, string> | undefined,
     onFinish: async (text) => {
       if (text) {
         // Save assistant message

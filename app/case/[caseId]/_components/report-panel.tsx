@@ -4,13 +4,11 @@ import { useEffect, useState, useCallback, useMemo } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ExtractionRawPanel } from "./extraction-raw-panel"
-import { StrengthEvaluationPanel } from "./strength-evaluation-panel"
-import { GapAnalysisPanel } from "./gap-analysis-panel"
-import { CaseStrategyPanel } from "./case-strategy-panel"
+import { CriteriaTab } from "./criteria-tab"
+import { PlanningTab } from "./planning-tab"
 import { EvidenceListPanel } from "./evidence-list-panel"
 import { CriteriaRoutingPanel } from "./criteria-routing-panel"
-import { CaseConsolidationPanel } from "./case-consolidation-panel"
-import { CaseStrategyConsolidatedPanel } from "./case-strategy-consolidated-panel"
+import { ConsolidationTab } from "./consolidation-tab"
 import { LettersPanel } from "./letters-panel"
 import { DenialProbabilityPanel } from "./denial-probability-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
@@ -264,6 +262,7 @@ function CriterionSection({
   docCountsByItem,
   onNavigateToRouting,
   onCriterionUpdated,
+  onFileDropped,
 }: {
   criterion: CriterionResult
   criteriaNames?: Record<string, string>
@@ -274,6 +273,7 @@ function CriterionSection({
   docCountsByItem?: Record<string, number>
   onNavigateToRouting: () => void
   onCriterionUpdated: (criterionId: string, result: { strength: Strength; reason: string; evidence: string[] }) => void
+  onFileDropped?: () => void
 }) {
   const config = getStrengthConfig(criterion.strength)
   const [expanded, setExpanded] = useState(criterion.strength !== "None")
@@ -323,12 +323,51 @@ function CriterionSection({
       if (!res.ok) throw new Error("Evaluation failed")
       const data = await res.json()
       onCriterionUpdated(criterion.criterionId, data)
+
+      // Show post-drop feedback based on evidence verification result
+      if (data.verification) {
+        const v = data.verification as { recommendation: string; score: number; verified_claims: string[]; red_flags: string[] }
+        if (v.recommendation === "STRONG") {
+          toast.success(`Evidence verified for ${displayName}`, {
+            description: v.verified_claims.length > 0
+              ? v.verified_claims.slice(0, 2).join("; ")
+              : `Score: ${v.score}/10`,
+            duration: 6000,
+          })
+        } else if (v.recommendation === "INCLUDE_WITH_SUPPORT") {
+          toast(`Partially relevant evidence for ${displayName}`, {
+            description: [
+              v.verified_claims.length > 0 ? `Verified: ${v.verified_claims[0]}` : null,
+              v.red_flags.length > 0 ? `Gaps: ${v.red_flags[0]}` : null,
+            ].filter(Boolean).join(" | "),
+            duration: 8000,
+          })
+        } else if (v.recommendation === "NEEDS_MORE_DOCS") {
+          toast(`Weak evidence for ${displayName}`, {
+            description: v.red_flags.length > 0
+              ? v.red_flags.slice(0, 2).join("; ")
+              : "Additional documentation recommended",
+            duration: 8000,
+          })
+        } else {
+          toast.error(`Not relevant to ${displayName}`, {
+            description: v.red_flags.length > 0
+              ? v.red_flags[0]
+              : "This document may be better suited for a different criterion",
+            duration: 8000,
+          })
+        }
+      }
+
+      // Refresh doc counts so evidence badges update
+      onFileDropped?.()
     } catch (err) {
       console.error("Criterion file eval error:", err)
+      toast.error("Failed to evaluate dropped file")
     } finally {
       setEvaluating(false)
     }
-  }, [caseId, criterion.criterionId, evaluating, onCriterionUpdated])
+  }, [caseId, criterion.criterionId, evaluating, onCriterionUpdated, displayName, onFileDropped])
 
   const handleContextSubmit = useCallback(async () => {
     if (!contextText.trim() || evaluating) return
@@ -536,16 +575,20 @@ function CriterionSection({
                       return (
                       <div key={j} className="group/item flex items-center gap-1.5 text-xs text-foreground/80 pl-4 py-0.5">
                         <span className="flex-1"><ItemSummary item={item} category={category} /></span>
-                        {itemDocCount > 0 && (
+                        {itemDocCount > 0 ? (
                           <span
                             role="button"
                             tabIndex={0}
                             onClick={(e) => { e.stopPropagation(); onNavigateToRouting() }}
                             onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onNavigateToRouting() } }}
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 hover:bg-teal-200 dark:hover:bg-teal-900/60 transition-colors shrink-0 cursor-pointer"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 transition-colors shrink-0 cursor-pointer"
                           >
                             <FileText className="w-2.5 h-2.5" />
-                            {itemDocCount}
+                            Evidence in Vault
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
+                            Evidence Required
                           </span>
                         )}
                         <button
@@ -613,7 +656,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "strength" | "gap" | "strategy" | "evidence" | "routing" | "consolidation" | "consolidated-strategy" | "letters" | "denial" | "raw"
+type ReportTab = "summary" | "planning" | "evidence" | "routing" | "consolidation" | "letters" | "denial" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -634,7 +677,7 @@ export function ReportPanel({
   const router = useRouter()
   const pathname = usePathname()
 
-  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "strength", "gap", "strategy", "evidence", "routing", "consolidation", "consolidated-strategy", "letters", "denial", "raw"]), [])
+  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "planning", "evidence", "routing", "consolidation", "letters", "denial", "raw"]), [])
   const subtabParam = searchParams.get('subtab')
   const initialSubTab = subtabParam && validSubTabs.has(subtabParam as ReportTab)
     ? (subtabParam as ReportTab)
@@ -708,6 +751,43 @@ export function ReportPanel({
     }
   }, [caseId, version, onThresholdChange, onStrongCountChange])
 
+  const refetchDocCounts = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/case/${caseId}/analysis`, { cache: "no-store" })
+      if (res.ok) {
+        const data = await res.json()
+        if (data) {
+          setAnalysis((prev) => prev ? {
+            ...prev,
+            docCountsByCriterion: data.docCountsByCriterion,
+            docCountsByItem: data.docCountsByItem,
+          } : prev)
+        }
+      }
+    } catch { /* non-fatal */ }
+  }, [caseId])
+
+  const handleCriterionUpdated = useCallback(
+    (criterionId: string, result: { strength: Strength; reason: string; evidence: string[] }) => {
+      setAnalysis((prev) => {
+        if (!prev) return prev
+        const updatedCriteria = prev.criteria.map((c) =>
+          c.criterionId === criterionId ? { ...c, ...result } : c
+        )
+        const updatedSummary = prev.criteria_summary?.map((s) =>
+          s.criterion_id === criterionId
+            ? { ...s, strength: result.strength, summary: result.reason, key_evidence: result.evidence, evidence_count: result.evidence.length }
+            : s
+        )
+        const strongCount = updatedCriteria.filter((c) => c.strength === "Strong").length
+        const weakCount = updatedCriteria.filter((c) => c.strength === "Weak").length
+        onStrongCountChange?.(strongCount)
+        return { ...prev, criteria: updatedCriteria, criteria_summary: updatedSummary, strongCount, weakCount }
+      })
+    },
+    [onStrongCountChange]
+  )
+
   if (!analysis) {
     return (
       <div className="h-full flex items-center justify-center p-4">
@@ -747,27 +827,6 @@ export function ReportPanel({
       onThresholdChange?.(prev)
     }
   }
-
-  const handleCriterionUpdated = useCallback(
-    (criterionId: string, result: { strength: Strength; reason: string; evidence: string[] }) => {
-      setAnalysis((prev) => {
-        if (!prev) return prev
-        const updatedCriteria = prev.criteria.map((c) =>
-          c.criterionId === criterionId ? { ...c, ...result } : c
-        )
-        const updatedSummary = prev.criteria_summary?.map((s) =>
-          s.criterion_id === criterionId
-            ? { ...s, strength: result.strength, summary: result.reason, key_evidence: result.evidence, evidence_count: result.evidence.length }
-            : s
-        )
-        const strongCount = updatedCriteria.filter((c) => c.strength === "Strong").length
-        const weakCount = updatedCriteria.filter((c) => c.strength === "Weak").length
-        onStrongCountChange?.(strongCount)
-        return { ...prev, criteria: updatedCriteria, criteria_summary: updatedSummary, strongCount, weakCount }
-      })
-    },
-    [onStrongCountChange]
-  )
 
   const hasExtraction = !!analysis.extraction
 
@@ -820,55 +879,23 @@ export function ReportPanel({
                       Criteria
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">EB-1A criteria breakdown with evidence mapping</TooltipContent>
+                  <TooltipContent side="bottom">Criteria breakdown, strength evaluation, and tier scoring</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => handleSubTabChange("strength")}
+                      onClick={() => handleSubTabChange("planning")}
                       className={cn(
                         "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                        activeTab === "strength"
+                        activeTab === "planning"
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground hover:bg-background/60"
                       )}
                     >
-                      Strength Eval
+                      Planning
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Tier scoring and Kazarian two-step assessment</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleSubTabChange("gap")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                        activeTab === "gap"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                      )}
-                    >
-                      Gap Analysis
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Prioritized gaps with AAO-informed action plans</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleSubTabChange("strategy")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                        activeTab === "strategy"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                      )}
-                    >
-                      Strategy
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Filing strategy and evidence building roadmap</TooltipContent>
+                  <TooltipContent side="bottom">Gap analysis, filing strategy, and evidence roadmap</TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -940,23 +967,7 @@ export function ReportPanel({
                       Consolidation
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Merged analysis across all criteria and evidence</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleSubTabChange("consolidated-strategy")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                        activeTab === "consolidated-strategy"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                      )}
-                    >
-                      Strategy
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Post-consolidation filing strategy</TooltipContent>
+                  <TooltipContent side="bottom">Consolidated analysis, strategy, and filing readiness</TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -1033,61 +1044,52 @@ export function ReportPanel({
 
       {/* Tab content */}
       {activeTab === "summary" ? (
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {analysis.criteria.map((c) => {
-            const cs = analysis.criteria_summary?.find(
-              (s) => s.criterion_id === c.criterionId
-            )
-            return (
-              <CriterionSection
-                key={c.criterionId}
-                criterion={c}
-                criteriaNames={analysis.criteriaNames}
-                criteriaSummary={cs}
-                extraction={analysis.extraction}
-                caseId={caseId}
-                docCount={analysis.docCountsByCriterion?.[c.criterionId] ?? 0}
-                docCountsByItem={analysis.docCountsByItem}
-                onNavigateToRouting={() => handleSubTabChange("routing")}
-                onCriterionUpdated={handleCriterionUpdated}
-              />
-            )
-          })}
-        </div>
-      ) : activeTab === "strength" ? (
-        <StrengthEvaluationPanel
+        <CriteriaTab
           caseId={caseId}
-          initialData={initialStrengthEvaluation}
+          criteriaContent={
+            analysis.criteria.map((c) => {
+              const cs = analysis.criteria_summary?.find(
+                (s) => s.criterion_id === c.criterionId
+              )
+              return (
+                <CriterionSection
+                  key={c.criterionId}
+                  criterion={c}
+                  criteriaNames={analysis.criteriaNames}
+                  criteriaSummary={cs}
+                  extraction={analysis.extraction}
+                  caseId={caseId}
+                  docCount={analysis.docCountsByCriterion?.[c.criterionId] ?? 0}
+                  docCountsByItem={analysis.docCountsByItem}
+                  onNavigateToRouting={() => handleSubTabChange("routing")}
+                  onCriterionUpdated={handleCriterionUpdated}
+                  onFileDropped={refetchDocCounts}
+                />
+              )
+            })
+          }
+          initialStrengthEvaluation={initialStrengthEvaluation}
         />
-      ) : activeTab === "gap" ? (
-        <GapAnalysisPanel
+      ) : activeTab === "planning" ? (
+        <PlanningTab
           caseId={caseId}
-          initialData={initialGapAnalysis}
+          initialGapAnalysis={initialGapAnalysis}
+          initialCaseStrategy={initialCaseStrategy}
           hasStrengthEval={!!initialStrengthEvaluation}
-        />
-      ) : activeTab === "strategy" ? (
-        <CaseStrategyPanel
-          caseId={caseId}
-          initialData={initialCaseStrategy}
-          hasGapAnalysis={!!initialGapAnalysis}
         />
       ) : activeTab === "evidence" ? (
         <EvidenceListPanel caseId={caseId} onDocumentsRouted={onDocumentsRouted} />
       ) : activeTab === "routing" ? (
         <CriteriaRoutingPanel caseId={caseId} />
       ) : activeTab === "consolidation" ? (
-        <CaseConsolidationPanel
+        <ConsolidationTab
           caseId={caseId}
-          initialData={initialCaseConsolidation}
-          hasCaseStrategy={!!initialCaseStrategy}
-        />
-      ) : activeTab === "consolidated-strategy" ? (
-        <CaseStrategyConsolidatedPanel
-          initialData={initialCaseConsolidation}
+          initialCaseConsolidation={initialCaseConsolidation}
+          initialCaseStrategy={!!initialCaseStrategy}
         />
       ) : activeTab === "letters" ? (
         <div className="flex-1 overflow-y-auto">
-          <LettersPanel caseId={caseId} onOpenDraft={onOpenDraft ?? (() => {})} />
+          <LettersPanel caseId={caseId} onOpenDraft={onOpenDraft ?? (() => {})} denialProbability={initialDenialProbability} />
         </div>
       ) : activeTab === "denial" ? (
         <DenialProbabilityPanel

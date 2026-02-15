@@ -19,23 +19,34 @@ const ClassificationSchema = z.object({
     "SALARY_DOCUMENTATION",
     "CITATION_REPORT",
     "JUDGING_EVIDENCE",
+    "PERSONAL_STATEMENT",
+    "PETITION_LETTER",
     "PASSPORT_ID",
     "DEGREE_CERTIFICATE",
+    "COVER_LETTER",
+    "USCIS_ADVISORY_LETTER",
+    "G1450PPU",
+    "G1450300",
+    "G1450I40",
+    "G28",
+    "I140",
+    "I907",
     "OTHER",
   ]),
   confidence: z.number().describe("Confidence score between 0 and 1"),
 });
 
+export interface ClassificationResult {
+  category: string
+  confidence: number
+}
+
 export async function classifyDocument(
   documentId: string,
   fileName: string,
   content?: string | null
-): Promise<void> {
+): Promise<ClassificationResult | null> {
   try {
-    const input = content
-      ? `Filename: ${fileName}\n\nContent (first 1500 chars):\n${content.slice(0, 1500)}`
-      : `Filename: ${fileName}`;
-
     const FALLBACK_PROMPT = `Classify this immigration case document into one of the categories. Return the best-fit category and your confidence (0-1).
 
 Categories:
@@ -50,9 +61,21 @@ Categories:
 - SALARY_DOCUMENTATION: Pay stubs, tax returns, or compensation evidence
 - CITATION_REPORT: Citation metrics, Google Scholar report, or impact data
 - JUDGING_EVIDENCE: Evidence of judging, reviewing, or evaluating others' work
+- PERSONAL_STATEMENT: Personal statement or declaration
+- PETITION_LETTER: Petition letter or legal brief
 - PASSPORT_ID: Passport, ID, or identity document
 - DEGREE_CERTIFICATE: Academic degree, diploma, or transcript
+- COVER_LETTER: Cover letter for the petition package
+- USCIS_ADVISORY_LETTER: USCIS advisory or expert opinion letter
+- G1450PPU: USCIS Form G-1450 for Premium Processing Unit fee
+- G1450300: USCIS Form G-1450 for $300 fee payment
+- G1450I40: USCIS Form G-1450 for I-40 fee payment
+- G28: USCIS Form G-28 Notice of Entry of Appearance as Attorney
+- I140: USCIS Form I-140 Immigrant Petition for Alien Workers
+- I907: USCIS Form I-907 Request for Premium Processing Service
 - OTHER: Does not fit any above category
+
+Filename pattern hints: files containing "g-28" or "g28" -> G28, "i-140" or "i140" -> I140, "i-907" or "i907" -> I907, "g-1450" or "g1450" -> one of the G1450 variants, "cover" -> COVER_LETTER, "advisory" or "expert opinion" -> USCIS_ADVISORY_LETTER.
 
 {{fileName}}
 {{content}}`;
@@ -77,7 +100,10 @@ Categories:
         classificationConfidence: object.confidence,
       },
     });
+
+    return { category: object.category, confidence: object.confidence }
   } catch (err) {
     console.error(`[DocumentClassifier] Failed for ${documentId}:`, err);
+    return null
   }
 }

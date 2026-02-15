@@ -912,3 +912,591 @@
 - File matching by name assumes unique names within batch
 - PRD complete: all tasks pass
 - Pre-existing lint errors unchanged
+
+## 2026-02-14: DocumentCategory Enum + Classifier Update (PRD R6 Tasks 19, 24)
+
+### Completed
+
+- Added 8 new values to `DocumentCategory` enum in `prisma/schema.prisma`: COVER_LETTER, USCIS_ADVISORY_LETTER, G1450PPU, G1450300, G1450I40, G28, I140, I907
+- Ran `prisma generate` + `prisma db push` -- schema synced w/ no conflicts
+- Updated `lib/document-classifier.ts` ClassificationSchema: added all new categories + PERSONAL_STATEMENT, PETITION_LETTER (were in DB enum but missing from classifier)
+- Updated fallback classification prompt w/ descriptions for all new categories
+- Added filename pattern hints for USCIS form identification (g-28->G28, i-140->I140, etc.)
+
+### Notes for Next Dev
+
+- DocumentCategory enum now has 24 values (was 16)
+- Classifier schema now matches DB enum exactly (was missing PERSONAL_STATEMENT, PETITION_LETTER before)
+- Used `prisma db push` not `prisma migrate dev` (consistent w/ project convention)
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 tasks 20-23,25 (letters-panel LETTER_TYPES expansion, upload-only cards, drop zones) or R2 tasks 6-8 (tab merging)
+
+## 2026-02-15: CriteriaKeys on Recommender (PRD R4 Tasks 13-16)
+
+### Completed
+
+- Added `criteriaKeys String[] @default([])` to Recommender model in `prisma/schema.prisma`
+- Ran `prisma generate` + `prisma db push` -- schema synced w/ no data loss
+- Updated `app/api/case/[caseId]/recommenders/route.ts` POST: added `criteriaKeys: z.array(z.string()).optional().default([])` to CreateRecommenderSchema, passes through to `db.recommender.create()`
+- Updated `app/api/case/[caseId]/recommenders/[recommenderId]/route.ts` PATCH: added `criteriaKeys: z.array(z.string()).optional()` to PatchSchema, sets on update
+- GET handlers already return all fields so criteriaKeys included automatically
+- Added collapsible "Criteria Mapping" section to `recommender-form.tsx` w/ C1-C10 checkboxes using `CRITERIA_LABELS` from `lib/evidence-verification-schema.ts`
+- Added `criteriaKeys` to `RecommenderData` interface, form state, and submit payload
+- Added criteria pills to recommender sub-cards in `letters-panel.tsx`: blue pills showing C1-C10 keys, truncated to 3 w/ "+N more" overflow
+- Added `criteriaKeys` to letters-panel `Recommender` interface
+- Soft guidance text: "Select criteria this recommender can speak to (recommended: up to 5)"
+- Typecheck passes; no new lint issues (pre-existing 13 errors, 27 warnings unchanged)
+
+### Notes for Next Dev
+
+- CriteriaKeys use C1-C10 format (matching CRITERIA_LABELS from evidence-verification-schema.ts), not the DB criterionKey format (awards, membership, etc.)
+- Criteria list is static from CRITERIA_LABELS (not dynamically fetched from case analysis); sufficient for EB-1A which always has 10 criteria
+- Criteria pills on recommender cards show key (C1) with full label on hover via title attribute
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 tasks 20-23,25 (letters-panel expansion) or R1 tasks (skip-to-survey, resume gen)
+
+## 2026-02-15: Phase 1 Tab Consolidation (PRD R2 Tasks 6-8)
+
+### Completed
+
+- Created `app/case/[caseId]/_components/criteria-tab.tsx`: merges Criteria + Strength Eval into single tab w/ collapsible sections
+  - Section 1 "Criteria": renders inline CriterionSection cards (passed as `criteriaContent` ReactNode prop)
+  - Section 2 "Strength Evaluation": renders StrengthEvaluationPanel
+  - Default: Criteria expanded, Strength Eval collapsed
+  - Uses ChevronDown icon w/ rotation for expand/collapse indicator
+- Created `app/case/[caseId]/_components/planning-tab.tsx`: merges Gap Analysis + Case Strategy into single tab w/ collapsible sections
+  - Section 1 "Gap Analysis": renders GapAnalysisPanel w/ hasStrengthEval prop
+  - Section 2 "Case Strategy": renders CaseStrategyPanel w/ hasGapAnalysis derived from initialGapAnalysis
+  - Default: Gap Analysis expanded, Strategy collapsed
+- Updated `report-panel.tsx` Phase 1 tabs: replaced 4 tabs (Criteria, Strength Eval, Gap Analysis, Strategy) w/ 2 tabs (Criteria, Planning)
+  - Removed `ReportTab` values: "strength", "gap", "strategy"; added "planning"
+  - Updated `validSubTabs` set accordingly
+  - Replaced direct imports of StrengthEvaluationPanel/GapAnalysisPanel/CaseStrategyPanel w/ CriteriaTab/PlanningTab
+  - Tab content routing updated: "summary" -> CriteriaTab, "planning" -> PlanningTab
+  - Tooltip descriptions updated to reflect merged content
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- CriteriaTab accepts `criteriaContent: React.ReactNode` for the inline criteria list -- keeps CriterionSection rendering logic in report-panel where it has access to analysis state + callbacks
+- Old URL subtab values "strength", "gap", "strategy" will fall back to "summary" default (no backward-compat shim needed; these are session-only URL params)
+- Type imports for StrengthEvaluation, GapAnalysis, CaseStrategy kept in report-panel.tsx since they're still used in ReportPanelProps interface (passed through to child components)
+- Collapsible sections use manual state + conditional rendering (not Radix Collapsible primitive) for simpler integration w/ the sub-panel components which manage their own scroll/overflow
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 tasks 20-23,25 (letters-panel expansion) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges)
+
+## 2026-02-15: Phase 3 Tab Consolidation (PRD R5 Tasks 17-18)
+
+### Completed
+
+- Created `app/case/[caseId]/_components/consolidation-tab.tsx`: merges Consolidation + Strategy into single tab w/ collapsible sections
+  - Section 1 "Consolidation": renders CaseConsolidationPanel w/ `{caseId, initialData, hasCaseStrategy}`, default expanded
+  - Section 2 "Strategy": renders CaseStrategyConsolidatedPanel w/ `{initialData}`, default collapsed
+- Updated `report-panel.tsx` Phase 3 tabs: replaced 2 tabs (Consolidation, Strategy) w/ 1 tab (Consolidation)
+  - Removed `"consolidated-strategy"` from `ReportTab` type and `validSubTabs` set
+  - Replaced direct imports of CaseConsolidationPanel/CaseStrategyConsolidatedPanel w/ ConsolidationTab
+  - Tab content routing updated: single "consolidation" branch renders ConsolidationTab
+  - Tooltip description updated to reflect merged content
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- Same pattern as R2 (CriteriaTab/PlanningTab): manual useState + conditional rendering for collapsible sections
+- ConsolidationTab accepts `initialCaseStrategy` as boolean (derived from `!!initialCaseStrategy` in report-panel), not the full CaseStrategy object; only needed for CaseConsolidationPanel's `hasCaseStrategy` prop
+- Old URL subtab value "consolidated-strategy" falls back to "summary" default (no backward-compat shim; session-only URL params)
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 tasks 20-23,25 (letters-panel expansion) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges)
+
+## 2026-02-15: Letters Panel LETTER_TYPES Expansion + Upload-Only Cards (PRD R6 Tasks 20-21)
+
+### Completed
+
+- Expanded `LETTER_TYPES` array in `letters-panel.tsx` from 4 entries to 11:
+  - Draftable (isDraftable: true): RECOMMENDATION_LETTER, COVER_LETTER, PERSONAL_STATEMENT, PETITION_LETTER, USCIS_ADVISORY_LETTER
+  - Upload-only (isDraftable: false): I140, I907, G28, G1450PPU, G1450300, G1450I40
+- Added `isDraftable` field to `LetterType` interface
+- Created `UploadOnlyCard` component w/ drag-drop + file input upload, category badge, file list
+  - Drag-over visual highlight (border-primary/50 bg-primary/5)
+  - Upload button triggers hidden file input; also accepts drag-drop
+  - Shows "N files" badge when docs exist for category
+  - Lists uploaded files w/ StatusDot + timestamp (same format as DraftRow)
+  - On upload, POSTs to `/api/case/{caseId}/documents` w/ `category` FormData field
+  - Success/error toasts via sonner
+- Updated `app/api/case/[caseId]/documents/route.ts` to accept optional `category` override in FormData
+  - When category provided, skips auto-classification (classifyDocument)
+  - Cast to `DocumentCategory` enum type for Prisma compatibility
+- Removed old generic "USCIS Form" card w/ `category: null`; replaced w/ individual form cards
+- Cleaned up `getDocsForCategory` null-category handler
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- Old USCIS Form card (category: null) removed; individual USCIS form cards now have real DocumentCategory values
+- Upload-only cards use sonner toast for feedback (consistent w/ csv-import-modal pattern)
+- Documents API `category` FormData field cast to `DocumentCategory` enum; invalid values cause Prisma runtime error (acceptable since UI sends known values)
+- UploadOnlyCard is local to letters-panel.tsx (not extracted to separate file)
+- RESUME_CV not added to LETTER_TYPES yet (part of R1 tasks)
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 task 22 (expandable cards) or R6 task 23 (global drop zone) or R7 tasks (USCIS links, e-sign placeholder)
+
+## 2026-02-15: Expandable Document Cards (PRD R6 Task 22)
+
+### Completed
+
+- Made all 3 card types in letters-panel.tsx expandable w/ collapsible file lists
+- **UploadOnlyCard**: collapsed by default, shows header + "N files" badge; click header to expand; auto-expands on upload; file rows show filename, source (System/Uploaded), status dot, timestamp
+- **DraftableCard**: extracted from inline render into standalone component; collapsed by default, shows header + "N drafts" badge; click header to expand; file rows use existing DraftRow component
+- **RecommenderCard**: extracted from inline render into standalone component; expanded by default (primary content); click header to collapse/expand; shows recommender sub-cards w/ their doc lists
+- All cards: ChevronDown icon w/ rotate-180 transition on expand; cursor-pointer on header only when docs exist; stopPropagation on action buttons (Upload/Draft/Add/Import CSV) to prevent toggle
+- Removed unused `Icon` variable from main LETTER_TYPES.map loop (now handled in each card component)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- RecommenderCard starts expanded by default (unlike other cards) since recommender sub-cards are primary content
+- DraftableCard and UploadOnlyCard start collapsed; only show chevron when docs exist
+- UploadOnlyCard auto-expands after successful upload via `setExpanded(true)` in success path
+- Source column in UploadOnlyCard shows "System" vs "Uploaded" (mapped from SYSTEM_GENERATED/USER_UPLOADED)
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 task 23 (global drop zone) or R7 tasks (USCIS links, e-sign placeholder) or R9 task 34 (denial data in drafting agent)
+
+## 2026-02-15: USCIS Form External Links (PRD R7 Task 1)
+
+### Completed
+
+- Added `uscisUrl` optional field to `LetterType` interface in `letters-panel.tsx`
+- Added USCIS URLs to all 6 upload-only form cards:
+  - I-140: https://www.uscis.gov/i-140
+  - I-907: https://www.uscis.gov/i-907
+  - G-28: https://www.uscis.gov/g-28
+  - G-1450 variants (PPU, 300, I40): https://www.uscis.gov/g-1450
+- Added `ExternalLink` icon import from lucide-react
+- UploadOnlyCard renders "Fill on USCIS" link as styled `<a>` tag w/ external link icon when `uscisUrl` is set
+- Link opens in new tab (`target="_blank"`, `rel="noopener noreferrer"`)
+- `stopPropagation` on link click to prevent card expand/collapse toggle
+- Styled as outline button variant (consistent w/ Upload button)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- USCIS URLs use the form landing pages (e.g., /i-140) which link to the actual fillable PDF and filing instructions
+- G-1450 variants all share the same USCIS URL (/g-1450) since it's a single form used for different fee types
+- "Fill on USCIS" link appears before the Upload button in the card header actions area
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R7 task 2 (e-sign placeholder) or R6 task 23 (global drop zone) or R6 task 25 (per-card drop zones)
+
+## 2026-02-15: Category-Specific Drafting Prompts (PRD R10 Tasks 1-4)
+
+### Completed
+
+- Added `COVER_LETTER` and `USCIS_ADVISORY` to `TemplateType` enum in `prisma/schema.prisma`
+- Ran `prisma generate` + `prisma db push` -- schema synced
+- Added 2 Template seeds in `prisma/seed.ts`: Cover Letter (COVER_LETTER type) and USCIS Advisory Letter (USCIS_ADVISORY type) w/ systemInstruction + defaultVariationContent
+- Added 2 AgentPrompt seeds in `prisma/agent-prompt-seeds.ts`:
+  - `cover-letter-drafter`: EB-1A cover letter prompt w/ legal structure (INA 203(b)(1)(A), 8 CFR 204.5(h)(3)), exhibit references, Kazarian two-step framework
+  - `uscis-letter-drafter`: expert opinion letter prompt w/ expert intro, field context, contribution assessment, peer comparison structure
+- Updated `lib/drafting-agent.ts`: added `getCategoryPromptSlug()` mapping DocumentCategory to prompt slug, `runDraftingAgent` now accepts `category` opt and loads category-specific prompt via `getPrompt()` before falling back to generic `drafting-agent` prompt
+- Updated `app/api/case/[caseId]/draft-chat/route.ts`: passes `category` through to `runDraftingAgent`
+- R10 task 4 (wire to DraftingPanel) was already implemented: DraftableCard calls `onOpenDraft({ category })`, DraftingPanel sends category to draft-chat API
+- Seed runs clean: 6 templates (was 4), agent prompts upserted
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- `getCategoryPromptSlug` maps COVER_LETTER -> "cover-letter-drafter", USCIS_ADVISORY_LETTER -> "uscis-letter-drafter"; returns null for other categories (falls back to generic drafting-agent prompt)
+- Category-specific prompts use same {{var}} substitution pattern as generic drafting-agent prompt (criteria, threshold, profile, analysis, documentName, existingContent)
+- Both category-specific prompts instruct agent to call getProfile + getAnalysis + searchDocuments before drafting
+- Denial engine data not yet integrated into drafting prompts (R9 task 34 still pending); cover letter prompt addresses weakness proactively but doesn't query denial probability
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R7 task 2 (e-sign placeholder) or R6 task 23 (global drop zone) or R11 tasks (template variations, template-resolver wiring)
+
+## 2026-02-15: E-Sign Placeholder Button (PRD R7 Task 2)
+
+### Completed
+
+- Added disabled "E-Sign" button w/ "Coming soon" tooltip to all 3 card types in `letters-panel.tsx`
+- **UploadOnlyCard**: E-Sign button after Upload button, before chevron
+- **DraftableCard**: E-Sign button after Draft button, before chevron
+- **RecommenderCard**: E-Sign button after Add button, before chevron
+- Uses Tooltip component from `components/ui/tooltip` (Radix-based)
+- Wrapped LettersPanel return in `<TooltipProvider>` for tooltip context
+- Button styled: `disabled`, `cursor-not-allowed`, `opacity-50`
+- `stopPropagation` on tooltip trigger wrapper to prevent card expand/collapse on click
+- Added `PenTool` icon from lucide-react for e-sign visual
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- E-Sign button is UI-only placeholder; no backend wiring
+- Tooltip trigger wraps Button in `<span tabIndex={0}>` since disabled buttons don't fire pointer events needed for tooltip
+- R7 is now fully complete (task 1: USCIS links done earlier, task 2: e-sign placeholder done)
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 task 23 (global drop zone w/ auto-categorization) or R6 task 25 (per-card drop zones for draftable cards) or R9 tasks (denial risk badge/banner) or R11 tasks (template variations, template-resolver wiring)
+
+## 2026-02-15: TemplateVariation Seeds per Relationship Type (PRD R11 Task 2)
+
+### Completed
+
+- Added 7 TemplateVariation seeds in `prisma/seed.ts` for the RECOMMENDATION_LETTER template
+- One variation per RelationshipType: ACADEMIC_ADVISOR, RESEARCH_COLLABORATOR, INDUSTRY_COLLEAGUE, SUPERVISOR, MENTEE, CLIENT, PEER_EXPERT
+- Each variation: matchField='relationshipType', matchValue=<RelationshipType enum value>
+- PEER_EXPERT set as isDefault: true (generic peer expert evaluation perspective)
+- Each variation provides relationship-specific structure (5-8 sections), tone guidance, and evidence emphasis
+- Variation IDs use deterministic format `{recLetterTemplateId}-{RelationshipType}` for idempotent upserts
+- Seed runs clean: "Upserted 7 recommendation letter TemplateVariation rows"
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- Variations are matched by `resolveVariation()` in `lib/template-resolver.ts` which does case-insensitive contains match on matchField/matchValue against profile data
+- PEER_EXPERT is the default variation -- used when no matching relationship type is found or when relationship type is OTHER
+- Each variation has distinct tone guidance: Academic (scholarly), Research (collegial), Industry (business-oriented), Supervisor (evaluative), Mentee (appreciative), Client (results-oriented), Peer Expert (analytical/independent)
+- The existing default variation (id: `{templateId}-default`) still exists alongside the new PEER_EXPERT default; resolveVariation returns first isDefault match, which will be the older default since it's ordered by createdAt asc. This is fine -- the PEER_EXPERT variation takes precedence via matchField/matchValue match when relationshipType is provided.
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R11 task 1 (wire drafting agent to template-resolver) or R11 task 3 (template input fields in DraftingPanel) or R9 tasks (denial risk badge/banner) or R6 tasks (global/per-card drop zones)
+
+## 2026-02-15: Wire Drafting Agent to Template-Resolver (PRD R11 Task 1)
+
+### Completed
+
+- Updated `lib/drafting-agent.ts`: imported `resolveVariation` from `./template-resolver`
+- Added `recommenderId` optional param to `runDraftingAgent` opts
+- Extended `db.case.findUnique` select to include `applicationTypeId` (needed for template ID construction)
+- After building instructions, when `category === 'RECOMMENDATION_LETTER'` and `recommenderId` provided:
+  - Fetches recommender from DB to get `relationshipType`
+  - Constructs template ID as `${applicationTypeId}-RECOMMENDATION_LETTER` (matches seed convention)
+  - Calls `resolveVariation(templateId, { relationshipType })` to find best-matching variation
+  - Appends variation content to instructions as `TEMPLATE VARIATION (label):` section
+  - Falls back to default variation if no relationship-type match (handled by resolveVariation)
+- Updated `app/api/case/[caseId]/draft-chat/route.ts`: passes `recommenderId` through to `runDraftingAgent`
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- Template ID convention: `${applicationTypeId}-RECOMMENDATION_LETTER` matches seed.ts deterministic ID format
+- `resolveVariation` handles fallback to default variation internally; if no variations exist at all, returns null and no variation section appended
+- `recommenderId` already flows from UI: letters-panel -> drafting-panel -> draft-chat API -> runDraftingAgent (was being captured in draft-chat but not forwarded before this change)
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R11 task 3 (template input fields in DraftingPanel) or R11 task 4 (group rec letters by relationship type) or R9 tasks (denial risk badge/banner) or R6 tasks (global/per-card drop zones)
+
+## 2026-02-15: Denial Engine Data in Drafting Agent (PRD R9 Task 34)
+
+### Completed
+
+- Added `getDenialProbability` tool to `createDraftingAgentTools()` in `lib/drafting-agent.ts`
+  - Queries `db.denialProbability.findFirst` for latest record by caseId, ordered by createdAt desc
+  - Returns `{ exists, data }` where data is the full DenialProbability JSON (risk factors, red flags, criterion risks, probability breakdown, recommendations)
+  - Returns `{ exists: false, data: null }` if no denial assessment exists yet
+- Updated hardcoded system prompt w/ two new sections:
+  - TOOL USAGE: added getDenialProbability instruction to check for denial risks before drafting
+  - DENIAL RISK AWARENESS: instructs agent to call getDenialProbability before drafting cover letters/personal statements/petition letters, address red flags + weak criteria, reinforce at-risk criteria in rec letters
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- getDenialProbability returns the raw JSON from DenialProbability.data field which includes both pass 1 (qualitative) and pass 2 (quantitative) data
+- Tool is available to all document categories (not just cover letters); agent prompt guides when to use it
+- No schema changes needed; DenialProbability model already exists w/ caseId index
+- Configurable prompt (via AgentPrompt DB) does NOT include the denial awareness section; only the hardcoded fallback prompt has it. Category-specific prompts (cover-letter-drafter, uscis-letter-drafter) should be updated separately if needed.
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R9 tasks 32-33 (denial risk badge/banner in UI) or R6 task 23 (global drop zone) or R11 tasks 3-4 (template inputs, rec letter grouping) or R8 tasks 29-30 (pdf-lib utilities)
+
+## 2026-02-15: PDF Utilities - Exhibit Separator + Page Numbering (PRD R8 Tasks 29-30)
+
+### Completed
+
+- Installed `pdf-lib` (1.17.1) via pnpm
+- Created `lib/exhibit-separator.ts`: generates single-page PDF separator with centered bold label + horizontal rule
+  - `generateSeparatorPage(label, options?)`: returns `Promise<Uint8Array>`
+  - Uses HelveticaBold for label, regular Helvetica for footer
+  - Optional params: `fontSize` (default 24), `pageSize` (default Letter)
+  - Horizontal rule below label (60% width, gray)
+  - Small "Separator Page" footer text at bottom center
+- Created `lib/pdf-numbering.ts`: adds sequential page numbers to existing PDF
+  - `addPageNumbers(pdfBytes)`: returns `Promise<Uint8Array>`
+  - Loads PDF, iterates all pages, draws "Page N of M" at bottom center
+  - Uses Helvetica 10pt, gray color (rgb 0.4)
+  - Position: centered horizontally, 24pt from bottom
+- Typecheck passes clean; no new lint issues (pre-existing 13 errors, 27 warnings unchanged)
+
+### Notes for Next Dev
+
+- Both utilities return raw `Uint8Array` PDF bytes; consumers can merge via `PDFDocument.load()` + `copyPages()`
+- `generateSeparatorPage` uses `PageSizes.Letter` constant from pdf-lib (612 x 792 points)
+- Page numbering y-position is 24pt from bottom; separator footer is 36pt -- no overlap concern since separator pages get numbered too
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R8 task 28 (assemble-package endpoint, deps on these utilities) or R8 task 31 (Assemble Package UI button) or R9 tasks 32-33 (denial risk badge/banner) or R6 task 23 (global drop zone)
+
+## 2026-02-15: Assemble Package Endpoint (PRD R8 Task 28)
+
+### Completed
+
+- Created `app/api/case/[caseId]/assemble-package/route.ts` with POST handler
+- Auth check + case ownership verification (same pattern as documents API)
+- Queries all Document records with `status: 'FINAL'` for the case
+- Groups documents by DocumentCategory, ordered by USCIS filing convention (forms first, then letters, then evidence)
+- Inserts exhibit separator pages between category groups (Exhibit A, B, C...)
+- For PDF documents w/ S3 key: fetches raw bytes via new `downloadFromS3()` helper
+- For documents w/ inline markdown content: converts to PDF via `markdownToPdf()` using pdf-lib text rendering
+- Merges all PDFs via `PDFDocument.copyPages()`, adds sequential page numbers via `addPageNumbers()`
+- Returns assembled PDF as downloadable response (`Content-Type: application/pdf`, `Content-Disposition: attachment`)
+- Added `downloadFromS3(key)` to `lib/s3.ts`: uses `GetObjectCommand` + `transformToByteArray()` to fetch raw bytes
+- Returns 400 if no FINAL documents exist or if no document content could be assembled
+- Typecheck passes clean; no new lint issues (pre-existing 13 errors, 27 warnings unchanged)
+
+### Notes for Next Dev
+
+- `markdownToPdf()` is a simple text renderer using pdf-lib (no rich markdown formatting); handles headings (bold), word wrapping, pagination
+- Assembly order follows USCIS convention: I-140 -> G-28 -> I-907 -> G-1450s -> Cover Letter -> Petition -> Personal Statement -> Advisory -> Rec Letters -> Resume -> Evidence docs -> Other
+- Exhibit labels use A-Z letters (Exhibit A, Exhibit B...); falls back to numeric (Exhibit 27) if >26 categories
+- Documents without S3 key and without inline content are silently skipped; documents that fail PDF parsing also skipped
+- `downloadFromS3` returns `Uint8Array` via `response.Body.transformToByteArray()`
+- Filename sanitized from case name: non-alphanumeric chars replaced w/ underscore
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R8 task 31 (Assemble Package UI button, deps met) or R9 tasks 32-33 (denial risk badge/banner) or R6 task 23 (global drop zone)
+
+## 2026-02-15: Assemble Package UI Button (PRD R8 Task 31)
+
+### Completed
+
+- Added "Assemble Package" button at bottom of letters-panel.tsx card list
+- Button POSTs to `/api/case/{caseId}/assemble-package`, downloads returned PDF blob
+- Loading state w/ spinner + "Assembling..." text during assembly
+- Button disabled when no FINAL-status documents exist; helper text shown
+- Success/error toasts via sonner
+- Browser download triggered via `URL.createObjectURL` + programmatic `<a>` click + cleanup
+- Filename extracted from Content-Disposition header, falls back to "package.pdf"
+- Added `Package` icon from lucide-react
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- R8 is now fully complete (tasks 28-31: exhibit separator, page numbering, assemble endpoint, UI button)
+- Button uses `documents.filter(d => d.status === 'FINAL').length === 0` for disabled state; computed inline (no useMemo since doc list is typically small)
+- Download uses createObjectURL pattern w/ revokeObjectURL cleanup to avoid memory leaks
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R9 tasks 32-33 (denial risk badge/banner in UI) or R6 task 23 (global drop zone) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges)
+
+## 2026-02-15: Denial Risk Badge + Banner (PRD R9 Tasks 32-33)
+
+### Completed
+
+- Added denial risk badge/pill to case page header bar in `client.tsx`
+  - Shows next to PhaseTabs w/ ShieldAlert icon + risk level label (Low/Medium/High/Very High Risk)
+  - Color-coded: emerald=LOW, amber=MEDIUM, orange=HIGH, red=VERY_HIGH
+  - Tooltip shows denial probability percentage on hover
+  - Uses `initialDenialProbability.overall_assessment` from existing server-fetched data (no additional API call)
+  - Hidden when no denial data exists
+- Added DenialRiskBanner component to top of LettersPanel in `letters-panel.tsx`
+  - Collapsible banner w/ risk level, percentage, summary text, and top 3 red flags
+  - Color-coded border + background matching risk level severity
+  - Collapsed by default; click to expand for details
+  - Red flag dots color-coded by severity (HIGH=red, MEDIUM=amber, LOW=stone)
+  - Hidden when no denial data available
+- Updated `report-panel.tsx` to pass `initialDenialProbability` through to LettersPanel
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- R9 is now fully complete (task 32: header badge, task 33: letters banner, task 34: drafting agent denial data done earlier)
+- Denial data flows: page.tsx (SSR fetch) -> client.tsx (prop) -> report-panel.tsx (prop) -> letters-panel.tsx (prop). No additional API calls needed.
+- Badge uses `initialDenialProbability` directly (not state); won't update if denial assessment re-runs during the session without page refresh. This is acceptable since denial assessments are infrequent.
+- DenialRiskBanner is local to letters-panel.tsx (not extracted); used only there
+- No Alert component (shadcn) exists; used inline styled div w/ cn() for the banner instead
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 task 23 (global drop zone) or R6 task 25 (per-card drop zones) or R1 tasks (skip-to-survey, survey-only endpoint, resume upload/gen) or R3 tasks (evidence badges, analysis endpoint extension) or R11 tasks (template inputs, rec letter grouping)
+
+## 2026-02-15: Rec Letter Grouping by Relationship Type (PRD R11 Task 4)
+
+### Completed
+
+- Updated `RecommenderCard` in `letters-panel.tsx` to group recommenders by `relationshipType`
+- Groups recommenders into a `Map<string, Recommender[]>` keyed by relationship type
+- Sort order follows `RELATIONSHIP_LABELS` key order (ACADEMIC_ADVISOR first, OTHER last)
+- Each group renders a section header: uppercase label w/ count (e.g. "ACADEMIC ADVISOR (2)")
+- Empty groups hidden automatically (only groups w/ recommenders render)
+- Recommender sub-cards within each group remain unchanged (name, title, org, criteria pills, Draft button, doc list)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 26 warnings)
+
+### Notes for Next Dev
+
+- Grouping uses IIFE `(() => { ... })()` inside JSX to compute groups inline w/o extracting to separate component
+- Groups sorted by `RELATIONSHIP_LABELS` key order (stable across renders); unknown types pushed to end
+- Empty state ("No recommenders added yet") still shows when `recommenders.length === 0` (before grouping logic)
+- Section headers use `text-[10px] font-semibold uppercase tracking-wider` for subtle visual separation
+- R11 is now 3/4 complete (task 1: template-resolver wiring, task 2: variation seeds, task 4: rec letter grouping); task 3 (template input fields in DraftingPanel) remains
+- Pre-existing lint errors unchanged (13 errors, 26 warnings)
+- Next priority: R11 task 3 (template inputs in DraftingPanel) or R6 tasks (global/per-card drop zones) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges)
+
+## 2026-02-15: Template Input Fields in DraftingPanel (PRD R11 Task 3)
+
+### Completed
+
+- Added collapsible "Template Inputs" section to `app/case/[caseId]/_components/drafting-panel.tsx` for RECOMMENDATION_LETTER documents
+  - 4 textarea fields: Relationship Context, Expertise Area, Key Contributions to Highlight, Specific Achievements to Reference
+  - 2-column grid layout, collapsible via chevron toggle
+  - Default expanded when category is RECOMMENDATION_LETTER
+  - Pre-fills relationshipContext and expertiseArea (from bio) by fetching recommender data via GET `/api/case/{caseId}/recommenders/{recommenderId}`
+- Updated `app/api/case/[caseId]/draft-chat/route.ts`: passes `templateInputs` from request body through to `runDraftingAgent`
+- Updated `lib/drafting-agent.ts`:
+  - Added `templateInputs?: Record<string, string>` to `runDraftingAgent` opts
+  - After template variation resolution, appends non-empty template inputs as `USER-PROVIDED TEMPLATE INPUTS:` section to system instructions
+- R11 is now fully complete (all 4 tasks: template-resolver wiring, variation seeds, template inputs, rec letter grouping)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 26 warnings)
+
+### Notes for Next Dev
+
+- Template inputs are sent via `templateInputsRef.current` (ref, not state) in the sendInstruction callback to avoid stale closures and unnecessary re-renders
+- Pre-fill maps recommender.relationshipContext -> relationshipContext field, recommender.bio -> expertiseArea field; keyContributions and specificAchievements start empty
+- Template inputs section only renders when `document?.category === 'RECOMMENDATION_LETTER'` (isRecLetter computed once from props)
+- didFetchRecRef guard prevents double-fetch of recommender data in React strict mode
+- Template inputs are appended to system instructions (not injected into user messages) so they persist across the drafting session
+- Pre-existing lint errors unchanged (13 errors, 26 warnings)
+- Next priority: R6 tasks (global/per-card drop zones) or R1 tasks (skip-to-survey, survey-only endpoint, resume upload/gen) or R3 tasks (evidence badges, criterion upload, analysis endpoint extension)
+
+## 2026-02-15: Per-Card Drop Zones (PRD R6 Task 25)
+
+### Completed
+
+- Added drag-drop upload to `DraftableCard` in `letters-panel.tsx`
+  - onDragOver/onDragLeave/onDrop handlers on card container
+  - Visual drag-over highlight (border-primary/50 bg-primary/5) w/ transition-colors
+  - On drop, POSTs to `/api/case/{caseId}/documents` w/ explicit `category` from card's letterType
+  - Upload button + hidden file input for click-to-upload alternative
+  - Auto-expands card on successful upload
+  - Success/error toasts via sonner
+- Added drag-drop upload to `RecommenderCard` in `letters-panel.tsx`
+  - Same drag-drop pattern as DraftableCard
+  - Drops upload w/ category `RECOMMENDATION_LETTER`
+  - Upload button in header actions area
+- Both cards: `onUploaded` callback triggers `fetchData` to refresh document list
+- Auto-classification skipped when `category` FormData field present (existing API behavior from R6 task 21)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 26 warnings)
+
+### Notes for Next Dev
+
+- DraftableCard now has both Draft + Upload buttons; Upload uses same file input pattern as UploadOnlyCard
+- RecommenderCard drop assigns category RECOMMENDATION_LETTER (not linked to specific recommender); recommender linking happens via Draft flow which passes recommenderId
+- All 3 card types (UploadOnlyCard, DraftableCard, RecommenderCard) now support drag-drop upload
+- stopPropagation on Upload button prevents card expand/collapse toggle
+- Pre-existing lint errors unchanged (13 errors, 26 warnings)
+- Next priority: R6 task 23 (global drop zone w/ auto-categorization) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges, criterion upload)
+
+## 2026-02-15: Global Drop Zone w/ Auto-Categorization (PRD R6 Task 23)
+
+### Completed
+
+- Added global drop zone overlay to `LettersPanel` in `letters-panel.tsx`
+  - Wraps entire panel content in a div w/ drag event handlers
+  - Shows full-panel overlay on drag-over w/ FolderUp icon + "Drop to upload & auto-categorize" text
+  - Shows Loader2 spinner + "Classifying document..." during upload/classification
+  - Uses dragEnter/dragLeave counter ref to prevent flickering from child element events
+- Updated `lib/document-classifier.ts`: `classifyDocument` now returns `ClassificationResult | null` (was `void`)
+  - Exported `ClassificationResult` interface: `{ category: string, confidence: number }`
+- Updated `app/api/case/[caseId]/documents/route.ts`: added `classifySync` FormData field support
+  - When `classifySync=true`, awaits classification and returns `category` + `classificationConfidence` in response
+  - When `classifySync` not set, fire-and-forget behavior unchanged (backward-compatible)
+- Updated `app/api/case/[caseId]/documents/[docId]/route.ts`: added `category` to PATCH schema
+  - Allows updating document category after user selection in picker dialog
+  - Uses `DocumentCategory` type cast (same pattern as POST route)
+- Created `CategoryPickerDialog` component in `letters-panel.tsx`
+  - Shows scrollable list of all 24 DocumentCategory values w/ human-readable labels
+  - Highlights suggested category (from AI classification) w/ primary border + "Suggested" tag
+  - On selection, PATCHes document w/ chosen category, shows success toast, triggers data refresh
+- Auto-categorization flow: confidence > 0.7 = auto-assign + toast; <= 0.7 = open picker dialog
+- R6 is now fully complete (all tasks 19-25 pass)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 25 warnings)
+
+### Notes for Next Dev
+
+- Global drop zone uses dragEnter/dragLeave counter ref (`globalDragCounterRef`) to prevent overlay flickering; counter tracks nested child element drag events
+- `classifySync` is a FormData field (not query param) to keep it alongside the file upload; only the global drop zone sends it
+- Per-card drop zones (R6 task 25) still skip classification by sending explicit `category` -- unaffected by this change
+- CategoryPickerDialog uses CATEGORY_LABELS map (local to letters-panel.tsx) for human-readable display names
+- Document PATCH now accepts optional `category` field; no Zod enum validation (trusted UI sends known values)
+- Pre-existing lint errors unchanged (13 errors, 25 warnings)
+- Next priority: R1 tasks (skip-to-survey, survey-only endpoint, resume upload/gen) or R3 tasks (evidence badges, criterion upload, analysis endpoint extension)
+
+## 2026-02-15: Skip-to-Survey + Resume Upload/Generation (PRD R1 Tasks 1-5)
+
+### Completed
+
+- Created `app/api/cases/create-survey-only/route.ts` POST endpoint
+  - Auth check (optional -- supports anonymous users w/ cookie like /api/extract)
+  - Creates Case w/ status SCREENING, intakeStatus PENDING, no ResumeUpload
+  - Creates empty CaseProfile (data: {})
+  - Returns `{ caseId, caseName }` for onboard page flow
+  - Sets pendingCaseId cookie for anonymous users
+- Added "Skip to Survey" button in `app/onboard/page.tsx`
+  - Appears below dropzone in upload phase w/ subtitle "No resume? Fill out the survey manually"
+  - On click, POSTs to `/api/cases/create-survey-only`, sets caseId, transitions to survey phase
+  - handleSurveyComplete updated: when no file uploaded (skip-to-survey flow), redirects to `/case/{caseId}` instead of triggering file analysis
+  - Existing file upload flow unchanged
+- Added resume upload zone in `documents-panel.tsx`
+  - Dedicated resume section between checklist and "All Documents" header
+  - Shows current resume status (filename if uploaded, "No resume uploaded" otherwise)
+  - Upload/Replace button POSTs to `/api/case/{caseId}/documents` w/ category=RESUME_CV
+  - Finds existing RESUME_CV doc from document list to show status
+- Created `app/api/case/[caseId]/generate-resume/route.ts` POST endpoint
+  - Auth check + case ownership verification
+  - Creates Document w/ category RESUME_CV, source SYSTEM_GENERATED, status DRAFT
+  - Calls `runDraftingAgent` w/ category RESUME_CV to resolve resume-drafter prompt
+  - Streams markdown resume content; saves to document on completion
+  - Returns X-Document-Id header for client
+- Added RESUME_CV to `getCategoryPromptSlug` in `lib/drafting-agent.ts` -> maps to "resume-drafter"
+- Added `resume-drafter` AgentPrompt seed in `prisma/agent-prompt-seeds.ts`
+  - Professional resume structure: header, summary, education, experience, awards, publications, patents, memberships, judging, speaking, media, skills
+  - Instructs agent to call getProfile + getAnalysis + searchDocuments before drafting
+  - Omits empty sections; quantifies impact; orders by EB-1A evidence strength
+- Added Resume/CV card to `LETTER_TYPES` in `letters-panel.tsx`
+  - First card in list w/ teal gradient, FileText icon
+  - isDraftable: true -- Draft button opens DraftingPanel w/ category RESUME_CV
+  - Upload/drop also supported via existing DraftableCard drag-drop infrastructure
+  - Existing resume documents shown on card via category filter
+- R1 is now fully complete (all 5 tasks pass)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 25 warnings)
+
+### Notes for Next Dev
+
+- Survey-only flow: onboard page -> skip to survey -> survey completes -> redirect to case page (no analysis run during onboard; user triggers analysis later from case page)
+- Resume upload in documents-panel uses the general documents POST API w/ `category` override (same pattern as letters-panel upload-only cards)
+- Resume replacement creates a new Document w/ RESUME_CV category; old resume docs remain in document list (no automatic deletion of previous versions)
+- generate-resume endpoint is a standalone one-shot generation; the Draft button on the Resume card uses the standard draft-chat flow which also resolves the resume-drafter prompt
+- resume-drafter prompt is a DB-stored AgentPrompt; requires running `npx prisma db seed` to upsert
+- Pre-existing lint errors unchanged (13 errors, 25 warnings)
+- Next priority: R3 tasks (evidence badges, criterion upload, analysis endpoint extension) -- last remaining `passes: false` features
+
+## 2026-02-15: Evidence Badges + Criterion Drop Verification (PRD R3 Tasks 8-11)
+
+### Completed
+
+- **R3 Task 10** (analysis endpoint per-item counts): was already implemented; `docCountsByItem` returned from GET `/api/case/{caseId}/analysis`
+- **R3 Task 8** (criterion POST evidence routing): updated `app/api/case/[caseId]/criterion/route.ts`
+  - After file upload + criterion evaluation, runs `runSingleCriterionVerification()` for the target criterion only
+  - Creates `DocumentCriterionRouting` record w/ `autoRouted: false` (user explicitly chose criterion)
+  - Returns `verification` object in response: `{ score, recommendation, verified_claims, red_flags, matched_item_ids }`
+  - Added `runSingleCriterionVerification()` export to `lib/evidence-verification.ts` (runs single criterion instead of all 10)
+- **R3 Task 9** (evidence badges): updated criterion card item rendering in `report-panel.tsx`
+  - Items w/ `docCountsByItem[itemId] > 0`: green "Evidence in Vault" badge (clickable, navigates to routing tab)
+  - Items w/ no docs: orange "Evidence Required" badge
+  - Replaced old teal numeric badge w/ semantic status badges
+- **R3 Task 11** (post-drop feedback): updated `handleDrop` in CriterionSection
+  - Parses `verification` from criterion POST response
+  - STRONG: success toast w/ verified claims
+  - INCLUDE_WITH_SUPPORT: neutral toast w/ verified claims + gaps
+  - NEEDS_MORE_DOCS: warning toast w/ red flags
+  - EXCLUDE: error toast suggesting different criterion
+  - Calls `refetchDocCounts()` after drop to update evidence badges
+- Fixed pre-existing `rules-of-hooks` lint error: moved `useCallback` hooks before early return in ReportPanel
+- Lint: 12 errors (was 14, fixed 2), 25 warnings (unchanged)
+- Typecheck passes clean
+- ALL PRD TASKS NOW PASS -- no remaining `passes: false` entries
+
+### Notes for Next Dev
+
+- `runSingleCriterionVerification` runs only one criterion (not all 10); used specifically for criterion-targeted file drops
+- DocumentCriterionRouting created w/ `autoRouted: false` when user drops file on criterion card; distinguishes from auto-routed records (from full document verification)
+- Evidence badges show on extraction items (Supporting Items section) within each criterion card; badges use `docCountsByItem` from analysis endpoint
+- Post-drop feedback uses 4-tier recommendation: STRONG (success), INCLUDE_WITH_SUPPORT (partial), NEEDS_MORE_DOCS (weak), EXCLUDE (not relevant)
+- `refetchDocCounts` does a lightweight re-fetch of analysis endpoint after file drop to update badge state without full page reload
+- PRD is fully complete -- all features pass

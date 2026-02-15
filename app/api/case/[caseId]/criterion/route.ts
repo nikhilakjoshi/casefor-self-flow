@@ -9,6 +9,7 @@ import { chunkText } from "@/lib/chunker"
 import { upsertChunks } from "@/lib/pinecone"
 import { isS3Configured, uploadToS3, buildDocumentKey } from "@/lib/s3"
 import { CRITERIA_METADATA, type CriterionId } from "@/lib/eb1a-extraction-schema"
+import { runSingleCriterionVerification } from "@/lib/evidence-verification"
 
 const MODEL = "claude-sonnet-4-20250514"
 
@@ -51,6 +52,7 @@ export async function POST(
     let criterionId: string
     let additionalContext = ""
     let fileContent = ""
+    let uploadedDocId: string | null = null
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData()
@@ -82,6 +84,7 @@ export async function POST(
             content: fileContent || null,
           },
         })
+        uploadedDocId = doc.id
 
         // S3 upload (non-fatal)
         if (isS3Configured()) {
@@ -234,10 +237,46 @@ Be thorough but realistic. Focus ONLY on evidence relevant to this specific crit
       })
     }
 
+    // Run evidence verification + create routing for the dropped file
+    let verification: { score: number; recommendation: string; verified_claims: string[]; red_flags: string[]; matched_item_ids: string[] } | null = null
+    if (uploadedDocId && fileContent) {
+      try {
+        const result = await runSingleCriterionVerification(caseId, uploadedDocId, fileContent, criterionId)
+        verification = {
+          score: result.score,
+          recommendation: result.recommendation,
+          verified_claims: result.verified_claims,
+          red_flags: result.red_flags,
+          matched_item_ids: result.matched_item_ids,
+        }
+
+        // Create DocumentCriterionRouting record (autoRouted: false since user explicitly dropped on this criterion)
+        await db.documentCriterionRouting.upsert({
+          where: { documentId_criterion: { documentId: uploadedDocId, criterion: criterionId } },
+          create: {
+            documentId: uploadedDocId,
+            criterion: criterionId,
+            score: result.score,
+            recommendation: result.recommendation,
+            autoRouted: false,
+            matchedItemIds: result.matched_item_ids,
+          },
+          update: {
+            score: result.score,
+            recommendation: result.recommendation,
+            matchedItemIds: result.matched_item_ids,
+          },
+        })
+      } catch (verifyErr) {
+        console.error("Evidence verification failed (non-fatal):", verifyErr)
+      }
+    }
+
     return new Response(
       JSON.stringify({
         criterionId,
         ...output,
+        ...(verification && { verification }),
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     )

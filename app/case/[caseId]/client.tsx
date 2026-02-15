@@ -10,7 +10,13 @@ import { DocumentChatPanel } from './_components/document-chat-panel'
 import { DocumentsPanel } from './_components/documents-panel'
 import { DraftingPanel } from './_components/drafting-panel'
 import { IntakeSheet } from './_components/intake-sheet'
-import { Upload, MessageSquare, X } from 'lucide-react'
+import { Upload, MessageSquare, X, ShieldAlert } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import type { IntakeData } from './_lib/intake-schema'
 import type { DetailedExtraction } from '@/lib/eb1a-extraction-schema'
 import type { StrengthEvaluation } from '@/lib/strength-evaluation-schema'
@@ -18,6 +24,26 @@ import type { GapAnalysis } from '@/lib/gap-analysis-schema'
 import type { CaseStrategy } from '@/lib/case-strategy-schema'
 import type { CaseConsolidation } from '@/lib/case-consolidation-schema'
 import type { DenialProbability } from '@/lib/denial-probability-schema'
+
+function getRiskBadgeStyle(level: string) {
+  switch (level) {
+    case 'LOW': return 'bg-emerald-600 text-white'
+    case 'MEDIUM': return 'bg-amber-500 text-white'
+    case 'HIGH': return 'bg-orange-500 text-white'
+    case 'VERY_HIGH': return 'bg-red-600 text-white'
+    default: return 'bg-muted text-muted-foreground'
+  }
+}
+
+function getRiskLabel(level: string) {
+  switch (level) {
+    case 'LOW': return 'Low Risk'
+    case 'MEDIUM': return 'Medium Risk'
+    case 'HIGH': return 'High Risk'
+    case 'VERY_HIGH': return 'Very High Risk'
+    default: return level
+  }
+}
 
 interface Message {
   id: string
@@ -368,7 +394,24 @@ export function CasePageClient({
 
       {/* Phase tabs */}
       <div className="shrink-0 px-4 py-2 border-b border-border flex items-center justify-between">
-        <PhaseTabs activeTab={activeTab} onTabChange={handleTabChange} />
+        <div className="flex items-center gap-3">
+          <PhaseTabs activeTab={activeTab} onTabChange={handleTabChange} />
+          {initialDenialProbability?.overall_assessment && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold cursor-default ${getRiskBadgeStyle(initialDenialProbability.overall_assessment.risk_level)}`}>
+                    <ShieldAlert className="w-3 h-3" />
+                    {getRiskLabel(initialDenialProbability.overall_assessment.risk_level)}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Denial probability: {initialDenialProbability.overall_assessment.denial_probability_pct}%</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         {activeTab === 'analysis' && (
           <button
             onClick={() => fileInputRef.current?.click()}
