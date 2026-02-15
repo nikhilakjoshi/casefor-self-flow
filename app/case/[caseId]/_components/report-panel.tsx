@@ -1027,7 +1027,7 @@ export function ReportPanel({
         />
       ) : activeTab === "letters" ? (
         <div className="flex-1 overflow-y-auto">
-          <LettersPanel caseId={caseId} onOpenDraft={onOpenDraft ?? (() => {})} />
+          <LettersPanel caseId={caseId} onOpenDraft={onOpenDraft ?? (() => {})} denialProbability={initialDenialProbability} />
         </div>
       ) : activeTab === "denial" ? (
         <DenialProbabilityPanel

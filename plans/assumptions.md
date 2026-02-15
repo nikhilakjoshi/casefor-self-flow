@@ -177,3 +177,10 @@
 - Download uses createObjectURL + programmatic `<a>` click pattern; revokeObjectURL called after click to avoid memory leaks
 - Filename for download extracted from Content-Disposition header via regex; falls back to "package.pdf" if header missing or unparseable
 - Assemble Package button placed at bottom of letters panel card list (not top) to keep primary document workflow uninterrupted
+- Denial risk badge in header uses `initialDenialProbability` prop directly (not client-fetched from GET API); data already flows from page.tsx SSR -> client.tsx -> report-panel -> letters-panel, avoiding extra API call
+- Denial risk badge hidden entirely when no denial data exists (no empty/placeholder state)
+- DenialRiskBanner in letters-panel defaults to collapsed state to avoid overwhelming the panel; user clicks to expand for summary + red flags
+- Used inline styled div for DenialRiskBanner instead of shadcn Alert component (not installed); styled w/ cn() for risk-level-specific colors
+- Banner shows top 3 red flags max (sliced from `data.red_flags`); full list available in DenialProbabilityPanel
+- PRD step "Link to DenialProbabilityPanel for full details" not implemented as direct link; user can navigate via report-panel tabs. Adding an in-panel link would require tab-switching callbacks that add complexity for minimal gain.
+- Denial data is static for the session (uses initialDenialProbability prop, not re-fetched); acceptable since denial assessments are infrequent operations

@@ -391,7 +391,7 @@
       "Color-code: green=LOW, yellow=MEDIUM, orange=HIGH, red=VERY_HIGH",
       "Show percentage on hover via Tooltip"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -404,7 +404,7 @@
       "Link to the DenialProbabilityPanel for full details",
       "Collapse/hide if no denial data available yet"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",

@@ -38,6 +38,7 @@ import { CRITERIA_LABELS } from '@/lib/evidence-verification-schema'
 import { RecommenderForm } from './recommender-form'
 import type { RecommenderData } from './recommender-form'
 import { CsvImportModal } from './csv-import-modal'
+import type { DenialProbability } from '@/lib/denial-probability-schema'
 
 interface DocumentItem {
   id: string
@@ -68,6 +69,7 @@ interface LettersPanelProps {
     recommenderId?: string
     category?: string
   }) => void
+  denialProbability?: DenialProbability | null
 }
 
 interface LetterType {
@@ -294,6 +296,63 @@ const RELATIONSHIP_LABELS: Record<string, string> = {
   CLIENT: 'Client',
   PEER_EXPERT: 'Peer Expert',
   OTHER: 'Other',
+}
+
+function getRiskBannerStyle(level: string) {
+  switch (level) {
+    case 'LOW': return { bg: 'bg-emerald-500/10 border-emerald-500/30', text: 'text-emerald-700 dark:text-emerald-300', icon: 'text-emerald-600' }
+    case 'MEDIUM': return { bg: 'bg-amber-500/10 border-amber-500/30', text: 'text-amber-700 dark:text-amber-300', icon: 'text-amber-600' }
+    case 'HIGH': return { bg: 'bg-orange-500/10 border-orange-500/30', text: 'text-orange-700 dark:text-orange-300', icon: 'text-orange-600' }
+    case 'VERY_HIGH': return { bg: 'bg-red-500/10 border-red-500/30', text: 'text-red-700 dark:text-red-300', icon: 'text-red-600' }
+    default: return { bg: 'bg-muted/60 border-border', text: 'text-muted-foreground', icon: 'text-muted-foreground' }
+  }
+}
+
+function DenialRiskBanner({ data }: { data: DenialProbability }) {
+  const [collapsed, setCollapsed] = useState(true)
+  const assessment = data.overall_assessment
+  if (!assessment) return null
+  const style = getRiskBannerStyle(assessment.risk_level)
+  const topRisks = data.red_flags?.slice(0, 3) ?? []
+  const riskLabel = assessment.risk_level === 'VERY_HIGH' ? 'Very High' : assessment.risk_level.charAt(0) + assessment.risk_level.slice(1).toLowerCase()
+
+  return (
+    <div className={cn('rounded-lg border p-3', style.bg)}>
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="w-full flex items-center gap-2 text-left"
+      >
+        <Shield className={cn('w-4 h-4 shrink-0', style.icon)} />
+        <div className="flex-1 min-w-0">
+          <span className={cn('text-xs font-semibold', style.text)}>
+            {riskLabel} Denial Risk ({assessment.denial_probability_pct}%)
+          </span>
+        </div>
+        <ChevronDown className={cn('w-3.5 h-3.5 text-muted-foreground transition-transform', !collapsed && 'rotate-180')} />
+      </button>
+      {!collapsed && (
+        <div className="mt-2 space-y-1.5">
+          <p className={cn('text-[11px] leading-relaxed', style.text)}>
+            {assessment.summary}
+          </p>
+          {topRisks.length > 0 && (
+            <div className="space-y-1">
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Top risks</span>
+              {topRisks.map((flag, i) => (
+                <div key={i} className="flex items-start gap-1.5">
+                  <span className={cn(
+                    'w-1.5 h-1.5 rounded-full mt-1 shrink-0',
+                    flag.level === 'HIGH' ? 'bg-red-500' : flag.level === 'MEDIUM' ? 'bg-amber-500' : 'bg-stone-400'
+                  )} />
+                  <span className="text-[11px] text-muted-foreground">{flag.description}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function UploadOnlyCard({
@@ -781,7 +840,7 @@ function DraftableCard({
   )
 }
 
-export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
+export function LettersPanel({ caseId, onOpenDraft, denialProbability }: LettersPanelProps) {
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [recommenders, setRecommenders] = useState<Recommender[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -891,6 +950,7 @@ export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
     <>
     <ScrollArea className="h-full">
       <div className="p-4 space-y-3">
+        {denialProbability && <DenialRiskBanner data={denialProbability} />}
         {LETTER_TYPES.map((letterType) => {
           if (letterType.isPerRecommender) {
             return (

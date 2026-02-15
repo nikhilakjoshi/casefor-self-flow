@@ -1276,3 +1276,32 @@
 - Download uses createObjectURL pattern w/ revokeObjectURL cleanup to avoid memory leaks
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R9 tasks 32-33 (denial risk badge/banner in UI) or R6 task 23 (global drop zone) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges)
+
+## 2026-02-15: Denial Risk Badge + Banner (PRD R9 Tasks 32-33)
+
+### Completed
+
+- Added denial risk badge/pill to case page header bar in `client.tsx`
+  - Shows next to PhaseTabs w/ ShieldAlert icon + risk level label (Low/Medium/High/Very High Risk)
+  - Color-coded: emerald=LOW, amber=MEDIUM, orange=HIGH, red=VERY_HIGH
+  - Tooltip shows denial probability percentage on hover
+  - Uses `initialDenialProbability.overall_assessment` from existing server-fetched data (no additional API call)
+  - Hidden when no denial data exists
+- Added DenialRiskBanner component to top of LettersPanel in `letters-panel.tsx`
+  - Collapsible banner w/ risk level, percentage, summary text, and top 3 red flags
+  - Color-coded border + background matching risk level severity
+  - Collapsed by default; click to expand for details
+  - Red flag dots color-coded by severity (HIGH=red, MEDIUM=amber, LOW=stone)
+  - Hidden when no denial data available
+- Updated `report-panel.tsx` to pass `initialDenialProbability` through to LettersPanel
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- R9 is now fully complete (task 32: header badge, task 33: letters banner, task 34: drafting agent denial data done earlier)
+- Denial data flows: page.tsx (SSR fetch) -> client.tsx (prop) -> report-panel.tsx (prop) -> letters-panel.tsx (prop). No additional API calls needed.
+- Badge uses `initialDenialProbability` directly (not state); won't update if denial assessment re-runs during the session without page refresh. This is acceptable since denial assessments are infrequent.
+- DenialRiskBanner is local to letters-panel.tsx (not extracted); used only there
+- No Alert component (shadcn) exists; used inline styled div w/ cn() for the banner instead
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 task 23 (global drop zone) or R6 task 25 (per-card drop zones) or R1 tasks (skip-to-survey, survey-only endpoint, resume upload/gen) or R3 tasks (evidence badges, analysis endpoint extension) or R11 tasks (template inputs, rec letter grouping)
