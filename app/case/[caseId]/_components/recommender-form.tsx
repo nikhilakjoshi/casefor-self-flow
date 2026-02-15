@@ -19,6 +19,12 @@ import {
 } from '@/components/ui/collapsible'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   ChevronDown,
   User,
   Briefcase,
@@ -28,7 +34,6 @@ import {
   Upload,
   Globe,
   Sparkles,
-  Scale,
 } from 'lucide-react'
 import { CRITERIA_LABELS } from '@/lib/evidence-verification-schema'
 
@@ -541,6 +546,43 @@ export function RecommenderForm({
               className="w-full min-h-[80px] px-3 py-2 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             />
           </div>
+
+          {/* Criteria Mapping - inline row */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Criteria Mapping</label>
+            <TooltipProvider delayDuration={200}>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(CRITERIA_LABELS).map(([key, label]) => (
+                  <Tooltip key={key}>
+                    <TooltipTrigger asChild>
+                      <label
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-2 py-1 rounded-md border cursor-pointer transition-colors text-xs",
+                          criteriaKeys.includes(key)
+                            ? "border-primary bg-primary/10 text-foreground"
+                            : "border-border bg-muted/30 text-muted-foreground hover:border-muted-foreground/50"
+                        )}
+                      >
+                        <Checkbox
+                          checked={criteriaKeys.includes(key)}
+                          onCheckedChange={(checked) => {
+                            setCriteriaKeys((prev) =>
+                              checked
+                                ? [...prev, key]
+                                : prev.filter((k) => k !== key)
+                            )
+                          }}
+                          className="h-3.5 w-3.5"
+                        />
+                        <span className="font-medium">{key}</span>
+                      </label>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{label}</TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </TooltipProvider>
+          </div>
         </div>
 
         {/* Collapsible sections */}
@@ -649,34 +691,6 @@ export function RecommenderForm({
             </FormField>
           </FormSection>
 
-          <FormSection title="Criteria Mapping" icon={Scale}>
-            <p className="text-[11px] text-muted-foreground mb-2">
-              Select criteria this recommender can speak to (recommended: up to 5)
-            </p>
-            <div className="space-y-2">
-              {Object.entries(CRITERIA_LABELS).map(([key, label]) => (
-                <label
-                  key={key}
-                  className="flex items-center gap-2 cursor-pointer group"
-                >
-                  <Checkbox
-                    checked={criteriaKeys.includes(key)}
-                    onCheckedChange={(checked) => {
-                      setCriteriaKeys((prev) =>
-                        checked
-                          ? [...prev, key]
-                          : prev.filter((k) => k !== key)
-                      )
-                    }}
-                  />
-                  <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                    <span className="font-medium text-foreground">{key}</span>
-                    {' '}{label}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </FormSection>
         </div>
       </div>
 
