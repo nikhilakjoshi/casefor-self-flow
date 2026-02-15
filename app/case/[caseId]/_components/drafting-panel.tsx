@@ -5,7 +5,7 @@ import { TiptapEditor } from '@/components/ui/tiptap-editor'
 import { ChatInput } from '@/components/ui/chat-input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, X, Save, Loader2, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface DraftingDoc {
@@ -270,14 +270,6 @@ export function DraftingPanel({
             )}
             {isSaving ? 'Saving...' : 'Save'}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={onClose}
-          >
-            <X className="w-4 h-4" />
-          </Button>
         </div>
       </div>
 
@@ -398,6 +390,10 @@ export function DraftingPanel({
             editable={true}
             streaming={isStreaming}
             onSave={(md) => handleSave(md)}
+            onClose={onClose}
+            caseId={caseId}
+            documentId={docId}
+            documentName={docName}
           />
         </div>
       </div>
