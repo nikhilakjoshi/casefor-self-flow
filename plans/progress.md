@@ -1178,3 +1178,25 @@
 - `recommenderId` already flows from UI: letters-panel -> drafting-panel -> draft-chat API -> runDraftingAgent (was being captured in draft-chat but not forwarded before this change)
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R11 task 3 (template input fields in DraftingPanel) or R11 task 4 (group rec letters by relationship type) or R9 tasks (denial risk badge/banner) or R6 tasks (global/per-card drop zones)
+
+## 2026-02-15: Denial Engine Data in Drafting Agent (PRD R9 Task 34)
+
+### Completed
+
+- Added `getDenialProbability` tool to `createDraftingAgentTools()` in `lib/drafting-agent.ts`
+  - Queries `db.denialProbability.findFirst` for latest record by caseId, ordered by createdAt desc
+  - Returns `{ exists, data }` where data is the full DenialProbability JSON (risk factors, red flags, criterion risks, probability breakdown, recommendations)
+  - Returns `{ exists: false, data: null }` if no denial assessment exists yet
+- Updated hardcoded system prompt w/ two new sections:
+  - TOOL USAGE: added getDenialProbability instruction to check for denial risks before drafting
+  - DENIAL RISK AWARENESS: instructs agent to call getDenialProbability before drafting cover letters/personal statements/petition letters, address red flags + weak criteria, reinforce at-risk criteria in rec letters
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- getDenialProbability returns the raw JSON from DenialProbability.data field which includes both pass 1 (qualitative) and pass 2 (quantitative) data
+- Tool is available to all document categories (not just cover letters); agent prompt guides when to use it
+- No schema changes needed; DenialProbability model already exists w/ caseId index
+- Configurable prompt (via AgentPrompt DB) does NOT include the denial awareness section; only the hardcoded fallback prompt has it. Category-specific prompts (cover-letter-drafter, uscis-letter-drafter) should be updated separately if needed.
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R9 tasks 32-33 (denial risk badge/banner in UI) or R6 task 23 (global drop zone) or R11 tasks 3-4 (template inputs, rec letter grouping) or R8 tasks 29-30 (pdf-lib utilities)

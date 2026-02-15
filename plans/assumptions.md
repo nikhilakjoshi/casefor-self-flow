@@ -158,3 +158,6 @@
 - Template ID for resolveVariation constructed as `${applicationTypeId}-RECOMMENDATION_LETTER` matching seed.ts convention; requires case to have an applicationTypeId set (null appTypeId skips variation resolution)
 - Variation content appended to instructions (not replacing them); agent sees both base drafting prompt + relationship-specific variation guidance
 - `recommenderId` was already captured in draft-chat route from request body but not forwarded to `runDraftingAgent` before this change; the data flow was UI -> API -> (dropped) -> agent
+- `getDenialProbability` tool returns raw DenialProbability.data JSON (combined pass 1 + pass 2 output); no filtering or transformation applied -- agent sees full denial assessment
+- Denial awareness instructions only added to hardcoded fallback prompt (not to DB-stored AgentPrompt records); category-specific prompts (cover-letter-drafter, uscis-letter-drafter) should have denial guidance added to their AgentPrompt content separately if more targeted instructions are needed
+- Tool is available regardless of document category; the system prompt guides when the agent should call it (cover letters, personal statements, petition letters always; rec letters when addressing weak criteria)

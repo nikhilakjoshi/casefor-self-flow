@@ -70,7 +70,14 @@ TOOL USAGE:
 - Call getProfile and getAnalysis before drafting to use real applicant data.
 - Call searchDocuments to find relevant content from uploaded materials.
 - Call getRecommender when drafting recommendation letters.
-- Call getCurrentDocument to see the current document content before revising.`;
+- Call getCurrentDocument to see the current document content before revising.
+- Call getDenialProbability to check for denial risk factors, red flags, and weak criteria -- then proactively address these weaknesses in the document.
+
+DENIAL RISK AWARENESS:
+- Before drafting cover letters, personal statements, or petition letters, always call getDenialProbability.
+- If denial data exists, address identified red flags and weak criteria directly in the document.
+- For recommendation letters, ensure the letter reinforces criteria flagged as weak or at risk of RFE.
+- Reference specific evidence that counters the denial risk factors identified.`;
 }
 
 async function buildDraftingSystemPrompt(opts: {
@@ -196,6 +203,21 @@ function createDraftingAgentTools(caseId: string, documentId?: string) {
           name: doc.name,
           content: doc.content,
         };
+      },
+    }),
+
+    getDenialProbability: tool({
+      description:
+        "Fetch the latest denial probability assessment for this case. Returns risk factors, weak criteria, red flags, recommendations, and probability breakdown. Use before drafting to proactively address weaknesses.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        console.log(`${logPrefix} [getDenialProbability] Called`);
+        const latest = await db.denialProbability.findFirst({
+          where: { caseId },
+          orderBy: { createdAt: "desc" },
+        });
+        if (!latest) return { exists: false, data: null };
+        return { exists: true, data: latest.data };
       },
     }),
   };

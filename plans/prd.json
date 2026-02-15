@@ -416,7 +416,7 @@
       "Update the system prompt to instruct the agent to proactively address identified weaknesses when drafting",
       "Agent can now reference denial data when generating cover letters, personal statements, and recommendation letters"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "data",
