@@ -1327,3 +1327,29 @@
 - R11 is now 3/4 complete (task 1: template-resolver wiring, task 2: variation seeds, task 4: rec letter grouping); task 3 (template input fields in DraftingPanel) remains
 - Pre-existing lint errors unchanged (13 errors, 26 warnings)
 - Next priority: R11 task 3 (template inputs in DraftingPanel) or R6 tasks (global/per-card drop zones) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges)
+
+## 2026-02-15: Template Input Fields in DraftingPanel (PRD R11 Task 3)
+
+### Completed
+
+- Added collapsible "Template Inputs" section to `app/case/[caseId]/_components/drafting-panel.tsx` for RECOMMENDATION_LETTER documents
+  - 4 textarea fields: Relationship Context, Expertise Area, Key Contributions to Highlight, Specific Achievements to Reference
+  - 2-column grid layout, collapsible via chevron toggle
+  - Default expanded when category is RECOMMENDATION_LETTER
+  - Pre-fills relationshipContext and expertiseArea (from bio) by fetching recommender data via GET `/api/case/{caseId}/recommenders/{recommenderId}`
+- Updated `app/api/case/[caseId]/draft-chat/route.ts`: passes `templateInputs` from request body through to `runDraftingAgent`
+- Updated `lib/drafting-agent.ts`:
+  - Added `templateInputs?: Record<string, string>` to `runDraftingAgent` opts
+  - After template variation resolution, appends non-empty template inputs as `USER-PROVIDED TEMPLATE INPUTS:` section to system instructions
+- R11 is now fully complete (all 4 tasks: template-resolver wiring, variation seeds, template inputs, rec letter grouping)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 26 warnings)
+
+### Notes for Next Dev
+
+- Template inputs are sent via `templateInputsRef.current` (ref, not state) in the sendInstruction callback to avoid stale closures and unnecessary re-renders
+- Pre-fill maps recommender.relationshipContext -> relationshipContext field, recommender.bio -> expertiseArea field; keyContributions and specificAchievements start empty
+- Template inputs section only renders when `document?.category === 'RECOMMENDATION_LETTER'` (isRecLetter computed once from props)
+- didFetchRecRef guard prevents double-fetch of recommender data in React strict mode
+- Template inputs are appended to system instructions (not injected into user messages) so they persist across the drafting session
+- Pre-existing lint errors unchanged (13 errors, 26 warnings)
+- Next priority: R6 tasks (global/per-card drop zones) or R1 tasks (skip-to-survey, survey-only endpoint, resume upload/gen) or R3 tasks (evidence badges, criterion upload, analysis endpoint extension)

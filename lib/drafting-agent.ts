@@ -243,9 +243,10 @@ export async function runDraftingAgent(opts: {
   existingContent?: string | null;
   category?: string;
   recommenderId?: string;
+  templateInputs?: Record<string, string>;
   onFinish?: (text: string) => Promise<void>;
 }) {
-  const { caseId, messages, documentId, documentName, existingContent, category, recommenderId, onFinish } = opts;
+  const { caseId, messages, documentId, documentName, existingContent, category, recommenderId, templateInputs, onFinish } = opts;
   const log = (msg: string, ...args: unknown[]) =>
     console.log(`[DraftingAgent:${caseId}] ${msg}`, ...args);
 
@@ -325,6 +326,17 @@ export async function runDraftingAgent(opts: {
           instructions += `\n\nTEMPLATE VARIATION (${variation.label}):\n${variation.content}`;
         }
       }
+    }
+  }
+
+  // Append user-provided template inputs for recommendation letters
+  if (templateInputs) {
+    const filled = Object.entries(templateInputs)
+      .filter(([, v]) => v && v.trim())
+      .map(([k, v]) => `- ${k}: ${v.trim()}`)
+      .join("\n");
+    if (filled) {
+      instructions += `\n\nUSER-PROVIDED TEMPLATE INPUTS:\n${filled}\nUse these inputs to personalize and ground the document.`;
     }
   }
 

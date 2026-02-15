@@ -188,3 +188,8 @@
 - Group sort order follows RELATIONSHIP_LABELS key order (hardcoded object key insertion order); unknown relationship types pushed to end via indexOf returning -1 mapped to 999
 - Section headers use singular label from RELATIONSHIP_LABELS (e.g. "Academic Advisor"), not plural (e.g. "Academic Advisors"); count in parentheses disambiguates
 - PRD step "Use RelationshipType display labels (e.g. 'Academic Advisors', 'Industry Colleagues')" implemented w/ singular labels + count suffix instead of plural form; simpler implementation, no separate plural label map needed
+- Template inputs sent via ref (`templateInputsRef.current`) to avoid re-creating sendInstruction callback on every keystroke in the template fields; inputs are read at send time, not captured in closure
+- Pre-fill maps recommender.relationshipContext to relationshipContext field and recommender.bio to expertiseArea field; keyContributions and specificAchievements have no natural pre-fill source from recommender data so start empty
+- Template inputs appended to drafting agent system instructions (not injected into user messages) so they act as persistent context across the entire drafting conversation, not just the first message
+- `templateInputs` in draft-chat API is typed as `Record<string, string> | undefined` (loose type) rather than a strict interface; the API doesn't validate field names since the agent just uses them as freeform context
+- Only non-empty template input fields are appended to instructions; empty fields are filtered out to avoid noise

@@ -5,7 +5,7 @@ import { TiptapEditor } from '@/components/ui/tiptap-editor'
 import { ChatInput } from '@/components/ui/chat-input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { X, Save, Loader2 } from 'lucide-react'
+import { X, Save, Loader2, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface DraftingDoc {
@@ -20,6 +20,13 @@ interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+}
+
+interface TemplateInputs {
+  relationshipContext: string
+  keyContributions: string
+  specificAchievements: string
+  expertiseArea: string
 }
 
 interface DraftingPanelProps {
@@ -44,6 +51,37 @@ export function DraftingPanel({
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const editorContentRef = useRef(editorContent)
+
+  // Template inputs for recommendation letters
+  const isRecLetter = document?.category === 'RECOMMENDATION_LETTER'
+  const [templateInputsOpen, setTemplateInputsOpen] = useState(isRecLetter)
+  const [templateInputs, setTemplateInputs] = useState<TemplateInputs>({
+    relationshipContext: '',
+    keyContributions: '',
+    specificAchievements: '',
+    expertiseArea: '',
+  })
+  const templateInputsRef = useRef(templateInputs)
+  useEffect(() => { templateInputsRef.current = templateInputs }, [templateInputs])
+
+  // Fetch recommender data to pre-fill template inputs
+  const didFetchRecRef = useRef(false)
+  useEffect(() => {
+    if (!isRecLetter || !document?.recommenderId || didFetchRecRef.current) return
+    didFetchRecRef.current = true
+    fetch(`/api/case/${caseId}/recommenders/${document.recommenderId}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((rec) => {
+        if (!rec) return
+        setTemplateInputs((prev) => ({
+          relationshipContext: rec.relationshipContext || prev.relationshipContext,
+          keyContributions: prev.keyContributions,
+          specificAchievements: prev.specificAchievements,
+          expertiseArea: rec.bio || prev.expertiseArea,
+        }))
+      })
+      .catch(console.error)
+  }, [caseId, document?.recommenderId, isRecLetter])
 
   // Keep ref in sync
   useEffect(() => {
@@ -103,6 +141,9 @@ export function DraftingPanel({
             documentName: docName,
             category: document?.category,
             recommenderId: document?.recommenderId,
+            ...(isRecLetter && {
+              templateInputs: templateInputsRef.current,
+            }),
           }),
         })
 
@@ -150,7 +191,7 @@ export function DraftingPanel({
         setIsStreaming(false)
       }
     },
-    [caseId, chatMessages, docId, docName, document?.category, document?.recommenderId, isStreaming]
+    [caseId, chatMessages, docId, docName, document?.category, document?.recommenderId, isRecLetter, isStreaming]
   )
 
   const handleSave = useCallback(async (content?: string) => {
@@ -220,6 +261,64 @@ export function DraftingPanel({
           </Button>
         </div>
       </div>
+
+      {/* Template Inputs for recommendation letters */}
+      {isRecLetter && (
+        <div className="shrink-0 border-b border-border">
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/50"
+            onClick={() => setTemplateInputsOpen((o) => !o)}
+          >
+            Template Inputs
+            <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', templateInputsOpen && 'rotate-180')} />
+          </button>
+          {templateInputsOpen && (
+            <div className="px-4 pb-3 grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="text-[10px] font-medium text-muted-foreground">Relationship Context</span>
+                <textarea
+                  rows={2}
+                  value={templateInputs.relationshipContext}
+                  onChange={(e) => setTemplateInputs((p) => ({ ...p, relationshipContext: e.target.value }))}
+                  className="mt-0.5 w-full text-xs bg-muted/50 border border-border rounded px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-primary/30"
+                  placeholder="How do you know the recommender?"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[10px] font-medium text-muted-foreground">Expertise Area</span>
+                <textarea
+                  rows={2}
+                  value={templateInputs.expertiseArea}
+                  onChange={(e) => setTemplateInputs((p) => ({ ...p, expertiseArea: e.target.value }))}
+                  className="mt-0.5 w-full text-xs bg-muted/50 border border-border rounded px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-primary/30"
+                  placeholder="Recommender's area of expertise"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[10px] font-medium text-muted-foreground">Key Contributions to Highlight</span>
+                <textarea
+                  rows={2}
+                  value={templateInputs.keyContributions}
+                  onChange={(e) => setTemplateInputs((p) => ({ ...p, keyContributions: e.target.value }))}
+                  className="mt-0.5 w-full text-xs bg-muted/50 border border-border rounded px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-primary/30"
+                  placeholder="What contributions should the letter emphasize?"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[10px] font-medium text-muted-foreground">Specific Achievements to Reference</span>
+                <textarea
+                  rows={2}
+                  value={templateInputs.specificAchievements}
+                  onChange={(e) => setTemplateInputs((p) => ({ ...p, specificAchievements: e.target.value }))}
+                  className="mt-0.5 w-full text-xs bg-muted/50 border border-border rounded px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-primary/30"
+                  placeholder="Specific achievements or publications to reference"
+                />
+              </label>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main content: chat left, editor right */}
       <div className="flex flex-1 min-h-0">

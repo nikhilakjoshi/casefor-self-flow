@@ -499,7 +499,7 @@
       "Pass these inputs as additional context to the draft-chat API when sending messages",
       "Pre-fill fields from recommender data (recommender.relationshipContext, recommender.bio) if available"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
