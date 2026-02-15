@@ -1078,7 +1078,17 @@ export function ReportPanel({
           hasStrengthEval={!!initialStrengthEvaluation}
         />
       ) : activeTab === "evidence" ? (
-        <EvidenceListPanel caseId={caseId} onDocumentsRouted={onDocumentsRouted} />
+        <EvidenceListPanel
+          caseId={caseId}
+          extraction={analysis.extraction}
+          criteriaNames={analysis.criteriaNames}
+          criteriaSummary={analysis.criteria_summary}
+          criteria={analysis.criteria}
+          docCountsByCriterion={analysis.docCountsByCriterion}
+          docCountsByItem={analysis.docCountsByItem}
+          onFileDropped={refetchDocCounts}
+          onDocumentsRouted={onDocumentsRouted}
+        />
       ) : activeTab === "routing" ? (
         <CriteriaRoutingPanel caseId={caseId} />
       ) : activeTab === "consolidation" ? (
