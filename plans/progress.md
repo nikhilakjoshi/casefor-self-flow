@@ -1038,3 +1038,24 @@
 - RESUME_CV not added to LETTER_TYPES yet (part of R1 tasks)
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R6 task 22 (expandable cards) or R6 task 23 (global drop zone) or R7 tasks (USCIS links, e-sign placeholder)
+
+## 2026-02-15: Expandable Document Cards (PRD R6 Task 22)
+
+### Completed
+
+- Made all 3 card types in letters-panel.tsx expandable w/ collapsible file lists
+- **UploadOnlyCard**: collapsed by default, shows header + "N files" badge; click header to expand; auto-expands on upload; file rows show filename, source (System/Uploaded), status dot, timestamp
+- **DraftableCard**: extracted from inline render into standalone component; collapsed by default, shows header + "N drafts" badge; click header to expand; file rows use existing DraftRow component
+- **RecommenderCard**: extracted from inline render into standalone component; expanded by default (primary content); click header to collapse/expand; shows recommender sub-cards w/ their doc lists
+- All cards: ChevronDown icon w/ rotate-180 transition on expand; cursor-pointer on header only when docs exist; stopPropagation on action buttons (Upload/Draft/Add/Import CSV) to prevent toggle
+- Removed unused `Icon` variable from main LETTER_TYPES.map loop (now handled in each card component)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- RecommenderCard starts expanded by default (unlike other cards) since recommender sub-cards are primary content
+- DraftableCard and UploadOnlyCard start collapsed; only show chevron when docs exist
+- UploadOnlyCard auto-expands after successful upload via `setExpanded(true)` in success path
+- Source column in UploadOnlyCard shows "System" vs "Uploaded" (mapped from SYSTEM_GENERATED/USER_UPLOADED)
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 task 23 (global drop zone) or R7 tasks (USCIS links, e-sign placeholder) or R9 task 34 (denial data in drafting agent)

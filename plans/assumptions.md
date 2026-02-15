@@ -132,3 +132,8 @@
 - When `category` is provided in FormData, auto-classification via `classifyDocument` is skipped (user/UI explicitly set the category)
 - UploadOnlyCard uses native HTML drag-drop (onDragOver/onDrop) instead of react-dropzone; simpler for single-file uploads and avoids adding per-card dropzone instances
 - RESUME_CV not included in LETTER_TYPES yet; deferred to R1 implementation (skip-to-survey, resume upload/generation)
+- RecommenderCard defaults to expanded=true since recommender sub-cards are the primary interactive content; other card types default to collapsed since file lists are secondary
+- Expandable cards use manual useState + conditional rendering (not Radix Collapsible) for consistency w/ CriteriaTab/PlanningTab/ConsolidationTab pattern
+- Click-to-expand only enabled when docs exist (no chevron shown on empty cards); prevents confusing toggle on empty state
+- UploadOnlyCard auto-expands on successful upload so user sees the newly uploaded file immediately
+- stopPropagation on action buttons (Upload/Draft/Add/Import CSV) prevents header click-to-toggle when clicking buttons

@@ -264,7 +264,7 @@
       "Each document row: filename, upload date (formatted), source (USER_UPLOADED/SYSTEM_GENERATED)",
       "Add click-to-expand/collapse toggle on card header"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
