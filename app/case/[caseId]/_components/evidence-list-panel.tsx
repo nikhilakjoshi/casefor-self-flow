@@ -3,44 +3,220 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { CRITERIA_LABELS } from "@/lib/evidence-verification-schema"
+import { CRITERIA_METADATA } from "@/lib/eb1a-extraction-schema"
+import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+  FileText,
+  Award,
+  ScrollText,
+  Users,
+  Newspaper,
+  Scale,
+  Mic,
+  DollarSign,
+  Building,
+  Palette,
+  TrendingUp,
+  Lightbulb,
+  Banknote,
+  Loader2,
+} from "lucide-react"
+import { toast } from "sonner"
+
+// -- Types --
+
+type Strength = "Strong" | "Weak" | "None"
 
 interface CriterionResult {
-  criterion: string
-  version: number
-  score: number
-  recommendation: string
-  data: {
-    document_type: string
-    evidence_tier: number
-    score: number
-    verified_claims: string[]
-    unverified_claims: string[]
-    missing_documentation: string[]
-    red_flags: string[]
-    recommendation: string
-    reasoning: string
-    [key: string]: unknown
-  }
+  criterionId: string
+  strength: Strength
+  reason: string
+  evidence: string[]
 }
 
-interface DocumentEntry {
-  document: {
-    id: string
-    name: string
-    category: string | null
-    classificationConfidence: number | null
-  }
-  criteria: Record<string, CriterionResult>
+interface RoutedDocument {
+  id: string
+  documentId: string
+  name: string
+  category: string | null
+  score: number
+  recommendation: string
+  autoRouted: boolean
+}
+
+interface CriterionRouting {
+  criterion: string
+  documents: RoutedDocument[]
+}
+
+interface RoutingData {
+  routings: Record<string, CriterionRouting>
 }
 
 interface EvidenceListPanelProps {
   caseId: string
+  extraction?: DetailedExtraction | null
+  criteriaNames?: Record<string, string>
+  criteriaSummary?: CriteriaSummaryItem[]
+  criteria?: CriterionResult[]
+  docCountsByCriterion?: Record<string, number>
+  docCountsByItem?: Record<string, number>
+  onFileDropped?: () => void
   onDocumentsRouted?: () => void
+}
+
+// -- Shared utilities --
+
+const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
+  publications: { label: "Publications", icon: FileText },
+  awards: { label: "Awards", icon: Award },
+  patents: { label: "Patents", icon: ScrollText },
+  memberships: { label: "Memberships", icon: Users },
+  media_coverage: { label: "Media Coverage", icon: Newspaper },
+  judging_activities: { label: "Judging", icon: Scale },
+  speaking_engagements: { label: "Speaking", icon: Mic },
+  grants: { label: "Grants", icon: DollarSign },
+  leadership_roles: { label: "Leadership", icon: Building },
+  compensation: { label: "Compensation", icon: Banknote },
+  exhibitions: { label: "Exhibitions", icon: Palette },
+  commercial_success: { label: "Commercial Success", icon: TrendingUp },
+  original_contributions: { label: "Original Contributions", icon: Lightbulb },
+}
+
+const EVIDENCE_CATEGORIES = [
+  "publications", "awards", "patents", "memberships", "media_coverage",
+  "judging_activities", "speaking_engagements", "grants", "leadership_roles",
+  "compensation", "exhibitions", "commercial_success", "original_contributions",
+] as const
+
+type EvidenceCategory = (typeof EVIDENCE_CATEGORIES)[number]
+
+function getEvidenceForCriterion(
+  extraction: DetailedExtraction,
+  criterionId: string
+): { category: EvidenceCategory; items: Record<string, unknown>[] }[] {
+  const results: { category: EvidenceCategory; items: Record<string, unknown>[] }[] = []
+  for (const cat of EVIDENCE_CATEGORIES) {
+    const arr = extraction[cat] as Record<string, unknown>[]
+    if (!arr?.length) continue
+    const matching = arr.filter((item) => {
+      const mc = item.mapped_criteria as string[] | undefined
+      return mc?.includes(criterionId)
+    })
+    if (matching.length > 0) {
+      results.push({ category: cat, items: matching })
+    }
+  }
+  return results
+}
+
+function ItemSummary({ item, category }: { item: Record<string, unknown>; category: EvidenceCategory }) {
+  switch (category) {
+    case "publications": {
+      const parts = [item.title as string]
+      if (item.venue) parts.push(`in ${item.venue}`)
+      if (item.year) parts.push(`(${item.year})`)
+      if (item.citations) parts.push(`- ${item.citations} citations`)
+      return <span>{parts.join(" ")}</span>
+    }
+    case "awards": {
+      const parts = [item.name as string]
+      if (item.issuer) parts.push(`by ${item.issuer}`)
+      if (item.year) parts.push(`(${item.year})`)
+      if (item.scope && item.scope !== "unknown") parts.push(`[${item.scope}]`)
+      return <span>{parts.join(" ")}</span>
+    }
+    case "patents": {
+      const parts = [item.title as string]
+      if (item.number) parts.push(`#${item.number}`)
+      if (item.status && item.status !== "unknown") parts.push(`(${item.status})`)
+      return <span>{parts.join(" ")}</span>
+    }
+    case "memberships": {
+      const parts = [item.organization as string]
+      if (item.role) parts.push(`- ${item.role}`)
+      return <span>{parts.join(" ")}</span>
+    }
+    case "media_coverage": {
+      const parts: string[] = []
+      if (item.title) parts.push(item.title as string)
+      if (item.outlet) parts.push(`(${item.outlet})`)
+      return <span>{parts.join(" ") || item.outlet as string}</span>
+    }
+    case "judging_activities": {
+      const parts: string[] = []
+      if (item.type) parts.push((item.type as string).replace(/_/g, " "))
+      if (item.organization) parts.push(`at ${item.organization}`)
+      if (item.venue) parts.push(`for ${item.venue}`)
+      return <span>{parts.join(" ")}</span>
+    }
+    case "speaking_engagements": {
+      const parts = [item.event as string]
+      if (item.type) parts.push(`(${item.type})`)
+      if (item.year) parts.push(`${item.year}`)
+      return <span>{parts.join(" ")}</span>
+    }
+    case "grants": {
+      const parts = [item.title as string]
+      if (item.funder) parts.push(`from ${item.funder}`)
+      if (item.amount != null) parts.push(`${item.currency ?? "$"}${(item.amount as number).toLocaleString("en-US")}`)
+      return <span>{parts.join(" ")}</span>
+    }
+    case "leadership_roles": {
+      const parts = [item.title as string]
+      if (item.organization) parts.push(`at ${item.organization}`)
+      return <span>{parts.join(" ")}</span>
+    }
+    case "compensation": {
+      const parts: string[] = []
+      if (item.amount != null) parts.push(`${item.currency ?? "$"}${(item.amount as number).toLocaleString("en-US")}`)
+      if (item.period) parts.push(`(${item.period})`)
+      if (item.context) parts.push(`- ${item.context}`)
+      return <span>{parts.join(" ")}</span>
+    }
+    case "exhibitions": {
+      const parts: string[] = []
+      if (item.title) parts.push(item.title as string)
+      if (item.venue) parts.push(`at ${item.venue}`)
+      if (item.type) parts.push(`(${item.type})`)
+      return <span>{parts.join(" ") || item.venue as string}</span>
+    }
+    case "commercial_success":
+      return <span>{item.description as string}</span>
+    case "original_contributions":
+      return <span>{item.description as string}</span>
+    default:
+      return <span>{JSON.stringify(item)}</span>
+  }
+}
+
+function getStrengthConfig(strength: Strength) {
+  switch (strength) {
+    case "Strong":
+      return {
+        bg: "bg-emerald-500/5",
+        border: "border-l-emerald-500",
+        headerBg: "bg-emerald-500/10",
+        badge: "bg-emerald-600 text-white",
+        label: "Strong",
+      }
+    case "Weak":
+      return {
+        bg: "bg-amber-500/5",
+        border: "border-l-amber-500",
+        headerBg: "bg-amber-500/10",
+        badge: "bg-amber-500 text-white",
+        label: "Weak",
+      }
+    default:
+      return {
+        bg: "bg-muted/30",
+        border: "border-l-muted-foreground/30",
+        headerBg: "bg-muted/50",
+        badge: "bg-muted-foreground/70 text-background",
+        label: "None",
+      }
+  }
 }
 
 function getRecommendationColor(rec: string) {
@@ -51,21 +227,6 @@ function getRecommendationColor(rec: string) {
     case "EXCLUDE": return "bg-red-600 text-white"
     default: return "bg-muted text-muted-foreground"
   }
-}
-
-function getTierColor(tier: number) {
-  if (tier <= 1) return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-  if (tier <= 2) return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-  if (tier <= 3) return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-  return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
-}
-
-function getOverallRecommendation(criteria: Record<string, CriterionResult>): string {
-  const recs = Object.values(criteria).map((c) => c.recommendation)
-  if (recs.includes("STRONG")) return "STRONG"
-  if (recs.includes("INCLUDE_WITH_SUPPORT")) return "INCLUDE_WITH_SUPPORT"
-  if (recs.includes("NEEDS_MORE_DOCS")) return "NEEDS_MORE_DOCS"
-  return "EXCLUDE"
 }
 
 function ScoreBar({ score }: { score: number }) {
@@ -81,202 +242,15 @@ function ScoreBar({ score }: { score: number }) {
   )
 }
 
-function CriterionCard({ result }: { result: CriterionResult }) {
-  const d = result.data
-  return (
-    <Collapsible>
-      <CollapsibleTrigger className="w-full text-left">
-        <div className="flex items-center gap-2 py-1.5">
-          <span className="text-xs font-medium text-stone-700 dark:text-stone-300 w-24 shrink-0">
-            {result.criterion}
-          </span>
-          <div className="flex-1 min-w-0">
-            <ScoreBar score={result.score} />
-          </div>
-          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0", getTierColor(d.evidence_tier))}>
-            T{d.evidence_tier}
-          </span>
-          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0", getRecommendationColor(result.recommendation))}>
-            {result.recommendation.replace(/_/g, " ")}
-          </span>
-          <svg className="w-3 h-3 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="pl-24 pb-3 space-y-2 text-xs">
-          {/* Reasoning */}
-          <p className="text-stone-600 dark:text-stone-400 leading-relaxed">{d.reasoning}</p>
+// -- SSE processor (kept from original) --
 
-          {/* Verified claims */}
-          {d.verified_claims?.length > 0 && (
-            <div>
-              <span className="text-[10px] font-semibold text-emerald-600 uppercase">Verified Claims</span>
-              <ul className="mt-0.5 space-y-0.5">
-                {d.verified_claims.map((c, i) => (
-                  <li key={i} className="text-stone-600 dark:text-stone-400 pl-2 border-l-2 border-emerald-300">{c}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Unverified claims */}
-          {d.unverified_claims?.length > 0 && (
-            <div>
-              <span className="text-[10px] font-semibold text-amber-600 uppercase">Unverified Claims</span>
-              <ul className="mt-0.5 space-y-0.5">
-                {d.unverified_claims.map((c, i) => (
-                  <li key={i} className="text-stone-600 dark:text-stone-400 pl-2 border-l-2 border-amber-300">{c}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Red flags */}
-          {d.red_flags?.length > 0 && (
-            <div>
-              <span className="text-[10px] font-semibold text-red-600 uppercase">Red Flags</span>
-              <ul className="mt-0.5 space-y-0.5">
-                {d.red_flags.map((f, i) => (
-                  <li key={i} className="text-red-600 dark:text-red-400 pl-2 border-l-2 border-red-400 font-medium">{f}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Missing docs */}
-          {d.missing_documentation?.length > 0 && (
-            <div>
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase">Missing Documentation</span>
-              <ul className="mt-0.5 space-y-0.5">
-                {d.missing_documentation.map((m, i) => (
-                  <li key={i} className="text-stone-500 dark:text-stone-400 pl-2 border-l-2 border-muted">{m}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  )
-}
-
-function CriterionSkeleton() {
-  return (
-    <div className="flex items-center gap-2 py-1.5 animate-pulse">
-      <div className="w-24 h-4 bg-muted rounded shrink-0" />
-      <div className="flex-1 h-1.5 bg-muted rounded-full" />
-      <div className="w-8 h-5 bg-muted rounded shrink-0" />
-      <div className="w-16 h-5 bg-muted rounded shrink-0" />
-    </div>
-  )
-}
-
-function DocumentCard({
-  entry,
-  caseId,
-  loadingCriteria,
-  onReVerify,
-  isReVerifying,
-}: {
-  entry: DocumentEntry
-  caseId: string
-  loadingCriteria: Set<string>
-  onReVerify: (docId: string) => void
-  isReVerifying: boolean
-}) {
-  const allCriteria = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]
-  const hasResults = Object.keys(entry.criteria).length > 0
-  const overall = hasResults ? getOverallRecommendation(entry.criteria) : null
-
-  return (
-    <div className="rounded-lg border border-border overflow-hidden">
-      {/* Doc header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/30 border-b border-border">
-        <svg className="w-4 h-4 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round" />
-          <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <span className="text-xs font-medium text-stone-800 dark:text-stone-200 truncate flex-1">
-          {entry.document.name}
-        </span>
-        {entry.document.category && (
-          <span className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary font-medium shrink-0">
-            {entry.document.category.replace(/_/g, " ")}
-          </span>
-        )}
-        {overall && (
-          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0", getRecommendationColor(overall))}>
-            {overall.replace(/_/g, " ")}
-          </span>
-        )}
-        <button
-          onClick={() => onReVerify(entry.document.id)}
-          disabled={isReVerifying}
-          className="text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors shrink-0"
-          title="Re-verify"
-        >
-          {isReVerifying ? (
-            <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="23 4 23 10 17 10" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
-        </button>
-      </div>
-
-      {/* Criteria results */}
-      <div className="px-3 py-2 space-y-0.5">
-        {allCriteria.map((c) => {
-          const key = `${entry.document.id}-${c}`
-          if (loadingCriteria.has(key)) {
-            return <CriterionSkeleton key={c} />
-          }
-          if (entry.criteria[c]) {
-            return <CriterionCard key={c} result={entry.criteria[c]} />
-          }
-          return null
-        })}
-        {!hasResults && loadingCriteria.size === 0 && (
-          <p className="text-xs text-muted-foreground italic py-2">No verification results yet</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-export function EvidenceListPanel({ caseId, onDocumentsRouted }: EvidenceListPanelProps) {
-  const [documents, setDocuments] = useState<DocumentEntry[]>([])
-  const [isUploading, setIsUploading] = useState(false)
-  const [loadingCriteria, setLoadingCriteria] = useState<Set<string>>(new Set())
-  const [reVerifyingDocs, setReVerifyingDocs] = useState<Set<string>>(new Set())
-  const [dragOver, setDragOver] = useState(false)
-  const [hasLoaded, setHasLoaded] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Load existing results
-  useEffect(() => {
-    if (hasLoaded) return
-    async function load() {
-      try {
-        const res = await fetch(`/api/case/${caseId}/evidence-verify`)
-        if (res.ok) {
-          const data = await res.json()
-          if (Array.isArray(data)) setDocuments(data)
-        }
-      } catch (err) {
-        console.error("Failed to load evidence verifications:", err)
-      } finally {
-        setHasLoaded(true)
-      }
-    }
-    load()
-  }, [caseId, hasLoaded])
-
-  const processSSE = useCallback(async (response: Response) => {
+function useSSEProcessor() {
+  return useCallback(async (
+    response: Response,
+    onDocStarted?: (docId: string, name: string) => void,
+    onCriterionComplete?: (docId: string, criterion: string, result: Record<string, unknown>) => void,
+    onDocComplete?: (docId: string) => void,
+  ) => {
     const reader = response.body?.getReader()
     if (!reader) return
 
@@ -295,64 +269,14 @@ export function EvidenceListPanel({ caseId, onDocumentsRouted }: EvidenceListPan
         if (!line.startsWith("data: ")) continue
         try {
           const event = JSON.parse(line.slice(6))
-
           if (event.type === "doc_started") {
-            const docId = event.documentId as string
-            setDocuments((prev) => {
-              if (prev.find((d) => d.document.id === docId)) return prev
-              return [...prev, {
-                document: { id: docId, name: event.name, category: null, classificationConfidence: null },
-                criteria: {},
-              }]
-            })
-            // Mark all criteria as loading
-            setLoadingCriteria((prev) => {
-              const next = new Set(prev)
-              for (const c of ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]) {
-                next.add(`${docId}-${c}`)
-              }
-              return next
-            })
+            onDocStarted?.(event.documentId, event.name)
           }
-
           if (event.type === "criterion_complete") {
-            const docId = event.documentId as string
-            const criterion = event.criterion as string
-            setDocuments((prev) =>
-              prev.map((d) =>
-                d.document.id === docId
-                  ? {
-                      ...d,
-                      criteria: {
-                        ...d.criteria,
-                        [criterion]: {
-                          criterion,
-                          version: 1,
-                          score: (event.result as { score: number }).score,
-                          recommendation: (event.result as { recommendation: string }).recommendation,
-                          data: event.result,
-                        },
-                      },
-                    }
-                  : d,
-              ),
-            )
-            setLoadingCriteria((prev) => {
-              const next = new Set(prev)
-              next.delete(`${docId}-${criterion}`)
-              return next
-            })
+            onCriterionComplete?.(event.documentId, event.criterion, event.result)
           }
-
           if (event.type === "doc_complete") {
-            const docId = event.documentId as string
-            setLoadingCriteria((prev) => {
-              const next = new Set(prev)
-              for (const c of ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]) {
-                next.delete(`${docId}-${c}`)
-              }
-              return next
-            })
+            onDocComplete?.(event.documentId)
           }
         } catch {
           // partial JSON
@@ -360,7 +284,329 @@ export function EvidenceListPanel({ caseId, onDocumentsRouted }: EvidenceListPan
       }
     }
   }, [])
+}
 
+// -- EvidenceCriterionCard --
+
+function EvidenceCriterionCard({
+  criterionId,
+  criterion,
+  extraction,
+  criteriaSummary,
+  criteriaNames,
+  docCountsByItem,
+  routedDocs,
+  caseId,
+  onFileDropped,
+}: {
+  criterionId: string
+  criterion?: CriterionResult
+  extraction?: DetailedExtraction | null
+  criteriaSummary?: CriteriaSummaryItem
+  criteriaNames?: Record<string, string>
+  docCountsByItem?: Record<string, number>
+  routedDocs: RoutedDocument[]
+  caseId: string
+  onFileDropped?: () => void
+}) {
+  const strength = criterion?.strength ?? "None"
+  const config = getStrengthConfig(strength)
+  const meta = CRITERIA_METADATA[criterionId as keyof typeof CRITERIA_METADATA]
+  const displayName = criteriaNames?.[criterionId] ?? meta?.name ?? criterionId
+  const fullName = CRITERIA_LABELS[criterionId] ?? displayName
+  const extractionGroups = extraction ? getEvidenceForCriterion(extraction, criterionId) : []
+  const totalItems = extractionGroups.reduce((sum, g) => sum + g.items.length, 0)
+
+  const [expanded, setExpanded] = useState(strength !== "None" || routedDocs.length > 0)
+  const [dragOver, setDragOver] = useState(false)
+  const [evaluating, setEvaluating] = useState(false)
+  const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set())
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+
+    const file = e.dataTransfer.files?.[0]
+    if (!file || evaluating) return
+
+    setEvaluating(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("criterionId", criterionId)
+
+      const res = await fetch(`/api/case/${caseId}/criterion`, {
+        method: "POST",
+        body: formData,
+      })
+      if (!res.ok) throw new Error("Evaluation failed")
+      const data = await res.json()
+
+      // Post-drop feedback toast
+      if (data.verification) {
+        const v = data.verification as { recommendation: string; score: number; verified_claims: string[]; red_flags: string[] }
+        if (v.recommendation === "STRONG") {
+          toast.success(`Evidence verified for ${displayName}`, {
+            description: v.verified_claims.length > 0
+              ? v.verified_claims.slice(0, 2).join("; ")
+              : `Score: ${v.score}/10`,
+            duration: 6000,
+          })
+        } else if (v.recommendation === "INCLUDE_WITH_SUPPORT") {
+          toast(`Partially relevant for ${displayName}`, {
+            description: [
+              v.verified_claims.length > 0 ? `Verified: ${v.verified_claims[0]}` : null,
+              v.red_flags.length > 0 ? `Gaps: ${v.red_flags[0]}` : null,
+            ].filter(Boolean).join(" | "),
+            duration: 8000,
+          })
+        } else if (v.recommendation === "NEEDS_MORE_DOCS") {
+          toast(`Weak evidence for ${displayName}`, {
+            description: v.red_flags.length > 0
+              ? v.red_flags.slice(0, 2).join("; ")
+              : "Additional documentation recommended",
+            duration: 8000,
+          })
+        } else {
+          toast.error(`Not relevant to ${displayName}`, {
+            description: v.red_flags.length > 0
+              ? v.red_flags[0]
+              : "May be better suited for a different criterion",
+            duration: 8000,
+          })
+        }
+      }
+
+      onFileDropped?.()
+    } catch (err) {
+      console.error("Criterion file eval error:", err)
+      toast.error("Failed to evaluate dropped file")
+    } finally {
+      setEvaluating(false)
+    }
+  }, [caseId, criterionId, evaluating, displayName, onFileDropped])
+
+  const toggleDocExpanded = useCallback((docId: string) => {
+    setExpandedDocs((prev) => {
+      const next = new Set(prev)
+      if (next.has(docId)) next.delete(docId)
+      else next.add(docId)
+      return next
+    })
+  }, [])
+
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={cn(
+        "rounded-lg border border-l-4 overflow-hidden transition-all relative",
+        config.border, config.bg,
+        dragOver ? "border-primary ring-2 ring-primary/30" : "border-border",
+      )}
+    >
+      {/* Drag overlay */}
+      {dragOver && (
+        <div className="absolute inset-0 z-10 bg-primary/10 flex items-center justify-center pointer-events-none">
+          <span className="text-xs font-medium text-primary">Drop to evaluate for {criterionId}</span>
+        </div>
+      )}
+
+      {/* Evaluating overlay */}
+      {evaluating && (
+        <div className="absolute inset-0 z-10 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-muted-foreground">Evaluating...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className={cn("w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5", config.headerBg)}
+      >
+        <span className="text-xs font-bold text-muted-foreground shrink-0">{criterionId}</span>
+        <span className="text-sm font-semibold text-stone-800 dark:text-stone-200 truncate flex-1 min-w-0">
+          {fullName}
+        </span>
+        <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0", config.badge)}>
+          {config.label}
+        </span>
+        {routedDocs.length > 0 && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 shrink-0">
+            <FileText className="w-3 h-3" />
+            {routedDocs.length} {routedDocs.length === 1 ? "doc" : "docs"}
+          </span>
+        )}
+        {totalItems > 0 && (
+          <span className="text-[11px] text-muted-foreground shrink-0">{totalItems} items</span>
+        )}
+        <svg
+          className={cn("w-4 h-4 text-muted-foreground shrink-0 transition-transform", expanded && "rotate-180")}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+        >
+          <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {/* Expanded content */}
+      {expanded && (
+        <div className="px-3 pb-3 pt-1 space-y-3">
+          {/* Supporting extraction items */}
+          {extractionGroups.length > 0 && (
+            <div className="space-y-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Supporting Items</span>
+              {extractionGroups.map(({ category, items }) => {
+                const catConf = CATEGORY_CONFIG[category]
+                if (!catConf) return null
+                const Icon = catConf.icon
+                return (
+                  <div key={category} className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <Icon className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-[11px] font-medium text-muted-foreground">{catConf.label}</span>
+                    </div>
+                    {items.map((item, j) => {
+                      const itemId = item.id as string | undefined
+                      const itemDocCount = itemId ? (docCountsByItem?.[itemId] ?? 0) : 0
+                      return (
+                        <div key={j} className="flex items-center gap-1.5 text-xs text-foreground/80 pl-4 py-0.5">
+                          <span className="flex-1"><ItemSummary item={item} category={category} /></span>
+                          {itemDocCount > 0 ? (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 shrink-0">
+                              <FileText className="w-2.5 h-2.5" />
+                              Evidence in Vault
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
+                              Evidence Required
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Routed documents */}
+          {routedDocs.length > 0 && (
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Routed Documents</span>
+              <div className="space-y-1">
+                {routedDocs.map((doc) => {
+                  const isExpanded = expandedDocs.has(doc.id)
+                  return (
+                    <div key={doc.id} className="rounded border border-border/50 overflow-hidden">
+                      <button
+                        onClick={() => toggleDocExpanded(doc.id)}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-muted/30 transition-colors"
+                      >
+                        <svg className="w-3 h-3 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round" />
+                          <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <span className="text-xs text-stone-700 dark:text-stone-300 truncate flex-1 min-w-0">
+                          {doc.name}
+                        </span>
+                        <div className="w-16 shrink-0">
+                          <ScoreBar score={doc.score} />
+                        </div>
+                        <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 uppercase tracking-wide", getRecommendationColor(doc.recommendation))}>
+                          {doc.recommendation.replace(/_/g, " ")}
+                        </span>
+                        <svg
+                          className={cn("w-3 h-3 text-muted-foreground shrink-0 transition-transform", isExpanded && "rotate-180")}
+                          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                        >
+                          <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      {isExpanded && (
+                        <div className="px-2 pb-2 pt-1 border-t border-border/30 text-xs space-y-1.5">
+                          <p className="text-[10px] text-muted-foreground italic">
+                            {doc.autoRouted ? "Auto-routed" : "Manually routed"} -- Score: {doc.score.toFixed(1)}/10
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {extractionGroups.length === 0 && routedDocs.length === 0 && (
+            <div className="text-center py-3">
+              <p className="text-xs text-muted-foreground italic">No supporting items or documents yet</p>
+              <p className="text-[10px] text-muted-foreground/60 mt-0.5">Drop a file here to evaluate for {criterionId}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// -- Main panel --
+
+export function EvidenceListPanel({
+  caseId,
+  extraction,
+  criteriaNames,
+  criteriaSummary,
+  criteria,
+  docCountsByCriterion,
+  docCountsByItem,
+  onFileDropped,
+  onDocumentsRouted,
+}: EvidenceListPanelProps) {
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadDragOver, setUploadDragOver] = useState(false)
+  const [routingData, setRoutingData] = useState<RoutingData | null>(null)
+  const [streamingDocs, setStreamingDocs] = useState<Set<string>>(new Set())
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const processSSE = useSSEProcessor()
+
+  const allCriteria = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]
+
+  // Fetch routing data
+  const fetchRouting = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/case/${caseId}/criteria-routing`)
+      if (res.ok) {
+        const json = await res.json()
+        setRoutingData(json)
+      }
+    } catch (err) {
+      console.error("Failed to load routing data:", err)
+    }
+  }, [caseId])
+
+  useEffect(() => {
+    fetchRouting()
+  }, [fetchRouting])
+
+  // Global upload handler (full C1-C10 verification via SSE)
   const handleUpload = useCallback(async (files: FileList | File[]) => {
     if (isUploading || !files.length) return
     setIsUploading(true)
@@ -377,77 +623,60 @@ export function EvidenceListPanel({ caseId, onDocumentsRouted }: EvidenceListPan
       })
 
       if (!res.ok) throw new Error("Upload failed")
-      await processSSE(res)
+
+      await processSSE(
+        res,
+        (docId) => {
+          setStreamingDocs((prev) => new Set(prev).add(docId))
+        },
+        () => { /* criterion_complete - no-op, badges update via refetch */ },
+        (docId) => {
+          setStreamingDocs((prev) => {
+            const next = new Set(prev)
+            next.delete(docId)
+            return next
+          })
+        },
+      )
+
+      // After SSE complete, refresh routing + doc counts
+      await fetchRouting()
+      onFileDropped?.()
       onDocumentsRouted?.()
     } catch (err) {
       console.error("Evidence upload error:", err)
+      toast.error("Upload failed")
     } finally {
       setIsUploading(false)
     }
-  }, [caseId, isUploading, processSSE, onDocumentsRouted])
+  }, [caseId, isUploading, processSSE, fetchRouting, onFileDropped, onDocumentsRouted])
 
-  const handleReVerify = useCallback(async (documentId: string) => {
-    if (reVerifyingDocs.has(documentId)) return
-
-    setReVerifyingDocs((prev) => new Set(prev).add(documentId))
-
-    // Clear existing results for this doc
-    setDocuments((prev) =>
-      prev.map((d) => d.document.id === documentId ? { ...d, criteria: {} } : d),
-    )
-
-    try {
-      const res = await fetch(`/api/case/${caseId}/evidence-verify/${documentId}`, {
-        method: "POST",
-      })
-      if (!res.ok) throw new Error("Re-verify failed")
-      await processSSE(res)
-      onDocumentsRouted?.()
-    } catch (err) {
-      console.error("Re-verify error:", err)
-    } finally {
-      setReVerifyingDocs((prev) => {
-        const next = new Set(prev)
-        next.delete(documentId)
-        return next
-      })
-    }
-  }, [caseId, reVerifyingDocs, processSSE, onDocumentsRouted])
-
-  const handleRunAnalysis = useCallback(async () => {
-    // Trigger incremental analysis on all uploaded evidence docs
-    try {
-      const res = await fetch(`/api/case/${caseId}/upload`, {
-        method: "POST",
-        body: new FormData(), // empty -- just triggers analysis
-      })
-      if (!res.ok) {
-        console.error("Run analysis failed")
-      }
-    } catch (err) {
-      console.error("Run analysis error:", err)
-    }
-  }, [caseId])
+  // Per-criterion file dropped: refetch routing + doc counts
+  const handleCriterionFileDropped = useCallback(async () => {
+    await fetchRouting()
+    onFileDropped?.()
+  }, [fetchRouting, onFileDropped])
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Upload zone */}
-      <div className="shrink-0 p-4 border-b border-border">
+      {/* Upload bar -- global drop zone for all C1-C10 */}
+      <div className="shrink-0 p-3 border-b border-border">
         <div
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-          onDragLeave={(e) => { e.preventDefault(); setDragOver(false) }}
+          onDragOver={(e) => { e.preventDefault(); setUploadDragOver(true) }}
+          onDragLeave={(e) => { e.preventDefault(); setUploadDragOver(false) }}
           onDrop={(e) => {
             e.preventDefault()
-            setDragOver(false)
+            setUploadDragOver(false)
             if (e.dataTransfer.files.length > 0) handleUpload(e.dataTransfer.files)
           }}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => !isUploading && fileInputRef.current?.click()}
           className={cn(
-            "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
-            dragOver
-              ? "border-primary bg-primary/5"
-              : "border-border hover:border-muted-foreground/50",
-            isUploading && "opacity-50 pointer-events-none",
+            "border-2 border-dashed rounded-lg p-3 text-center transition-colors",
+            isUploading
+              ? "border-primary/50 bg-primary/5 pointer-events-none"
+              : uploadDragOver
+                ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                : "border-border hover:border-muted-foreground/50 cursor-pointer",
           )}
         >
           <input
@@ -463,54 +692,50 @@ export function EvidenceListPanel({ caseId, onDocumentsRouted }: EvidenceListPan
           />
           {isUploading ? (
             <div className="flex items-center justify-center gap-2">
-              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs text-muted-foreground">Uploading & verifying...</span>
+              <Loader2 className="w-4 h-4 text-primary animate-spin" />
+              <span className="text-xs text-muted-foreground">
+                Uploading & verifying all criteria...
+                {streamingDocs.size > 0 && ` (${streamingDocs.size} doc${streamingDocs.size > 1 ? "s" : ""})`}
+              </span>
             </div>
           ) : (
             <>
-              <svg className="w-6 h-6 mx-auto text-muted-foreground mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg className="w-5 h-5 mx-auto text-muted-foreground mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" strokeLinecap="round" strokeLinejoin="round" />
                 <polyline points="17 8 12 3 7 8" strokeLinecap="round" strokeLinejoin="round" />
                 <line x1="12" y1="3" x2="12" y2="15" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <p className="text-xs text-muted-foreground">Drop evidence files or click to upload</p>
-              <p className="text-[10px] text-muted-foreground/70 mt-0.5">PDF, DOCX, TXT, MD, CSV, XLSX -- multi-file supported</p>
+              <p className="text-xs text-muted-foreground">
+                {uploadDragOver ? "Drop to upload & auto-classify all C1-C10" : "Drop evidence files or click to upload"}
+              </p>
+              <p className="text-[10px] text-muted-foreground/70 mt-0.5">PDF, DOCX, TXT, MD, CSV, XLSX -- auto-verified against C1-C10</p>
             </>
           )}
         </div>
-
-        {/* Action buttons */}
-        {documents.length > 0 && (
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={handleRunAnalysis}
-              className="px-3 py-1.5 text-[11px] font-medium rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
-            >
-              Run Analysis
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* Document list */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {documents.length === 0 && hasLoaded && (
-          <div className="text-center py-8">
-            <p className="text-sm text-muted-foreground">No evidence documents yet</p>
-            <p className="text-xs text-muted-foreground/70 mt-1">Upload files to verify against EB-1A criteria C1-C10</p>
-          </div>
-        )}
+      {/* Criteria list -- each card has its own per-criterion drop zone */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {allCriteria.map((cId) => {
+          const criterion = criteria?.find((c) => c.criterionId === cId)
+          const cs = criteriaSummary?.find((s) => s.criterion_id === cId)
+          const routedDocs = routingData?.routings?.[cId]?.documents ?? []
 
-        {documents.map((entry) => (
-          <DocumentCard
-            key={entry.document.id}
-            entry={entry}
-            caseId={caseId}
-            loadingCriteria={loadingCriteria}
-            onReVerify={handleReVerify}
-            isReVerifying={reVerifyingDocs.has(entry.document.id)}
-          />
-        ))}
+          return (
+            <EvidenceCriterionCard
+              key={cId}
+              criterionId={cId}
+              criterion={criterion}
+              extraction={extraction}
+              criteriaSummary={cs}
+              criteriaNames={criteriaNames}
+              docCountsByItem={docCountsByItem}
+              routedDocs={routedDocs}
+              caseId={caseId}
+              onFileDropped={handleCriterionFileDropped}
+            />
+          )
+        })}
       </div>
     </div>
   )
