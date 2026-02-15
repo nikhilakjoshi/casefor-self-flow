@@ -112,3 +112,7 @@
 - Retry button for failed files not implemented; user can re-drop failed files instead
 - Upload button shows dynamic count of pending files (e.g., "Upload 3 file(s)")
 - "Clear completed" button only appears when at least one file succeeded
+- New DocumentCategory values placed before OTHER to keep OTHER as the last/catch-all value
+- Classifier schema updated to include PERSONAL_STATEMENT and PETITION_LETTER which existed in DB enum but were missing from classifier (consistency fix bundled w/ new categories)
+- G1450 form variants (G1450PPU, G1450300, G1450I40) use PRD naming convention as-is; these map to USCIS G-1450 Authorization for Credit Card Transactions with different fee designations
+- Filename pattern hints in classifier prompt are advisory guidance to LLM, not programmatic matching; LLM uses both filename and content for classification

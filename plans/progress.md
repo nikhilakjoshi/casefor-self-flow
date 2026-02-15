@@ -912,3 +912,21 @@
 - File matching by name assumes unique names within batch
 - PRD complete: all tasks pass
 - Pre-existing lint errors unchanged
+
+## 2026-02-14: DocumentCategory Enum + Classifier Update (PRD R6 Tasks 19, 24)
+
+### Completed
+
+- Added 8 new values to `DocumentCategory` enum in `prisma/schema.prisma`: COVER_LETTER, USCIS_ADVISORY_LETTER, G1450PPU, G1450300, G1450I40, G28, I140, I907
+- Ran `prisma generate` + `prisma db push` -- schema synced w/ no conflicts
+- Updated `lib/document-classifier.ts` ClassificationSchema: added all new categories + PERSONAL_STATEMENT, PETITION_LETTER (were in DB enum but missing from classifier)
+- Updated fallback classification prompt w/ descriptions for all new categories
+- Added filename pattern hints for USCIS form identification (g-28->G28, i-140->I140, etc.)
+
+### Notes for Next Dev
+
+- DocumentCategory enum now has 24 values (was 16)
+- Classifier schema now matches DB enum exactly (was missing PERSONAL_STATEMENT, PETITION_LETTER before)
+- Used `prisma db push` not `prisma migrate dev` (consistent w/ project convention)
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 tasks 20-23,25 (letters-panel LETTER_TYPES expansion, upload-only cards, drop zones) or R4 task 13 (criteriaKeys schema) or R2 tasks 6-8 (tab merging)
