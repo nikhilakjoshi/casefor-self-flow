@@ -108,7 +108,7 @@
       "After upload, trigger evidence-verification (lib/evidence-verification.ts) to evaluate relevance",
       "Return the evaluation result (relevant/partial/not relevant) in the streaming response"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -121,7 +121,7 @@
       "If no doc: show orange 'Evidence Required' badge",
       "Use small inline Badge component (from components/ui) with appropriate colors"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
@@ -132,7 +132,7 @@
       "Add docCountsByItem to the response: Record<string, Record<string, number>> (criterion -> itemId -> count)",
       "Ensure the existing docCountsByCriterion still works alongside new field"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -145,7 +145,7 @@
       "If not relevant: show warning toast suggesting better-fit criteria based on DocumentCriterionRouting scores",
       "Use existing toast/notification pattern from the codebase"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "data",

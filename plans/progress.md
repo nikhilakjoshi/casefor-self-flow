@@ -1465,3 +1465,38 @@
 - resume-drafter prompt is a DB-stored AgentPrompt; requires running `npx prisma db seed` to upsert
 - Pre-existing lint errors unchanged (13 errors, 25 warnings)
 - Next priority: R3 tasks (evidence badges, criterion upload, analysis endpoint extension) -- last remaining `passes: false` features
+
+## 2026-02-15: Evidence Badges + Criterion Drop Verification (PRD R3 Tasks 8-11)
+
+### Completed
+
+- **R3 Task 10** (analysis endpoint per-item counts): was already implemented; `docCountsByItem` returned from GET `/api/case/{caseId}/analysis`
+- **R3 Task 8** (criterion POST evidence routing): updated `app/api/case/[caseId]/criterion/route.ts`
+  - After file upload + criterion evaluation, runs `runSingleCriterionVerification()` for the target criterion only
+  - Creates `DocumentCriterionRouting` record w/ `autoRouted: false` (user explicitly chose criterion)
+  - Returns `verification` object in response: `{ score, recommendation, verified_claims, red_flags, matched_item_ids }`
+  - Added `runSingleCriterionVerification()` export to `lib/evidence-verification.ts` (runs single criterion instead of all 10)
+- **R3 Task 9** (evidence badges): updated criterion card item rendering in `report-panel.tsx`
+  - Items w/ `docCountsByItem[itemId] > 0`: green "Evidence in Vault" badge (clickable, navigates to routing tab)
+  - Items w/ no docs: orange "Evidence Required" badge
+  - Replaced old teal numeric badge w/ semantic status badges
+- **R3 Task 11** (post-drop feedback): updated `handleDrop` in CriterionSection
+  - Parses `verification` from criterion POST response
+  - STRONG: success toast w/ verified claims
+  - INCLUDE_WITH_SUPPORT: neutral toast w/ verified claims + gaps
+  - NEEDS_MORE_DOCS: warning toast w/ red flags
+  - EXCLUDE: error toast suggesting different criterion
+  - Calls `refetchDocCounts()` after drop to update evidence badges
+- Fixed pre-existing `rules-of-hooks` lint error: moved `useCallback` hooks before early return in ReportPanel
+- Lint: 12 errors (was 14, fixed 2), 25 warnings (unchanged)
+- Typecheck passes clean
+- ALL PRD TASKS NOW PASS -- no remaining `passes: false` entries
+
+### Notes for Next Dev
+
+- `runSingleCriterionVerification` runs only one criterion (not all 10); used specifically for criterion-targeted file drops
+- DocumentCriterionRouting created w/ `autoRouted: false` when user drops file on criterion card; distinguishes from auto-routed records (from full document verification)
+- Evidence badges show on extraction items (Supporting Items section) within each criterion card; badges use `docCountsByItem` from analysis endpoint
+- Post-drop feedback uses 4-tier recommendation: STRONG (success), INCLUDE_WITH_SUPPORT (partial), NEEDS_MORE_DOCS (weak), EXCLUDE (not relevant)
+- `refetchDocCounts` does a lightweight re-fetch of analysis endpoint after file drop to update badge state without full page reload
+- PRD is fully complete -- all features pass

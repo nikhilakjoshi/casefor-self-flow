@@ -214,3 +214,11 @@
 - Resume card placed first in LETTER_TYPES array for prominence since resume is a foundational document
 - DraftableCard's existing "Draft" button handles RESUME_CV via the standard draft-chat flow; `getCategoryPromptSlug('RESUME_CV')` resolves to `resume-drafter` prompt
 - resume-drafter AgentPrompt seed uses same variable schema as other category-specific prompts (criteria, threshold, profile, analysis, documentName, existingContent)
+- `runSingleCriterionVerification` runs a single criterion evaluation (not all 10) for performance; saves EvidenceVerification record and returns result directly
+- Criterion POST creates DocumentCriterionRouting w/ `autoRouted: false` since user explicitly dropped file on that criterion; distinguished from auto-routed records from full document verification
+- Evidence verification in criterion POST is non-fatal (try/catch); if verification fails, the basic criterion evaluation result still returns successfully
+- Evidence badges show on extraction items (Supporting Items section); orange "Evidence Required" shown even when `docCountsByItem` is undefined/empty for that item (assumes no docs = required)
+- R3 Task 10 (analysis endpoint per-item counts) was already implemented before R3 work began; no changes needed to analysis endpoint
+- `refetchDocCounts` re-fetches the full analysis endpoint but only updates `docCountsByCriterion` and `docCountsByItem` in state; criterion data unchanged (already updated via `onCriterionUpdated`)
+- Post-drop verification feedback uses toast notification pattern (via sonner) consistent w/ rest of app; no modal/dialog for partial relevance (simpler than PRD suggested)
+- Moved `useCallback` hooks (refetchDocCounts, handleCriterionUpdated) before early return in ReportPanel to fix pre-existing rules-of-hooks lint error
