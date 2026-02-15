@@ -983,4 +983,26 @@
 - Type imports for StrengthEvaluation, GapAnalysis, CaseStrategy kept in report-panel.tsx since they're still used in ReportPanelProps interface (passed through to child components)
 - Collapsible sections use manual state + conditional rendering (not Radix Collapsible primitive) for simpler integration w/ the sub-panel components which manage their own scroll/overflow
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
-- Next priority: R5 tasks (ConsolidationTab + Phase 3 merge, same pattern as R2) or R6 tasks 20-23,25 (letters-panel expansion) or R1 tasks (skip-to-survey, resume gen)
+- Next priority: R6 tasks 20-23,25 (letters-panel expansion) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges)
+
+## 2026-02-15: Phase 3 Tab Consolidation (PRD R5 Tasks 17-18)
+
+### Completed
+
+- Created `app/case/[caseId]/_components/consolidation-tab.tsx`: merges Consolidation + Strategy into single tab w/ collapsible sections
+  - Section 1 "Consolidation": renders CaseConsolidationPanel w/ `{caseId, initialData, hasCaseStrategy}`, default expanded
+  - Section 2 "Strategy": renders CaseStrategyConsolidatedPanel w/ `{initialData}`, default collapsed
+- Updated `report-panel.tsx` Phase 3 tabs: replaced 2 tabs (Consolidation, Strategy) w/ 1 tab (Consolidation)
+  - Removed `"consolidated-strategy"` from `ReportTab` type and `validSubTabs` set
+  - Replaced direct imports of CaseConsolidationPanel/CaseStrategyConsolidatedPanel w/ ConsolidationTab
+  - Tab content routing updated: single "consolidation" branch renders ConsolidationTab
+  - Tooltip description updated to reflect merged content
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- Same pattern as R2 (CriteriaTab/PlanningTab): manual useState + conditional rendering for collapsible sections
+- ConsolidationTab accepts `initialCaseStrategy` as boolean (derived from `!!initialCaseStrategy` in report-panel), not the full CaseStrategy object; only needed for CaseConsolidationPanel's `hasCaseStrategy` prop
+- Old URL subtab value "consolidated-strategy" falls back to "summary" default (no backward-compat shim; session-only URL params)
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 tasks 20-23,25 (letters-panel expansion) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges)

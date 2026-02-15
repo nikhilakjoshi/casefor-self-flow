@@ -8,8 +8,7 @@ import { CriteriaTab } from "./criteria-tab"
 import { PlanningTab } from "./planning-tab"
 import { EvidenceListPanel } from "./evidence-list-panel"
 import { CriteriaRoutingPanel } from "./criteria-routing-panel"
-import { CaseConsolidationPanel } from "./case-consolidation-panel"
-import { CaseStrategyConsolidatedPanel } from "./case-strategy-consolidated-panel"
+import { ConsolidationTab } from "./consolidation-tab"
 import { LettersPanel } from "./letters-panel"
 import { DenialProbabilityPanel } from "./denial-probability-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
@@ -612,7 +611,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "planning" | "evidence" | "routing" | "consolidation" | "consolidated-strategy" | "letters" | "denial" | "raw"
+type ReportTab = "summary" | "planning" | "evidence" | "routing" | "consolidation" | "letters" | "denial" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -633,7 +632,7 @@ export function ReportPanel({
   const router = useRouter()
   const pathname = usePathname()
 
-  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "planning", "evidence", "routing", "consolidation", "consolidated-strategy", "letters", "denial", "raw"]), [])
+  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "planning", "evidence", "routing", "consolidation", "letters", "denial", "raw"]), [])
   const subtabParam = searchParams.get('subtab')
   const initialSubTab = subtabParam && validSubTabs.has(subtabParam as ReportTab)
     ? (subtabParam as ReportTab)
@@ -907,23 +906,7 @@ export function ReportPanel({
                       Consolidation
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Merged analysis across all criteria and evidence</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleSubTabChange("consolidated-strategy")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                        activeTab === "consolidated-strategy"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                      )}
-                    >
-                      Strategy
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Post-consolidation filing strategy</TooltipContent>
+                  <TooltipContent side="bottom">Consolidated analysis, strategy, and filing readiness</TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -1037,14 +1020,10 @@ export function ReportPanel({
       ) : activeTab === "routing" ? (
         <CriteriaRoutingPanel caseId={caseId} />
       ) : activeTab === "consolidation" ? (
-        <CaseConsolidationPanel
+        <ConsolidationTab
           caseId={caseId}
-          initialData={initialCaseConsolidation}
-          hasCaseStrategy={!!initialCaseStrategy}
-        />
-      ) : activeTab === "consolidated-strategy" ? (
-        <CaseStrategyConsolidatedPanel
-          initialData={initialCaseConsolidation}
+          initialCaseConsolidation={initialCaseConsolidation}
+          initialCaseStrategy={!!initialCaseStrategy}
         />
       ) : activeTab === "letters" ? (
         <div className="flex-1 overflow-y-auto">

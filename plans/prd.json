@@ -205,7 +205,7 @@
       "Section 2: 'Strategy' containing CaseStrategyConsolidatedPanel content",
       "Default: Consolidation expanded, Strategy collapsed"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -216,7 +216,7 @@
       "Render ConsolidationTab component in the single tab",
       "Pass through all required props (caseId, consolidation data, strategy data)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "data",

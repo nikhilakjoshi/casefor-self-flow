@@ -125,3 +125,5 @@
 - Old URL subtab values "strength", "gap", "strategy" fall back to "summary" default; no backward-compatibility shim needed since these are session-only URL params not persisted/shared
 - Collapsible sections in CriteriaTab/PlanningTab use manual useState + conditional rendering rather than Radix Collapsible primitive; sub-panels manage their own scroll/overflow internally and work better without Collapsible animation wrapper
 - PlanningTab derives `hasGapAnalysis` for CaseStrategyPanel from `!!initialGapAnalysis` rather than accepting it as a separate prop; reduces prop surface
+- ConsolidationTab accepts `initialCaseStrategy` as boolean (not full CaseStrategy object) since CaseConsolidationPanel only needs `hasCaseStrategy: boolean`; report-panel derives it via `!!initialCaseStrategy`
+- Old URL subtab value "consolidated-strategy" falls back to "summary" default; no backward-compatibility shim needed (session-only URL params)
