@@ -1,0 +1,469 @@
+[
+  {
+    "category": "functional",
+    "description": "Import queryContext from RAG module in evidence-agent.ts",
+    "steps": [
+      "Open lib/evidence-agent.ts",
+      "Add import: import { queryContext } from './rag'",
+      "Verify import resolves correctly"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Add searchDocuments tool to Evidence Agent for RAG-based document search",
+    "steps": [
+      "Open lib/evidence-agent.ts",
+      "In createEvidenceAgentTools function, add new tool 'searchDocuments'",
+      "Schema: z.object({ query: z.string(), topK: z.number().optional().default(5) })",
+      "Execute: call queryContext(caseId, query, topK), return { results }",
+      "Add description: 'Search uploaded documents and case materials for relevant information'"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Update Evidence Agent system prompt to mention document search capability",
+    "steps": [
+      "Open lib/evidence-agent.ts",
+      "Find buildEvidenceSystemPrompt function",
+      "Add section: 'DOCUMENT SEARCH: Use searchDocuments tool to find relevant content from uploaded documents when needed.'"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Change upload route from single file to multiple files input",
+    "steps": [
+      "Open app/api/case/[caseId]/upload/route.ts",
+      "Change formData.get('file') to formData.getAll('files')",
+      "Add validation: max 10 files",
+      "Add validation: reject if no files provided"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Add BatchUploadResponse interface for multi-file upload response",
+    "steps": [
+      "Open app/api/case/[caseId]/upload/route.ts",
+      "Add interface BatchUploadResponse with: results array (fileName, success, chunksCreated?, analysisStatus?, error?), totalSuccess, totalFailed"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Wrap file processing in Promise.allSettled for parallel execution",
+    "steps": [
+      "Open app/api/case/[caseId]/upload/route.ts",
+      "Extract single-file processing logic into async function processFile(file: File)",
+      "Map files array through processFile",
+      "Wrap in Promise.allSettled() for parallel processing with error isolation"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Run incremental analysis per file and track status",
+    "steps": [
+      "In processFile function, call runIncrementalAnalysis after successful chunking",
+      "Track analysis status: 'queued', 'completed', 'failed'",
+      "Include analysisStatus in per-file result object"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Return batch response with per-file status from upload route",
+    "steps": [
+      "After Promise.allSettled completes, map results to BatchUploadResponse format",
+      "Count totalSuccess and totalFailed",
+      "Return NextResponse.json(batchResponse)",
+      "Use 207 Multi-Status if partial failures, 200 if all success, 400 if all fail"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Remove maxFiles constraint from upload-zone dropzone config",
+    "steps": [
+      "Open app/case/[caseId]/_components/upload-zone.tsx",
+      "Find useDropzone config",
+      "Change maxFiles: 1 to maxFiles: 10"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Add per-file state tracking for multi-file uploads",
+    "steps": [
+      "Open app/case/[caseId]/_components/upload-zone.tsx",
+      "Add interface FileUploadState: { file: File, status: 'pending'|'uploading'|'analyzing'|'success'|'error', progress: number, error?: string }",
+      "Add state: const [fileStates, setFileStates] = useState<FileUploadState[]>([])"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Update onDrop handler to queue multiple files",
+    "steps": [
+      "Modify onDrop callback to accept multiple files",
+      "Map acceptedFiles to initial FileUploadState objects with status: 'pending'",
+      "setFileStates with new array"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Create file list UI with individual progress indicators",
+    "steps": [
+      "Use frontend-design skill for polished UI",
+      "Render list of queued files",
+      "Show file name, size, status icon (spinner/check/x)",
+      "Show progress bar per file",
+      "Use color coding: gray=pending, blue=uploading, yellow=analyzing, green=success, red=error"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Add remove file button before upload starts",
+    "steps": [
+      "Add X button next to each pending file",
+      "onClick: filter file from fileStates array",
+      "Only show remove button when status is 'pending'"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Handle batch upload response and update per-file states",
+    "steps": [
+      "Parse BatchUploadResponse from fetch",
+      "Map response.results to update fileStates",
+      "Match by fileName to update status and error fields",
+      "Call onUploadComplete only if totalSuccess > 0"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Display partial failure states gracefully",
+    "steps": [
+      "If some files failed, show success count and failure count summary",
+      "Keep failed files visible with error message",
+      "Allow retry button for failed files (optional enhancement)"
+    ],
+    "passes": true
+  },
+  {
+    "category": "data",
+    "description": "Add xlsx npm dependency for Excel parsing",
+    "steps": [
+      "Run: pnpm add xlsx",
+      "Verify package added to package.json"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Update SupportedFileType to include new formats",
+    "steps": [
+      "Open lib/file-parser.ts",
+      "Change: export type SupportedFileType = 'docx' | 'txt' | 'pdf' | 'md' | 'csv' | 'xlsx' | 'xls'"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Add parseMarkdown function to file-parser.ts",
+    "steps": [
+      "Open lib/file-parser.ts",
+      "Add: export async function parseMarkdown(buffer: ArrayBuffer): Promise<string>",
+      "Implementation: new TextDecoder('utf-8').decode(buffer).trim()",
+      "Validate min 100 chars, throw FileParseError if empty"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Add parseCsv function with markdown table output",
+    "steps": [
+      "Open lib/file-parser.ts",
+      "Add: export async function parseCsv(buffer: ArrayBuffer): Promise<string>",
+      "Split by newlines, split rows by comma",
+      "Build markdown table: header row | separator row | data rows",
+      "Validate non-empty, throw FileParseError if empty"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Add parseExcel function with multi-sheet markdown table output",
+    "steps": [
+      "Open lib/file-parser.ts",
+      "Add: export async function parseExcel(buffer: ArrayBuffer): Promise<string>",
+      "Import xlsx: const XLSX = await import('xlsx')",
+      "Read workbook: XLSX.read(buffer, { type: 'array' })",
+      "Loop SheetNames, convert each sheet to markdown table with ## sheetName header",
+      "Validate non-empty output, throw FileParseError if empty"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Update parseFile switch to handle new file types",
+    "steps": [
+      "Open lib/file-parser.ts",
+      "Add case 'md': return parseMarkdown(buffer)",
+      "Add case 'csv': return parseCsv(buffer)",
+      "Add case 'xlsx': case 'xls': return parseExcel(buffer)"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Add switch cases for new file types in upload route",
+    "steps": [
+      "Open app/api/case/[caseId]/upload/route.ts",
+      "Import parseMarkdown, parseCsv, parseExcel from lib/file-parser",
+      "Add case for .md extension: call parseMarkdown",
+      "Add case for .csv extension: call parseCsv",
+      "Add case for .xlsx, .xls extensions: call parseExcel"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Update accept MIME types in upload-zone.tsx",
+    "steps": [
+      "Open app/case/[caseId]/_components/upload-zone.tsx",
+      "Update accept object to include: text/markdown: ['.md'], text/csv: ['.csv'], application/vnd.ms-excel: ['.xls'], application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: ['.xlsx']"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Update accept MIME types in onboard dropzone.tsx",
+    "steps": [
+      "Open app/onboard/_components/dropzone.tsx",
+      "Update accept object to include same new MIME types as upload-zone"
+    ],
+    "passes": true
+  },
+  {
+    "category": "data",
+    "description": "Add RelationshipType enum to Prisma schema",
+    "steps": [
+      "Open prisma/schema.prisma",
+      "Add enum RelationshipType { ACADEMIC_ADVISOR, RESEARCH_COLLABORATOR, INDUSTRY_COLLEAGUE, SUPERVISOR, MENTEE, CLIENT, PEER_EXPERT, OTHER }"
+    ],
+    "passes": true
+  },
+  {
+    "category": "data",
+    "description": "Add Recommender model to Prisma schema",
+    "steps": [
+      "Open prisma/schema.prisma",
+      "Add model Recommender with: id (cuid), caseId, name, title, relationshipType, relationshipContext (required)",
+      "Add optional fields: email, phone, linkedIn, countryRegion, organization, bio, credentials, startDate, endDate, durationYears, contextNotes (Json?)",
+      "Add createdAt, updatedAt timestamps",
+      "Add relation: case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)",
+      "Add @@index([caseId])"
+    ],
+    "passes": true
+  },
+  {
+    "category": "data",
+    "description": "Add recommenders relation to Case model",
+    "steps": [
+      "Open prisma/schema.prisma",
+      "Find Case model",
+      "Add: recommenders Recommender[]"
+    ],
+    "passes": true
+  },
+  {
+    "category": "data",
+    "description": "Add recommenderId foreign key to Document model",
+    "steps": [
+      "Open prisma/schema.prisma",
+      "Find Document model",
+      "Add: recommenderId String?",
+      "Add: recommender Recommender? @relation(fields: [recommenderId], references: [id])"
+    ],
+    "passes": true
+  },
+  {
+    "category": "data",
+    "description": "Add documents relation to Recommender model",
+    "steps": [
+      "Open prisma/schema.prisma",
+      "In Recommender model, add: documents Document[]"
+    ],
+    "passes": true
+  },
+  {
+    "category": "data",
+    "description": "Run Prisma migration for Recommender model",
+    "steps": [
+      "Run: npx prisma migrate dev --name add_recommender_model",
+      "Verify migration succeeds",
+      "Run: npx prisma generate"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Create GET /api/case/[caseId]/recommenders endpoint",
+    "steps": [
+      "Create file: app/api/case/[caseId]/recommenders/route.ts",
+      "Add GET handler with auth check and case ownership verification",
+      "Query: db.recommender.findMany({ where: { caseId }, orderBy: { createdAt: 'desc' } })",
+      "Return NextResponse.json(recommenders)"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Create POST /api/case/[caseId]/recommenders endpoint",
+    "steps": [
+      "In app/api/case/[caseId]/recommenders/route.ts, add POST handler",
+      "Add Zod schema validating required fields: name, title, relationshipType, relationshipContext",
+      "All other fields optional",
+      "Create recommender with db.recommender.create({ data: { caseId, ...validatedData } })",
+      "Return 201 with created recommender"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Create GET /api/case/[caseId]/recommenders/[recommenderId] endpoint",
+    "steps": [
+      "Create file: app/api/case/[caseId]/recommenders/[recommenderId]/route.ts",
+      "Add GET handler with auth check",
+      "Query: db.recommender.findUnique with caseId filter for security",
+      "Include documents relation in query",
+      "Return 404 if not found, otherwise return recommender"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Create PATCH /api/case/[caseId]/recommenders/[recommenderId] endpoint",
+    "steps": [
+      "In [recommenderId]/route.ts, add PATCH handler",
+      "Allow partial updates - all fields optional in Zod schema",
+      "Verify recommender exists and belongs to case",
+      "Update with db.recommender.update",
+      "Return updated recommender"
+    ],
+    "passes": true
+  },
+  {
+    "category": "api",
+    "description": "Create DELETE /api/case/[caseId]/recommenders/[recommenderId] endpoint",
+    "steps": [
+      "In [recommenderId]/route.ts, add DELETE handler",
+      "Verify recommender exists and belongs to case",
+      "Delete with db.recommender.delete",
+      "Return 204 No Content"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Add saveRecommender tool to Evidence Agent",
+    "steps": [
+      "Open lib/evidence-agent.ts",
+      "Add saveRecommender tool to createEvidenceAgentTools",
+      "Schema: recommenderId (optional for update), name, title, relationshipType, relationshipContext (required), all others optional, contextNotes as Json",
+      "Execute: if recommenderId, update existing; else create new via db.recommender",
+      "Return { success: true, recommenderId, name }"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Add listRecommenders tool to Evidence Agent",
+    "steps": [
+      "In createEvidenceAgentTools, add listRecommenders tool",
+      "Schema: empty object (no inputs)",
+      "Execute: db.recommender.findMany({ where: { caseId }, select: { id, name, title, relationshipType } })",
+      "Return { recommenders: [...] }"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Add getRecommender tool to Evidence Agent",
+    "steps": [
+      "In createEvidenceAgentTools, add getRecommender tool",
+      "Schema: z.object({ recommenderId: z.string() })",
+      "Execute: db.recommender.findUnique with all fields",
+      "Return full recommender object or null"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Update draftRecommendationLetter tool to support recommenderId",
+    "steps": [
+      "Find draftRecommendationLetter in evidence-agent.ts",
+      "Add optional recommenderId to input schema",
+      "If recommenderId provided, fetch recommender and use their data",
+      "When creating document, include recommenderId in db.document.create",
+      "Use contextNotes from recommender for richer personalization in generation"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Create RecommenderForm component with collapsible sections",
+    "steps": [
+      "Create file: app/case/[caseId]/_components/recommender-form.tsx",
+      "Use frontend-design skill for polished form UI",
+      "Add sections: Contact Info (collapsible), Professional (collapsible), Relationship (collapsible)",
+      "Required fields: name, title, relationshipType (dropdown), relationshipContext (textarea)",
+      "All other fields optional with appropriate inputs",
+      "onSubmit: POST/PATCH to /api/case/{caseId}/recommenders[/{id}]",
+      "Props: caseId, recommender? (for edit mode), onSave, onCancel"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Create RecommendersPanel component for listing recommenders",
+    "steps": [
+      "Create file: app/case/[caseId]/_components/recommenders-panel.tsx",
+      "Fetch recommenders from /api/case/{caseId}/recommenders",
+      "Display as cards: avatar (initials), name, title, relationship type badge",
+      "Add 'Add Recommender' button that opens RecommenderForm",
+      "Card actions: Edit (opens form), Delete (with confirm), Generate Letter"
+    ],
+    "passes": true
+  },
+  {
+    "category": "ui",
+    "description": "Add Recommenders tab to documents-panel.tsx",
+    "steps": [
+      "Open app/case/[caseId]/_components/documents-panel.tsx",
+      "Add tab selector at top: Documents | Recommenders",
+      "Import and render RecommendersPanel when Recommenders tab active",
+      "Pass caseId prop to RecommendersPanel",
+      "Maintain existing documents list as default tab"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Update Evidence Agent system prompt with recommender instructions",
+    "steps": [
+      "Open lib/evidence-agent.ts",
+      "In buildEvidenceSystemPrompt, add RECOMMENDER section",
+      "Instructions: proactively save recommender details when mentioned, use listRecommenders before drafting letters, link generated letters to recommenders",
+      "Mention: essential fields are name, title, type, context; store nuanced info in contextNotes (freeform JSON)"
+    ],
+    "passes": true
+  }
+]
