@@ -1381,3 +1381,38 @@
 - stopPropagation on Upload button prevents card expand/collapse toggle
 - Pre-existing lint errors unchanged (13 errors, 26 warnings)
 - Next priority: R6 task 23 (global drop zone w/ auto-categorization) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges, criterion upload)
+
+## 2026-02-15: Global Drop Zone w/ Auto-Categorization (PRD R6 Task 23)
+
+### Completed
+
+- Added global drop zone overlay to `LettersPanel` in `letters-panel.tsx`
+  - Wraps entire panel content in a div w/ drag event handlers
+  - Shows full-panel overlay on drag-over w/ FolderUp icon + "Drop to upload & auto-categorize" text
+  - Shows Loader2 spinner + "Classifying document..." during upload/classification
+  - Uses dragEnter/dragLeave counter ref to prevent flickering from child element events
+- Updated `lib/document-classifier.ts`: `classifyDocument` now returns `ClassificationResult | null` (was `void`)
+  - Exported `ClassificationResult` interface: `{ category: string, confidence: number }`
+- Updated `app/api/case/[caseId]/documents/route.ts`: added `classifySync` FormData field support
+  - When `classifySync=true`, awaits classification and returns `category` + `classificationConfidence` in response
+  - When `classifySync` not set, fire-and-forget behavior unchanged (backward-compatible)
+- Updated `app/api/case/[caseId]/documents/[docId]/route.ts`: added `category` to PATCH schema
+  - Allows updating document category after user selection in picker dialog
+  - Uses `DocumentCategory` type cast (same pattern as POST route)
+- Created `CategoryPickerDialog` component in `letters-panel.tsx`
+  - Shows scrollable list of all 24 DocumentCategory values w/ human-readable labels
+  - Highlights suggested category (from AI classification) w/ primary border + "Suggested" tag
+  - On selection, PATCHes document w/ chosen category, shows success toast, triggers data refresh
+- Auto-categorization flow: confidence > 0.7 = auto-assign + toast; <= 0.7 = open picker dialog
+- R6 is now fully complete (all tasks 19-25 pass)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 25 warnings)
+
+### Notes for Next Dev
+
+- Global drop zone uses dragEnter/dragLeave counter ref (`globalDragCounterRef`) to prevent overlay flickering; counter tracks nested child element drag events
+- `classifySync` is a FormData field (not query param) to keep it alongside the file upload; only the global drop zone sends it
+- Per-card drop zones (R6 task 25) still skip classification by sending explicit `category` -- unaffected by this change
+- CategoryPickerDialog uses CATEGORY_LABELS map (local to letters-panel.tsx) for human-readable display names
+- Document PATCH now accepts optional `category` field; no Zod enum validation (trusted UI sends known values)
+- Pre-existing lint errors unchanged (13 errors, 25 warnings)
+- Next priority: R1 tasks (skip-to-survey, survey-only endpoint, resume upload/gen) or R3 tasks (evidence badges, criterion upload, analysis endpoint extension)

@@ -27,6 +27,7 @@ import {
   ExternalLink,
   PenTool,
   Package,
+  FolderUp,
 } from 'lucide-react'
 import {
   Tooltip,
@@ -1006,6 +1007,110 @@ function DraftableCard({
   )
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  RESUME_CV: 'Resume / CV',
+  AWARD_CERTIFICATE: 'Award Certificate',
+  PUBLICATION: 'Publication',
+  MEDIA_COVERAGE: 'Media Coverage',
+  PATENT: 'Patent',
+  RECOMMENDATION_LETTER: 'Recommendation Letter',
+  MEMBERSHIP_CERTIFICATE: 'Membership Certificate',
+  EMPLOYMENT_VERIFICATION: 'Employment Verification',
+  SALARY_DOCUMENTATION: 'Salary Documentation',
+  CITATION_REPORT: 'Citation Report',
+  JUDGING_EVIDENCE: 'Judging Evidence',
+  PERSONAL_STATEMENT: 'Personal Statement',
+  PETITION_LETTER: 'Petition Letter',
+  PASSPORT_ID: 'Passport / ID',
+  DEGREE_CERTIFICATE: 'Degree Certificate',
+  COVER_LETTER: 'Cover Letter',
+  USCIS_ADVISORY_LETTER: 'USCIS Advisory Letter',
+  G1450PPU: 'G-1450 (Premium Processing)',
+  G1450300: 'G-1450 (I-140 Fee)',
+  G1450I40: 'G-1450 (I-40)',
+  G28: 'G-28 Attorney Representation',
+  I140: 'I-140 Petition',
+  I907: 'I-907 Premium Processing',
+  OTHER: 'Other',
+}
+
+function CategoryPickerDialog({
+  open,
+  onOpenChange,
+  suggestedCategory,
+  documentId,
+  fileName,
+  caseId,
+  onCategorized,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  suggestedCategory: string | null
+  documentId: string
+  fileName: string
+  caseId: string
+  onCategorized: () => void
+}) {
+  const [saving, setSaving] = useState(false)
+
+  const handleSelect = async (category: string) => {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/case/${caseId}/documents/${documentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category }),
+      })
+      if (res.ok) {
+        toast.success(`Categorized as ${CATEGORY_LABELS[category] || category}`)
+        onCategorized()
+        onOpenChange(false)
+      } else {
+        toast.error('Failed to update category')
+      }
+    } catch {
+      toast.error('Failed to update category')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const categories = Object.entries(CATEGORY_LABELS)
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-hidden" showCloseButton={false}>
+        <div className="p-4 space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold">Categorize Document</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Select the correct category for <span className="font-medium">{fileName}</span>
+            </p>
+          </div>
+          <div className="max-h-[50vh] overflow-y-auto space-y-1 pr-1">
+            {categories.map(([value, label]) => (
+              <button
+                key={value}
+                disabled={saving}
+                onClick={() => handleSelect(value)}
+                className={cn(
+                  'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-colors hover:bg-muted/60',
+                  value === suggestedCategory && 'bg-primary/10 border border-primary/30'
+                )}
+              >
+                <span className="flex-1">{label}</span>
+                {value === suggestedCategory && (
+                  <span className="text-[10px] text-primary font-medium shrink-0">Suggested</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function LettersPanel({ caseId, onOpenDraft, denialProbability }: LettersPanelProps) {
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [recommenders, setRecommenders] = useState<Recommender[]>([])
@@ -1013,6 +1118,15 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
   const [showAddRecommender, setShowAddRecommender] = useState(false)
   const [showCsvImport, setShowCsvImport] = useState(false)
   const [assembling, setAssembling] = useState(false)
+  const [globalDragOver, setGlobalDragOver] = useState(false)
+  const [globalUploading, setGlobalUploading] = useState(false)
+  const [categoryPicker, setCategoryPicker] = useState<{
+    open: boolean
+    documentId: string
+    fileName: string
+    suggestedCategory: string | null
+  }>({ open: false, documentId: '', fileName: '', suggestedCategory: null })
+  const globalDragCounterRef = useRef(0)
 
   const fetchData = useCallback(async () => {
     try {
@@ -1076,6 +1190,73 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
     }
   }, [caseId])
 
+  const handleGlobalDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    setGlobalDragOver(false)
+    globalDragCounterRef.current = 0
+
+    const file = e.dataTransfer.files[0]
+    if (!file) return
+
+    setGlobalUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('classifySync', 'true')
+
+      const res = await fetch(`/api/case/${caseId}/documents`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Upload failed')
+        return
+      }
+
+      const data = await res.json()
+      const confidence = data.classificationConfidence ?? 0
+      const category = data.category ?? null
+
+      if (confidence > 0.7 && category) {
+        toast.success(`Auto-categorized as ${CATEGORY_LABELS[category] || category}`)
+        fetchData()
+      } else {
+        setCategoryPicker({
+          open: true,
+          documentId: data.id,
+          fileName: file.name,
+          suggestedCategory: category,
+        })
+      }
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setGlobalUploading(false)
+    }
+  }, [caseId, fetchData])
+
+  const handleGlobalDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    globalDragCounterRef.current++
+    if (globalDragCounterRef.current === 1) {
+      setGlobalDragOver(true)
+    }
+  }, [])
+
+  const handleGlobalDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    globalDragCounterRef.current--
+    if (globalDragCounterRef.current === 0) {
+      setGlobalDragOver(false)
+    }
+  }, [])
+
+  const handleGlobalDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+  }, [])
+
   const getDocsForCategory = useCallback(
     (category: string | null) => {
       if (!category) return []
@@ -1114,6 +1295,32 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
   return (
     <TooltipProvider>
     <>
+    <div
+      className="relative h-full"
+      onDragEnter={handleGlobalDragEnter}
+      onDragLeave={handleGlobalDragLeave}
+      onDragOver={handleGlobalDragOver}
+      onDrop={handleGlobalDrop}
+    >
+      {/* Global drag overlay */}
+      {(globalDragOver || globalUploading) && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm border-2 border-dashed border-primary/50 rounded-lg">
+          <div className="flex flex-col items-center gap-2 text-center">
+            {globalUploading ? (
+              <>
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <p className="text-sm font-medium">Classifying document...</p>
+              </>
+            ) : (
+              <>
+                <FolderUp className="w-8 h-8 text-primary" />
+                <p className="text-sm font-medium">Drop to upload &amp; auto-categorize</p>
+                <p className="text-[11px] text-muted-foreground">File will be classified automatically</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     <ScrollArea className="h-full">
       <div className="p-4 space-y-3">
         {denialProbability && <DenialRiskBanner data={denialProbability} />}
@@ -1185,6 +1392,7 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
         </div>
       </div>
     </ScrollArea>
+    </div>
 
     <CsvImportModal
       caseId={caseId}
@@ -1202,6 +1410,16 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
         />
       </DialogContent>
     </Dialog>
+
+    <CategoryPickerDialog
+      open={categoryPicker.open}
+      onOpenChange={(open) => setCategoryPicker((prev) => ({ ...prev, open }))}
+      suggestedCategory={categoryPicker.suggestedCategory}
+      documentId={categoryPicker.documentId}
+      fileName={categoryPicker.fileName}
+      caseId={caseId}
+      onCategorized={fetchData}
+    />
     </>
     </TooltipProvider>
   )

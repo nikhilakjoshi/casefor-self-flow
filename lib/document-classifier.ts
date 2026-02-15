@@ -36,16 +36,17 @@ const ClassificationSchema = z.object({
   confidence: z.number().describe("Confidence score between 0 and 1"),
 });
 
+export interface ClassificationResult {
+  category: string
+  confidence: number
+}
+
 export async function classifyDocument(
   documentId: string,
   fileName: string,
   content?: string | null
-): Promise<void> {
+): Promise<ClassificationResult | null> {
   try {
-    const input = content
-      ? `Filename: ${fileName}\n\nContent (first 1500 chars):\n${content.slice(0, 1500)}`
-      : `Filename: ${fileName}`;
-
     const FALLBACK_PROMPT = `Classify this immigration case document into one of the categories. Return the best-fit category and your confidence (0-1).
 
 Categories:
@@ -99,7 +100,10 @@ Filename pattern hints: files containing "g-28" or "g28" -> G28, "i-140" or "i14
         classificationConfidence: object.confidence,
       },
     });
+
+    return { category: object.category, confidence: object.confidence }
   } catch (err) {
     console.error(`[DocumentClassifier] Failed for ${documentId}:`, err);
+    return null
   }
 }

@@ -86,6 +86,7 @@ export async function POST(
   const file = formData.get('file') as File | null
   const context = (formData.get('context') as string | null)?.trim() || null
   const categoryOverride = (formData.get('category') as string | null)?.trim() || null
+  const classifySync = formData.get('classifySync') === 'true'
 
   if (!file) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -134,6 +135,16 @@ export async function POST(
     })
 
     if (!categoryOverride) {
+      if (classifySync) {
+        const result = await classifyDocument(document.id, file.name, context)
+        return NextResponse.json({
+          ...document,
+          s3Key: key,
+          s3Url: url,
+          category: result?.category || document.category,
+          classificationConfidence: result?.confidence ?? null,
+        })
+      }
       classifyDocument(document.id, file.name, context).catch(() => {})
     }
 
@@ -155,6 +166,15 @@ export async function POST(
     })
 
     if (!categoryOverride) {
+      if (classifySync) {
+        const result = await classifyDocument(document.id, file.name, fullContent)
+        return NextResponse.json({
+          ...document,
+          content: fullContent,
+          category: result?.category || document.category,
+          classificationConfidence: result?.confidence ?? null,
+        })
+      }
       classifyDocument(document.id, file.name, fullContent).catch(() => {})
     }
 
@@ -170,6 +190,14 @@ export async function POST(
   }
 
   if (!categoryOverride) {
+    if (classifySync) {
+      const result = await classifyDocument(document.id, file.name, context)
+      return NextResponse.json({
+        ...document,
+        category: result?.category || document.category,
+        classificationConfidence: result?.confidence ?? null,
+      })
+    }
     classifyDocument(document.id, file.name, context).catch(() => {})
   }
 

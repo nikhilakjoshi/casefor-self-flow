@@ -197,3 +197,10 @@
 - RecommenderCard drop zone assigns `RECOMMENDATION_LETTER` category but does NOT link to a specific recommender via `recommenderId`; recommender linking only happens through the Draft flow which passes `recommenderId` to the drafting agent. Dropped files are generic rec letter uploads.
 - All 3 card types now support both drag-drop and click-to-upload via hidden file input; consistent UX across card types
 - DraftableCard auto-expands on successful upload (same as UploadOnlyCard) so user sees the newly uploaded file immediately
+- Global drop zone uses `classifySync=true` FormData field to make classification synchronous; the existing fire-and-forget behavior is preserved when this field is absent (backward-compatible)
+- `classifyDocument` return type changed from `Promise<void>` to `Promise<ClassificationResult | null>`; existing callers using `.catch(() => {})` are unaffected since they discard the return value
+- Auto-categorization threshold is 0.7 (>0.7 = auto-assign, <=0.7 = prompt user); matches PRD specification exactly
+- CategoryPickerDialog highlights the AI-suggested category even for low-confidence classifications; user can still select any category
+- CATEGORY_LABELS map kept local to letters-panel.tsx (not extracted to shared module); only used in this component
+- Document PATCH accepts `category` as a raw string; no Zod enum validation against DocumentCategory since UI sends known enum values (same pattern as POST category override)
+- Global drag overlay uses dragEnter/dragLeave counter to handle nested element events correctly; direct onDragEnter/onDragLeave on the container would flicker when cursor moves over child elements
