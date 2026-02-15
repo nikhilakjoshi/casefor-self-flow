@@ -313,7 +313,7 @@
       "For G-1450 variants, link to the appropriate USCIS page or note they are fillable online",
       "Style as secondary action button below the upload zone"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",

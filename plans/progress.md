@@ -1059,3 +1059,28 @@
 - Source column in UploadOnlyCard shows "System" vs "Uploaded" (mapped from SYSTEM_GENERATED/USER_UPLOADED)
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R6 task 23 (global drop zone) or R7 tasks (USCIS links, e-sign placeholder) or R9 task 34 (denial data in drafting agent)
+
+## 2026-02-15: USCIS Form External Links (PRD R7 Task 1)
+
+### Completed
+
+- Added `uscisUrl` optional field to `LetterType` interface in `letters-panel.tsx`
+- Added USCIS URLs to all 6 upload-only form cards:
+  - I-140: https://www.uscis.gov/i-140
+  - I-907: https://www.uscis.gov/i-907
+  - G-28: https://www.uscis.gov/g-28
+  - G-1450 variants (PPU, 300, I40): https://www.uscis.gov/g-1450
+- Added `ExternalLink` icon import from lucide-react
+- UploadOnlyCard renders "Fill on USCIS" link as styled `<a>` tag w/ external link icon when `uscisUrl` is set
+- Link opens in new tab (`target="_blank"`, `rel="noopener noreferrer"`)
+- `stopPropagation` on link click to prevent card expand/collapse toggle
+- Styled as outline button variant (consistent w/ Upload button)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- USCIS URLs use the form landing pages (e.g., /i-140) which link to the actual fillable PDF and filing instructions
+- G-1450 variants all share the same USCIS URL (/g-1450) since it's a single form used for different fee types
+- "Fill on USCIS" link appears before the Upload button in the card header actions area
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R7 task 2 (e-sign placeholder) or R6 task 23 (global drop zone) or R6 task 25 (per-card drop zones)

@@ -24,6 +24,7 @@ import {
   FileCheck,
   BookOpen,
   ChevronDown,
+  ExternalLink,
 } from 'lucide-react'
 import { CRITERIA_LABELS } from '@/lib/evidence-verification-schema'
 import { RecommenderForm } from './recommender-form'
@@ -71,6 +72,7 @@ interface LetterType {
   iconColor: string
   isPerRecommender?: boolean
   isDraftable?: boolean
+  uscisUrl?: string
 }
 
 const LETTER_TYPES: LetterType[] = [
@@ -134,6 +136,7 @@ const LETTER_TYPES: LetterType[] = [
     gradient: 'from-emerald-500/15 to-teal-500/15',
     iconColor: 'text-emerald-600 dark:text-emerald-400',
     isDraftable: false,
+    uscisUrl: 'https://www.uscis.gov/i-140',
   },
   {
     key: 'i907',
@@ -144,6 +147,7 @@ const LETTER_TYPES: LetterType[] = [
     gradient: 'from-emerald-500/15 to-teal-500/15',
     iconColor: 'text-emerald-600 dark:text-emerald-400',
     isDraftable: false,
+    uscisUrl: 'https://www.uscis.gov/i-907',
   },
   {
     key: 'g28',
@@ -154,6 +158,7 @@ const LETTER_TYPES: LetterType[] = [
     gradient: 'from-emerald-500/15 to-teal-500/15',
     iconColor: 'text-emerald-600 dark:text-emerald-400',
     isDraftable: false,
+    uscisUrl: 'https://www.uscis.gov/g-28',
   },
   {
     key: 'g1450ppu',
@@ -164,6 +169,7 @@ const LETTER_TYPES: LetterType[] = [
     gradient: 'from-stone-500/15 to-zinc-500/15',
     iconColor: 'text-stone-600 dark:text-stone-400',
     isDraftable: false,
+    uscisUrl: 'https://www.uscis.gov/g-1450',
   },
   {
     key: 'g1450300',
@@ -174,6 +180,7 @@ const LETTER_TYPES: LetterType[] = [
     gradient: 'from-stone-500/15 to-zinc-500/15',
     iconColor: 'text-stone-600 dark:text-stone-400',
     isDraftable: false,
+    uscisUrl: 'https://www.uscis.gov/g-1450',
   },
   {
     key: 'g1450i40',
@@ -184,6 +191,7 @@ const LETTER_TYPES: LetterType[] = [
     gradient: 'from-stone-500/15 to-zinc-500/15',
     iconColor: 'text-stone-600 dark:text-stone-400',
     isDraftable: false,
+    uscisUrl: 'https://www.uscis.gov/g-1450',
   },
 ]
 
@@ -367,6 +375,18 @@ function UploadOnlyCard({
             <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
               {docs.length} file{docs.length !== 1 ? 's' : ''}
             </span>
+          )}
+          {letterType.uscisUrl && (
+            <a
+              href={letterType.uscisUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 h-7 px-3 rounded-md border border-border text-[11px] font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Fill on USCIS
+            </a>
           )}
           <Button
             variant="outline"

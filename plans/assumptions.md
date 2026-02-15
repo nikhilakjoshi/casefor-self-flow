@@ -137,3 +137,7 @@
 - Click-to-expand only enabled when docs exist (no chevron shown on empty cards); prevents confusing toggle on empty state
 - UploadOnlyCard auto-expands on successful upload so user sees the newly uploaded file immediately
 - stopPropagation on action buttons (Upload/Draft/Add/Import CSV) prevents header click-to-toggle when clicking buttons
+- USCIS URLs use form landing pages (e.g., /i-140, /g-28) not direct PDF URLs; landing pages include filing instructions and link to the fillable PDF
+- G-1450 variants (PPU, 300, I40) all share the same USCIS URL (/g-1450) since they are the same form used for different fee designations
+- "Fill on USCIS" link uses native `<a>` tag styled as outline button (not shadcn Button) to avoid button-inside-link accessibility issues
+- uscisUrl field is optional on LetterType; only upload-only USCIS form cards set it (draftable cards don't need external form links)
