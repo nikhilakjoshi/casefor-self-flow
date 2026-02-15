@@ -166,3 +166,10 @@
 - Separator page footer text "Separator Page" positioned at 36pt from bottom; page numbers at 24pt -- no overlap since separator pages will also receive page numbers during assembly
 - `addPageNumbers` position is 24pt from bottom edge, centered; gray color (rgb 0.4) to be unobtrusive
 - pdf-lib `PageSizes.Letter` used as default (612 x 792 points = 8.5 x 11 inches); consumers can pass custom `[width, height]` tuple
+- Assembly order follows USCIS filing convention: forms (I-140, G-28, I-907, G-1450s) -> narrative docs (cover letter, petition, personal statement, advisory letters, rec letters) -> evidence (resume, awards, publications, etc.) -> other
+- `markdownToPdf` is a simple pdf-lib text renderer -- handles headings (bold), word wrapping, pagination; does not render rich markdown (tables, images, lists with bullets). Sufficient for current document content which is primarily prose.
+- Documents without S3 key and without inline content are silently skipped during assembly; no error for individual doc failures (graceful degradation)
+- Exhibit labels use A-Z for first 26 categories, then numeric (27, 28...) for overflow -- unlikely to exceed 26 in practice since there are 24 DocumentCategory values
+- `downloadFromS3` added to lib/s3.ts uses `transformToByteArray()` which is available on AWS SDK v3 response body; returns `Uint8Array`
+- `Response` body requires `Buffer.from(uint8Array)` conversion since Next.js/Node `Response` doesn't accept raw `Uint8Array` as body
+- Filename for downloaded PDF derived from `case.name` (not a `caseName` field) with non-alphanumeric chars replaced by underscore

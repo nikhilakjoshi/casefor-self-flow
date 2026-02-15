@@ -340,7 +340,7 @@
       "Call page-numbering utility (task 30) to add sequential page numbers",
       "Return the assembled PDF as a downloadable response (Content-Type: application/pdf)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",

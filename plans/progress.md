@@ -1226,3 +1226,31 @@
 - Page numbering y-position is 24pt from bottom; separator footer is 36pt -- no overlap concern since separator pages get numbered too
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R8 task 28 (assemble-package endpoint, deps on these utilities) or R8 task 31 (Assemble Package UI button) or R9 tasks 32-33 (denial risk badge/banner) or R6 task 23 (global drop zone)
+
+## 2026-02-15: Assemble Package Endpoint (PRD R8 Task 28)
+
+### Completed
+
+- Created `app/api/case/[caseId]/assemble-package/route.ts` with POST handler
+- Auth check + case ownership verification (same pattern as documents API)
+- Queries all Document records with `status: 'FINAL'` for the case
+- Groups documents by DocumentCategory, ordered by USCIS filing convention (forms first, then letters, then evidence)
+- Inserts exhibit separator pages between category groups (Exhibit A, B, C...)
+- For PDF documents w/ S3 key: fetches raw bytes via new `downloadFromS3()` helper
+- For documents w/ inline markdown content: converts to PDF via `markdownToPdf()` using pdf-lib text rendering
+- Merges all PDFs via `PDFDocument.copyPages()`, adds sequential page numbers via `addPageNumbers()`
+- Returns assembled PDF as downloadable response (`Content-Type: application/pdf`, `Content-Disposition: attachment`)
+- Added `downloadFromS3(key)` to `lib/s3.ts`: uses `GetObjectCommand` + `transformToByteArray()` to fetch raw bytes
+- Returns 400 if no FINAL documents exist or if no document content could be assembled
+- Typecheck passes clean; no new lint issues (pre-existing 13 errors, 27 warnings unchanged)
+
+### Notes for Next Dev
+
+- `markdownToPdf()` is a simple text renderer using pdf-lib (no rich markdown formatting); handles headings (bold), word wrapping, pagination
+- Assembly order follows USCIS convention: I-140 -> G-28 -> I-907 -> G-1450s -> Cover Letter -> Petition -> Personal Statement -> Advisory -> Rec Letters -> Resume -> Evidence docs -> Other
+- Exhibit labels use A-Z letters (Exhibit A, Exhibit B...); falls back to numeric (Exhibit 27) if >26 categories
+- Documents without S3 key and without inline content are silently skipped; documents that fail PDF parsing also skipped
+- `downloadFromS3` returns `Uint8Array` via `response.Body.transformToByteArray()`
+- Filename sanitized from case name: non-alphanumeric chars replaced w/ underscore
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R8 task 31 (Assemble Package UI button, deps met) or R9 tasks 32-33 (denial risk badge/banner) or R6 task 23 (global drop zone)

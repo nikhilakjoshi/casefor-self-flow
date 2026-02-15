@@ -94,6 +94,21 @@ export async function getSignedDownloadUrl(
   )
 }
 
+export async function downloadFromS3(key: string): Promise<Uint8Array> {
+  const client = getS3Client()
+  const bucket = getBucket()
+
+  const response = await client.send(
+    new GetObjectCommand({ Bucket: bucket, Key: key })
+  )
+
+  if (!response.Body) {
+    throw new Error(`Empty response body for S3 key: ${key}`)
+  }
+
+  return new Uint8Array(await response.Body.transformToByteArray())
+}
+
 export async function deleteFromS3(key: string): Promise<void> {
   const client = getS3Client()
   const bucket = getBucket()
