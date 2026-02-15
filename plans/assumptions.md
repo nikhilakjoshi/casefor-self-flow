@@ -173,3 +173,7 @@
 - `downloadFromS3` added to lib/s3.ts uses `transformToByteArray()` which is available on AWS SDK v3 response body; returns `Uint8Array`
 - `Response` body requires `Buffer.from(uint8Array)` conversion since Next.js/Node `Response` doesn't accept raw `Uint8Array` as body
 - Filename for downloaded PDF derived from `case.name` (not a `caseName` field) with non-alphanumeric chars replaced by underscore
+- Assemble Package button disabled state computed inline via `documents.filter(d => d.status === 'FINAL').length === 0`; no useMemo since doc list is typically small (<50 items)
+- Download uses createObjectURL + programmatic `<a>` click pattern; revokeObjectURL called after click to avoid memory leaks
+- Filename for download extracted from Content-Disposition header via regex; falls back to "package.pdf" if header missing or unparseable
+- Assemble Package button placed at bottom of letters panel card list (not top) to keep primary document workflow uninterrupted

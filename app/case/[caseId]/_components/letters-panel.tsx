@@ -26,6 +26,7 @@ import {
   ChevronDown,
   ExternalLink,
   PenTool,
+  Package,
 } from 'lucide-react'
 import {
   Tooltip,
@@ -786,6 +787,7 @@ export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [showAddRecommender, setShowAddRecommender] = useState(false)
   const [showCsvImport, setShowCsvImport] = useState(false)
+  const [assembling, setAssembling] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
@@ -817,6 +819,37 @@ export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
     setShowAddRecommender(false)
     fetchData()
   }, [fetchData])
+
+  const handleAssemblePackage = useCallback(async () => {
+    setAssembling(true)
+    try {
+      const res = await fetch(`/api/case/${caseId}/assemble-package`, {
+        method: 'POST',
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Package assembly failed')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const disposition = res.headers.get('Content-Disposition')
+      const filenameMatch = disposition?.match(/filename="?([^"]+)"?/)
+      const filename = filenameMatch?.[1] || 'package.pdf'
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast.success('Package assembled and downloaded')
+    } catch {
+      toast.error('Package assembly failed')
+    } finally {
+      setAssembling(false)
+    }
+  }, [caseId])
 
   const getDocsForCategory = useCallback(
     (category: string | null) => {
@@ -901,6 +934,27 @@ export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
             />
           )
         })}
+
+        {/* Assemble Package */}
+        <div className="pt-2 border-t border-border/50">
+          <Button
+            className="w-full gap-2"
+            disabled={assembling || documents.filter((d) => d.status === 'FINAL').length === 0}
+            onClick={handleAssemblePackage}
+          >
+            {assembling ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Package className="w-4 h-4" />
+            )}
+            {assembling ? 'Assembling...' : 'Assemble Package'}
+          </Button>
+          {documents.filter((d) => d.status === 'FINAL').length === 0 && (
+            <p className="text-[10px] text-muted-foreground text-center mt-1.5">
+              Mark documents as FINAL to assemble
+            </p>
+          )}
+        </div>
       </div>
     </ScrollArea>
 

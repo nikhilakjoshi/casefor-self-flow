@@ -379,7 +379,7 @@
       "Show error toast if no FINAL documents exist or assembly fails",
       "Optionally show a summary of what will be included before assembling"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",

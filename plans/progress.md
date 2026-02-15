@@ -1254,3 +1254,25 @@
 - Filename sanitized from case name: non-alphanumeric chars replaced w/ underscore
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R8 task 31 (Assemble Package UI button, deps met) or R9 tasks 32-33 (denial risk badge/banner) or R6 task 23 (global drop zone)
+
+## 2026-02-15: Assemble Package UI Button (PRD R8 Task 31)
+
+### Completed
+
+- Added "Assemble Package" button at bottom of letters-panel.tsx card list
+- Button POSTs to `/api/case/{caseId}/assemble-package`, downloads returned PDF blob
+- Loading state w/ spinner + "Assembling..." text during assembly
+- Button disabled when no FINAL-status documents exist; helper text shown
+- Success/error toasts via sonner
+- Browser download triggered via `URL.createObjectURL` + programmatic `<a>` click + cleanup
+- Filename extracted from Content-Disposition header, falls back to "package.pdf"
+- Added `Package` icon from lucide-react
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- R8 is now fully complete (tasks 28-31: exhibit separator, page numbering, assemble endpoint, UI button)
+- Button uses `documents.filter(d => d.status === 'FINAL').length === 0` for disabled state; computed inline (no useMemo since doc list is typically small)
+- Download uses createObjectURL pattern w/ revokeObjectURL cleanup to avoid memory leaks
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R9 tasks 32-33 (denial risk badge/banner in UI) or R6 task 23 (global drop zone) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges)
