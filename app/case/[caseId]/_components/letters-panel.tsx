@@ -652,86 +652,111 @@ function RecommenderCard({
               </Button>
             </div>
           ) : (
-            recommenders.map((rec) => {
-              const recDocs = getDocsForRecommender(rec.id)
-
-              return (
-                <div
-                  key={rec.id}
-                  className="rounded-lg border border-border/40 bg-background/50 p-3"
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className="w-6 h-6 rounded-md bg-blue-500/10 flex items-center justify-center shrink-0">
-                        <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400">
-                          {rec.name
-                            .split(' ')
-                            .slice(0, 2)
-                            .map((n) => n[0])
-                            .join('')
-                            .toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium truncate">
-                          {rec.name}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {rec.title}
-                          {rec.organization && `, ${rec.organization}`}
-                        </p>
-                        {rec.criteriaKeys && rec.criteriaKeys.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {rec.criteriaKeys.slice(0, 3).map((key) => (
-                              <span
-                                key={key}
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                                title={CRITERIA_LABELS[key] ?? key}
-                              >
-                                {key}
-                              </span>
-                            ))}
-                            {rec.criteriaKeys.length > 3 && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground">
-                                +{rec.criteriaKeys.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-[11px] gap-1 shrink-0 ml-2"
-                      onClick={() =>
-                        onOpenDraft({
-                          name: `Recommendation Letter - ${rec.name}`,
-                          category: 'RECOMMENDATION_LETTER',
-                          recommenderId: rec.id,
-                        })
-                      }
-                    >
-                      <PenLine className="w-3 h-3" />
-                      Draft
-                    </Button>
-                  </div>
-
-                  {recDocs.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {recDocs.map((doc) => (
-                        <DraftRow
-                          key={doc.id}
-                          doc={doc}
-                          caseId={caseId}
-                          onOpenDraft={onOpenDraft}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
+            (() => {
+              const grouped = new Map<string, Recommender[]>()
+              for (const rec of recommenders) {
+                const type = rec.relationshipType || 'OTHER'
+                const list = grouped.get(type) || []
+                list.push(rec)
+                grouped.set(type, list)
+              }
+              // Stable order: follow RELATIONSHIP_LABELS key order
+              const typeOrder = Object.keys(RELATIONSHIP_LABELS)
+              const sortedTypes = [...grouped.keys()].sort(
+                (a, b) => (typeOrder.indexOf(a) === -1 ? 999 : typeOrder.indexOf(a)) - (typeOrder.indexOf(b) === -1 ? 999 : typeOrder.indexOf(b))
               )
-            })
+
+              return sortedTypes.map((type) => {
+                const recs = grouped.get(type)!
+                return (
+                  <div key={type} className="space-y-1.5">
+                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1 pt-1">
+                      {RELATIONSHIP_LABELS[type] ?? type}{' '}
+                      <span className="font-normal">({recs.length})</span>
+                    </h4>
+                    {recs.map((rec) => {
+                      const recDocs = getDocsForRecommender(rec.id)
+                      return (
+                        <div
+                          key={rec.id}
+                          className="rounded-lg border border-border/40 bg-background/50 p-3"
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <div className="w-6 h-6 rounded-md bg-blue-500/10 flex items-center justify-center shrink-0">
+                                <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400">
+                                  {rec.name
+                                    .split(' ')
+                                    .slice(0, 2)
+                                    .map((n) => n[0])
+                                    .join('')
+                                    .toUpperCase()}
+                                </span>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium truncate">
+                                  {rec.name}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {rec.title}
+                                  {rec.organization && `, ${rec.organization}`}
+                                </p>
+                                {rec.criteriaKeys && rec.criteriaKeys.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {rec.criteriaKeys.slice(0, 3).map((key) => (
+                                      <span
+                                        key={key}
+                                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                        title={CRITERIA_LABELS[key] ?? key}
+                                      >
+                                        {key}
+                                      </span>
+                                    ))}
+                                    {rec.criteriaKeys.length > 3 && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground">
+                                        +{rec.criteriaKeys.length - 3} more
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[11px] gap-1 shrink-0 ml-2"
+                              onClick={() =>
+                                onOpenDraft({
+                                  name: `Recommendation Letter - ${rec.name}`,
+                                  category: 'RECOMMENDATION_LETTER',
+                                  recommenderId: rec.id,
+                                })
+                              }
+                            >
+                              <PenLine className="w-3 h-3" />
+                              Draft
+                            </Button>
+                          </div>
+
+                          {recDocs.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {recDocs.map((doc) => (
+                                <DraftRow
+                                  key={doc.id}
+                                  doc={doc}
+                                  caseId={caseId}
+                                  onOpenDraft={onOpenDraft}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })
+            })()
           )}
         </div>
       )}

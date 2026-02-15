@@ -1305,3 +1305,25 @@
 - No Alert component (shadcn) exists; used inline styled div w/ cn() for the banner instead
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R6 task 23 (global drop zone) or R6 task 25 (per-card drop zones) or R1 tasks (skip-to-survey, survey-only endpoint, resume upload/gen) or R3 tasks (evidence badges, analysis endpoint extension) or R11 tasks (template inputs, rec letter grouping)
+
+## 2026-02-15: Rec Letter Grouping by Relationship Type (PRD R11 Task 4)
+
+### Completed
+
+- Updated `RecommenderCard` in `letters-panel.tsx` to group recommenders by `relationshipType`
+- Groups recommenders into a `Map<string, Recommender[]>` keyed by relationship type
+- Sort order follows `RELATIONSHIP_LABELS` key order (ACADEMIC_ADVISOR first, OTHER last)
+- Each group renders a section header: uppercase label w/ count (e.g. "ACADEMIC ADVISOR (2)")
+- Empty groups hidden automatically (only groups w/ recommenders render)
+- Recommender sub-cards within each group remain unchanged (name, title, org, criteria pills, Draft button, doc list)
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 26 warnings)
+
+### Notes for Next Dev
+
+- Grouping uses IIFE `(() => { ... })()` inside JSX to compute groups inline w/o extracting to separate component
+- Groups sorted by `RELATIONSHIP_LABELS` key order (stable across renders); unknown types pushed to end
+- Empty state ("No recommenders added yet") still shows when `recommenders.length === 0` (before grouping logic)
+- Section headers use `text-[10px] font-semibold uppercase tracking-wider` for subtle visual separation
+- R11 is now 3/4 complete (task 1: template-resolver wiring, task 2: variation seeds, task 4: rec letter grouping); task 3 (template input fields in DraftingPanel) remains
+- Pre-existing lint errors unchanged (13 errors, 26 warnings)
+- Next priority: R11 task 3 (template inputs in DraftingPanel) or R6 tasks (global/per-card drop zones) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges)

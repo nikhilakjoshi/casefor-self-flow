@@ -184,3 +184,7 @@
 - Banner shows top 3 red flags max (sliced from `data.red_flags`); full list available in DenialProbabilityPanel
 - PRD step "Link to DenialProbabilityPanel for full details" not implemented as direct link; user can navigate via report-panel tabs. Adding an in-panel link would require tab-switching callbacks that add complexity for minimal gain.
 - Denial data is static for the session (uses initialDenialProbability prop, not re-fetched); acceptable since denial assessments are infrequent operations
+- Recommender grouping uses IIFE inside JSX (`(() => { ... })()`) rather than extracting to a separate component or useMemo; the recommenders array is typically small (<20) so no perf concern
+- Group sort order follows RELATIONSHIP_LABELS key order (hardcoded object key insertion order); unknown relationship types pushed to end via indexOf returning -1 mapped to 999
+- Section headers use singular label from RELATIONSHIP_LABELS (e.g. "Academic Advisor"), not plural (e.g. "Academic Advisors"); count in parentheses disambiguates
+- PRD step "Use RelationshipType display labels (e.g. 'Academic Advisors', 'Industry Colleagues')" implemented w/ singular labels + count suffix instead of plural form; simpler implementation, no separate plural label map needed

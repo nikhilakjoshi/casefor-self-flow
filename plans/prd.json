@@ -512,6 +512,6 @@
       "Use RelationshipType display labels (e.g. 'Academic Advisors', 'Industry Colleagues')",
       "Handle empty groups gracefully (hide section if no recommenders of that type)"
     ],
-    "passes": false
+    "passes": true
   }
 ]
