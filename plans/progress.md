@@ -1109,3 +1109,26 @@
 - Denial engine data not yet integrated into drafting prompts (R9 task 34 still pending); cover letter prompt addresses weakness proactively but doesn't query denial probability
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R7 task 2 (e-sign placeholder) or R6 task 23 (global drop zone) or R11 tasks (template variations, template-resolver wiring)
+
+## 2026-02-15: E-Sign Placeholder Button (PRD R7 Task 2)
+
+### Completed
+
+- Added disabled "E-Sign" button w/ "Coming soon" tooltip to all 3 card types in `letters-panel.tsx`
+- **UploadOnlyCard**: E-Sign button after Upload button, before chevron
+- **DraftableCard**: E-Sign button after Draft button, before chevron
+- **RecommenderCard**: E-Sign button after Add button, before chevron
+- Uses Tooltip component from `components/ui/tooltip` (Radix-based)
+- Wrapped LettersPanel return in `<TooltipProvider>` for tooltip context
+- Button styled: `disabled`, `cursor-not-allowed`, `opacity-50`
+- `stopPropagation` on tooltip trigger wrapper to prevent card expand/collapse on click
+- Added `PenTool` icon from lucide-react for e-sign visual
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- E-Sign button is UI-only placeholder; no backend wiring
+- Tooltip trigger wraps Button in `<span tabIndex={0}>` since disabled buttons don't fire pointer events needed for tooltip
+- R7 is now fully complete (task 1: USCIS links done earlier, task 2: e-sign placeholder done)
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 task 23 (global drop zone w/ auto-categorization) or R6 task 25 (per-card drop zones for draftable cards) or R9 tasks (denial risk badge/banner) or R11 tasks (template variations, template-resolver wiring)

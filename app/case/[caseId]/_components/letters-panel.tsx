@@ -25,7 +25,14 @@ import {
   BookOpen,
   ChevronDown,
   ExternalLink,
+  PenTool,
 } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { CRITERIA_LABELS } from '@/lib/evidence-verification-schema'
 import { RecommenderForm } from './recommender-form'
 import type { RecommenderData } from './recommender-form'
@@ -413,6 +420,22 @@ function UploadOnlyCard({
               e.target.value = ''
             }}
           />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-[11px] gap-1 cursor-not-allowed opacity-50"
+                  disabled
+                >
+                  <PenTool className="w-3 h-3" />
+                  E-Sign
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Coming soon</TooltipContent>
+          </Tooltip>
           {docs.length > 0 && (
             <ChevronDown
               className={cn(
@@ -522,6 +545,22 @@ function RecommenderCard({
             <Plus className="w-3 h-3" />
             Add
           </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-[11px] gap-1 cursor-not-allowed opacity-50"
+                  disabled
+                >
+                  <PenTool className="w-3 h-3" />
+                  E-Sign
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Coming soon</TooltipContent>
+          </Tooltip>
           {hasContent && (
             <ChevronDown
               className={cn(
@@ -698,6 +737,22 @@ function DraftableCard({
             <PenLine className="w-3 h-3" />
             Draft
           </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-[11px] gap-1 cursor-not-allowed opacity-50"
+                  disabled
+                >
+                  <PenTool className="w-3 h-3" />
+                  E-Sign
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Coming soon</TooltipContent>
+          </Tooltip>
           {docs.length > 0 && (
             <ChevronDown
               className={cn(
@@ -799,6 +854,7 @@ export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
   }
 
   return (
+    <TooltipProvider>
     <>
     <ScrollArea className="h-full">
       <div className="p-4 space-y-3">
@@ -865,5 +921,6 @@ export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
       </DialogContent>
     </Dialog>
     </>
+    </TooltipProvider>
   )
 }

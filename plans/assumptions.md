@@ -147,3 +147,6 @@
 - R10 task 4 (wire Cover Letter / USCIS cards to DraftingPanel) was already implemented: DraftableCard passes `category` via `onOpenDraft`, DraftingPanel sends it in POST body to draft-chat, no additional UI wiring needed
 - Denial engine data not yet incorporated into cover letter / USCIS advisory prompts; prompts instruct agent to address weaknesses proactively but don't query DenialProbability table (deferred to R9 task 34)
 - `draft-chat/route.ts` passes `category` as `string | undefined` to `runDraftingAgent`; no Zod validation on category value since it originates from trusted UI (DocumentCategory enum values)
+- E-Sign tooltip trigger uses `<span tabIndex={0}>` wrapper around disabled Button because disabled elements don't receive pointer events needed for Radix Tooltip to show; span acts as the hover target
+- E-Sign button applied to all 3 card types (UploadOnlyCard, DraftableCard, RecommenderCard) -- PRD says "all card types" which includes recommender cards even though they're per-recommender
+- PenTool icon chosen for E-Sign (lucide-react) -- visually suggests signing/writing; distinct from PenLine used for Draft
