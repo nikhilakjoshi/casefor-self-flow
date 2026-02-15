@@ -127,3 +127,8 @@
 - PlanningTab derives `hasGapAnalysis` for CaseStrategyPanel from `!!initialGapAnalysis` rather than accepting it as a separate prop; reduces prop surface
 - ConsolidationTab accepts `initialCaseStrategy` as boolean (not full CaseStrategy object) since CaseConsolidationPanel only needs `hasCaseStrategy: boolean`; report-panel derives it via `!!initialCaseStrategy`
 - Old URL subtab value "consolidated-strategy" falls back to "summary" default; no backward-compatibility shim needed (session-only URL params)
+- Old generic "USCIS Form" card (category: null) replaced with individual form cards per USCIS form type (I140, I907, G28, G1450PPU, G1450300, G1450I40); no backward-compat needed since old card had no real functionality
+- Documents POST API `category` field is a raw string cast to `DocumentCategory` enum; no Zod validation against enum values since UI sends known enum strings
+- When `category` is provided in FormData, auto-classification via `classifyDocument` is skipped (user/UI explicitly set the category)
+- UploadOnlyCard uses native HTML drag-drop (onDragOver/onDrop) instead of react-dropzone; simpler for single-file uploads and avoids adding per-card dropzone instances
+- RESUME_CV not included in LETTER_TYPES yet; deferred to R1 implementation (skip-to-survey, resume upload/generation)

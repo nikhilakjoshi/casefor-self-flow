@@ -1006,3 +1006,35 @@
 - Old URL subtab value "consolidated-strategy" falls back to "summary" default (no backward-compat shim; session-only URL params)
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R6 tasks 20-23,25 (letters-panel expansion) or R1 tasks (skip-to-survey, resume gen) or R3 tasks (evidence badges)
+
+## 2026-02-15: Letters Panel LETTER_TYPES Expansion + Upload-Only Cards (PRD R6 Tasks 20-21)
+
+### Completed
+
+- Expanded `LETTER_TYPES` array in `letters-panel.tsx` from 4 entries to 11:
+  - Draftable (isDraftable: true): RECOMMENDATION_LETTER, COVER_LETTER, PERSONAL_STATEMENT, PETITION_LETTER, USCIS_ADVISORY_LETTER
+  - Upload-only (isDraftable: false): I140, I907, G28, G1450PPU, G1450300, G1450I40
+- Added `isDraftable` field to `LetterType` interface
+- Created `UploadOnlyCard` component w/ drag-drop + file input upload, category badge, file list
+  - Drag-over visual highlight (border-primary/50 bg-primary/5)
+  - Upload button triggers hidden file input; also accepts drag-drop
+  - Shows "N files" badge when docs exist for category
+  - Lists uploaded files w/ StatusDot + timestamp (same format as DraftRow)
+  - On upload, POSTs to `/api/case/{caseId}/documents` w/ `category` FormData field
+  - Success/error toasts via sonner
+- Updated `app/api/case/[caseId]/documents/route.ts` to accept optional `category` override in FormData
+  - When category provided, skips auto-classification (classifyDocument)
+  - Cast to `DocumentCategory` enum type for Prisma compatibility
+- Removed old generic "USCIS Form" card w/ `category: null`; replaced w/ individual form cards
+- Cleaned up `getDocsForCategory` null-category handler
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- Old USCIS Form card (category: null) removed; individual USCIS form cards now have real DocumentCategory values
+- Upload-only cards use sonner toast for feedback (consistent w/ csv-import-modal pattern)
+- Documents API `category` FormData field cast to `DocumentCategory` enum; invalid values cause Prisma runtime error (acceptable since UI sends known values)
+- UploadOnlyCard is local to letters-panel.tsx (not extracted to separate file)
+- RESUME_CV not added to LETTER_TYPES yet (part of R1 tasks)
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R6 task 22 (expandable cards) or R6 task 23 (global drop zone) or R7 tasks (USCIS links, e-sign placeholder)

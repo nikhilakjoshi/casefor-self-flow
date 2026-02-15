@@ -6,6 +6,7 @@ import {
   uploadToS3,
   buildDocumentKey,
 } from '@/lib/s3'
+import type { DocumentCategory } from '@prisma/client'
 import { classifyDocument } from '@/lib/document-classifier'
 
 export async function GET(
@@ -84,6 +85,7 @@ export async function POST(
   const formData = await request.formData()
   const file = formData.get('file') as File | null
   const context = (formData.get('context') as string | null)?.trim() || null
+  const categoryOverride = (formData.get('category') as string | null)?.trim() || null
 
   if (!file) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -112,6 +114,7 @@ export async function POST(
       type: docType,
       source: 'USER_UPLOADED',
       status: 'DRAFT',
+      ...(categoryOverride && { category: categoryOverride as DocumentCategory }),
     },
   })
 
@@ -130,12 +133,15 @@ export async function POST(
       },
     })
 
-    classifyDocument(document.id, file.name, context).catch(() => {})
+    if (!categoryOverride) {
+      classifyDocument(document.id, file.name, context).catch(() => {})
+    }
 
     return NextResponse.json({
       ...document,
       s3Key: key,
       s3Url: url,
+      category: categoryOverride || document.category,
     })
   }
 
@@ -148,7 +154,9 @@ export async function POST(
       data: { content: fullContent },
     })
 
-    classifyDocument(document.id, file.name, fullContent).catch(() => {})
+    if (!categoryOverride) {
+      classifyDocument(document.id, file.name, fullContent).catch(() => {})
+    }
 
     return NextResponse.json({ ...document, content: fullContent })
   }
@@ -161,7 +169,9 @@ export async function POST(
     })
   }
 
-  classifyDocument(document.id, file.name, context).catch(() => {})
+  if (!categoryOverride) {
+    classifyDocument(document.id, file.name, context).catch(() => {})
+  }
 
   return NextResponse.json(document)
 }

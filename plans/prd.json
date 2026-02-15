@@ -240,7 +240,7 @@
       "Each entry: { label, category (matching DocumentCategory enum), isDraftable: boolean, isPerRecommender: false }",
       "Upload-only entries should have isDraftable: false and render upload-only card variant"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -252,7 +252,7 @@
       "Show upload status badge: 'N Files Uploaded' or empty placeholder state",
       "Apply to cards: G1450PPU, G1450300, G1450I40, G28, I140, I907"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",

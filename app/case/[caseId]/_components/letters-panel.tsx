@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -8,6 +8,7 @@ import {
   Dialog,
   DialogContent,
 } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 import {
   FileText,
   Users,
@@ -18,6 +19,10 @@ import {
   Scale,
   ClipboardList,
   FileSpreadsheet,
+  Upload,
+  Shield,
+  FileCheck,
+  BookOpen,
 } from 'lucide-react'
 import { CRITERIA_LABELS } from '@/lib/evidence-verification-schema'
 import { RecommenderForm } from './recommender-form'
@@ -64,6 +69,7 @@ interface LetterType {
   gradient: string
   iconColor: string
   isPerRecommender?: boolean
+  isDraftable?: boolean
 }
 
 const LETTER_TYPES: LetterType[] = [
@@ -76,6 +82,17 @@ const LETTER_TYPES: LetterType[] = [
     gradient: 'from-blue-500/15 to-indigo-500/15',
     iconColor: 'text-blue-600 dark:text-blue-400',
     isPerRecommender: true,
+    isDraftable: true,
+  },
+  {
+    key: 'cover_letter',
+    title: 'Cover Letter',
+    description: 'Introduction letter for your petition package',
+    category: 'COVER_LETTER',
+    icon: BookOpen,
+    gradient: 'from-cyan-500/15 to-sky-500/15',
+    iconColor: 'text-cyan-600 dark:text-cyan-400',
+    isDraftable: true,
   },
   {
     key: 'personal_statement',
@@ -85,6 +102,7 @@ const LETTER_TYPES: LetterType[] = [
     icon: PenLine,
     gradient: 'from-violet-500/15 to-fuchsia-500/15',
     iconColor: 'text-violet-600 dark:text-violet-400',
+    isDraftable: true,
   },
   {
     key: 'petition',
@@ -94,15 +112,77 @@ const LETTER_TYPES: LetterType[] = [
     icon: Scale,
     gradient: 'from-amber-500/15 to-orange-500/15',
     iconColor: 'text-amber-600 dark:text-amber-400',
+    isDraftable: true,
   },
   {
-    key: 'uscis_form',
-    title: 'USCIS Form',
-    description: 'Required application forms',
-    category: null,
+    key: 'uscis_advisory',
+    title: 'USCIS Advisory Letter',
+    description: 'Expert opinion letter for USCIS review',
+    category: 'USCIS_ADVISORY_LETTER',
+    icon: Shield,
+    gradient: 'from-rose-500/15 to-pink-500/15',
+    iconColor: 'text-rose-600 dark:text-rose-400',
+    isDraftable: true,
+  },
+  {
+    key: 'i140',
+    title: 'I-140 Petition',
+    description: 'Immigrant Petition for Alien Workers',
+    category: 'I140',
     icon: ClipboardList,
     gradient: 'from-emerald-500/15 to-teal-500/15',
     iconColor: 'text-emerald-600 dark:text-emerald-400',
+    isDraftable: false,
+  },
+  {
+    key: 'i907',
+    title: 'I-907 Premium Processing',
+    description: 'Request for Premium Processing Service',
+    category: 'I907',
+    icon: FileCheck,
+    gradient: 'from-emerald-500/15 to-teal-500/15',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    isDraftable: false,
+  },
+  {
+    key: 'g28',
+    title: 'G-28 Attorney Representation',
+    description: 'Notice of Entry of Appearance as Attorney',
+    category: 'G28',
+    icon: ClipboardList,
+    gradient: 'from-emerald-500/15 to-teal-500/15',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    isDraftable: false,
+  },
+  {
+    key: 'g1450ppu',
+    title: 'G-1450 (Premium Processing)',
+    description: 'Authorization for Credit Card - Premium Processing',
+    category: 'G1450PPU',
+    icon: FileSpreadsheet,
+    gradient: 'from-stone-500/15 to-zinc-500/15',
+    iconColor: 'text-stone-600 dark:text-stone-400',
+    isDraftable: false,
+  },
+  {
+    key: 'g1450300',
+    title: 'G-1450 (I-140 Fee)',
+    description: 'Authorization for Credit Card - I-140 Filing Fee',
+    category: 'G1450300',
+    icon: FileSpreadsheet,
+    gradient: 'from-stone-500/15 to-zinc-500/15',
+    iconColor: 'text-stone-600 dark:text-stone-400',
+    isDraftable: false,
+  },
+  {
+    key: 'g1450i40',
+    title: 'G-1450 (I-40)',
+    description: 'Authorization for Credit Card - I-40',
+    category: 'G1450I40',
+    icon: FileSpreadsheet,
+    gradient: 'from-stone-500/15 to-zinc-500/15',
+    iconColor: 'text-stone-600 dark:text-stone-400',
+    isDraftable: false,
   },
 ]
 
@@ -199,6 +279,138 @@ const RELATIONSHIP_LABELS: Record<string, string> = {
   OTHER: 'Other',
 }
 
+function UploadOnlyCard({
+  letterType,
+  docs,
+  caseId,
+  onUploaded,
+}: {
+  letterType: LetterType
+  docs: DocumentItem[]
+  caseId: string
+  onUploaded: () => void
+}) {
+  const Icon = letterType.icon
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+
+  const handleUpload = async (file: File) => {
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      if (letterType.category) {
+        formData.append('category', letterType.category)
+      }
+      const res = await fetch(`/api/case/${caseId}/documents`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (res.ok) {
+        toast.success(`Uploaded ${file.name}`)
+        onUploaded()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Upload failed')
+      }
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleUpload(file)
+  }
+
+  return (
+    <div
+      className={cn(
+        'rounded-xl border border-border/50 bg-card/50 overflow-hidden transition-colors',
+        dragOver && 'border-primary/50 bg-primary/5'
+      )}
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
+    >
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div
+          className={cn(
+            'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br',
+            letterType.gradient
+          )}
+        >
+          <Icon className={cn('w-4 h-4', letterType.iconColor)} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-semibold">{letterType.title}</h3>
+          <p className="text-[11px] text-muted-foreground">
+            {letterType.description}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {docs.length > 0 && (
+            <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+              {docs.length} file{docs.length !== 1 ? 's' : ''}
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-[11px] gap-1"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {uploading ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Upload className="w-3 h-3" />
+            )}
+            Upload
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.docx,.doc,.md,.txt"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) handleUpload(file)
+              e.target.value = ''
+            }}
+          />
+        </div>
+      </div>
+
+      {docs.length > 0 && (
+        <div className="px-3 pb-3 space-y-1">
+          {docs.map((doc) => (
+            <div
+              key={doc.id}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-border/40 bg-background/50"
+            >
+              <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <span className="flex-1 min-w-0 text-xs font-medium truncate">
+                {doc.name}
+              </span>
+              <StatusDot status={doc.status} />
+              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 shrink-0">
+                <Clock className="w-2.5 h-2.5" />
+                {formatDate(doc.createdAt)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [recommenders, setRecommenders] = useState<Recommender[]>([])
@@ -239,13 +451,7 @@ export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
 
   const getDocsForCategory = useCallback(
     (category: string | null) => {
-      if (!category) {
-        return documents.filter(
-          (d) =>
-            d.source === 'SYSTEM_GENERATED' &&
-            d.name.toLowerCase().includes('uscis')
-        )
-      }
+      if (!category) return []
       return documents.filter((d) => d.category === category)
     },
     [documents]
@@ -441,9 +647,22 @@ export function LettersPanel({ caseId, onOpenDraft }: LettersPanelProps) {
             )
           }
 
-          // Standard letter type card
           const docs = getDocsForCategory(letterType.category)
 
+          // Upload-only card (not draftable)
+          if (letterType.isDraftable === false) {
+            return (
+              <UploadOnlyCard
+                key={letterType.key}
+                letterType={letterType}
+                docs={docs}
+                caseId={caseId}
+                onUploaded={fetchData}
+              />
+            )
+          }
+
+          // Standard draftable card
           return (
             <div
               key={letterType.key}
