@@ -428,7 +428,7 @@
       "Add corresponding AgentPrompt seed records with slug 'cover-letter-drafter' and 'uscis-letter-drafter'",
       "Set provider: 'anthropic', modelName: 'claude-sonnet-4-20250514'"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
@@ -440,7 +440,7 @@
       "Use resolvePrompt pattern (existing in agent-prompt.ts) to fetch the configurable prompt",
       "Include variables for applicant name, target criteria, filing strategy"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",
@@ -451,7 +451,7 @@
       "In lib/drafting-agent.ts, detect when document category is USCIS_ADVISORY_LETTER and load uscis-letter-drafter prompt",
       "Include variables for expert name, credentials, relationship to applicant, target criteria"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -463,7 +463,7 @@
       "The draft-chat endpoint uses streamDraftingAgent which will resolve the category-specific prompt",
       "Show existing drafts on the card (filter case documents by category)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",

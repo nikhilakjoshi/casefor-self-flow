@@ -1084,3 +1084,28 @@
 - "Fill on USCIS" link appears before the Upload button in the card header actions area
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
 - Next priority: R7 task 2 (e-sign placeholder) or R6 task 23 (global drop zone) or R6 task 25 (per-card drop zones)
+
+## 2026-02-15: Category-Specific Drafting Prompts (PRD R10 Tasks 1-4)
+
+### Completed
+
+- Added `COVER_LETTER` and `USCIS_ADVISORY` to `TemplateType` enum in `prisma/schema.prisma`
+- Ran `prisma generate` + `prisma db push` -- schema synced
+- Added 2 Template seeds in `prisma/seed.ts`: Cover Letter (COVER_LETTER type) and USCIS Advisory Letter (USCIS_ADVISORY type) w/ systemInstruction + defaultVariationContent
+- Added 2 AgentPrompt seeds in `prisma/agent-prompt-seeds.ts`:
+  - `cover-letter-drafter`: EB-1A cover letter prompt w/ legal structure (INA 203(b)(1)(A), 8 CFR 204.5(h)(3)), exhibit references, Kazarian two-step framework
+  - `uscis-letter-drafter`: expert opinion letter prompt w/ expert intro, field context, contribution assessment, peer comparison structure
+- Updated `lib/drafting-agent.ts`: added `getCategoryPromptSlug()` mapping DocumentCategory to prompt slug, `runDraftingAgent` now accepts `category` opt and loads category-specific prompt via `getPrompt()` before falling back to generic `drafting-agent` prompt
+- Updated `app/api/case/[caseId]/draft-chat/route.ts`: passes `category` through to `runDraftingAgent`
+- R10 task 4 (wire to DraftingPanel) was already implemented: DraftableCard calls `onOpenDraft({ category })`, DraftingPanel sends category to draft-chat API
+- Seed runs clean: 6 templates (was 4), agent prompts upserted
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- `getCategoryPromptSlug` maps COVER_LETTER -> "cover-letter-drafter", USCIS_ADVISORY_LETTER -> "uscis-letter-drafter"; returns null for other categories (falls back to generic drafting-agent prompt)
+- Category-specific prompts use same {{var}} substitution pattern as generic drafting-agent prompt (criteria, threshold, profile, analysis, documentName, existingContent)
+- Both category-specific prompts instruct agent to call getProfile + getAnalysis + searchDocuments before drafting
+- Denial engine data not yet integrated into drafting prompts (R9 task 34 still pending); cover letter prompt addresses weakness proactively but doesn't query denial probability
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R7 task 2 (e-sign placeholder) or R6 task 23 (global drop zone) or R11 tasks (template variations, template-resolver wiring)

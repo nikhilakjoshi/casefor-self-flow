@@ -82,6 +82,18 @@ async function main() {
       systemInstruction: 'Provide guidance for completing USCIS Form I-140 (Immigrant Petition for Alien Workers) for an EB-1A extraordinary ability classification. Include instructions for each relevant section and common pitfalls to avoid.',
       defaultVariationContent: 'Provide section-by-section guidance for Form I-140. Cover beneficiary information, classification requested, and supporting documentation requirements. Note common mistakes and best practices for each field.',
     },
+    {
+      name: 'Cover Letter',
+      type: 'COVER_LETTER' as const,
+      systemInstruction: 'Draft a cover letter for an EB-1A petition package. The letter should introduce the petitioner, summarize qualifying criteria with supporting evidence, reference attached exhibits, and present a compelling legal argument for extraordinary ability classification under INA 203(b)(1)(A).',
+      defaultVariationContent: 'Write a formal cover letter addressed to USCIS. Structure: (1) Introduction of petitioner and classification sought, (2) Summary of extraordinary ability evidence across qualifying criteria, (3) Reference to attached exhibits and supporting documents, (4) Legal framework citing INA 203(b)(1)(A) and 8 CFR 204.5(h), (5) Conclusion requesting approval.',
+    },
+    {
+      name: 'USCIS Advisory Letter',
+      type: 'USCIS_ADVISORY' as const,
+      systemInstruction: 'Draft an expert opinion / advisory letter for USCIS review in support of an EB-1A petition. The letter should be from a recognized expert who can provide authoritative assessment of the applicant\'s contributions and standing in the field. Focus on the significance and impact of the applicant\'s work from an independent expert perspective.',
+      defaultVariationContent: 'Write a formal expert opinion letter. Structure: (1) Expert\'s credentials and basis for providing opinion, (2) Overview of the field and standards for extraordinary ability, (3) Assessment of applicant\'s specific contributions and their significance, (4) Comparison to peers and field benchmarks, (5) Conclusion that applicant meets extraordinary ability standard.',
+    },
   ]
 
   for (const t of templates) {

@@ -200,19 +200,32 @@ function createDraftingAgentTools(caseId: string, documentId?: string) {
   };
 }
 
+/** Map DocumentCategory to category-specific prompt slug */
+function getCategoryPromptSlug(category?: string): string | null {
+  switch (category) {
+    case "COVER_LETTER":
+      return "cover-letter-drafter";
+    case "USCIS_ADVISORY_LETTER":
+      return "uscis-letter-drafter";
+    default:
+      return null;
+  }
+}
+
 export async function runDraftingAgent(opts: {
   caseId: string;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
   documentId?: string;
   documentName?: string;
   existingContent?: string | null;
+  category?: string;
   onFinish?: (text: string) => Promise<void>;
 }) {
-  const { caseId, messages, documentId, documentName, existingContent, onFinish } = opts;
+  const { caseId, messages, documentId, documentName, existingContent, category, onFinish } = opts;
   const log = (msg: string, ...args: unknown[]) =>
     console.log(`[DraftingAgent:${caseId}] ${msg}`, ...args);
 
-  log("runDraftingAgent called, messages:", messages.length);
+  log("runDraftingAgent called, messages:", messages.length, "category:", category);
 
   const [criteria, caseRecord, profile, analysis] = await Promise.all([
     getCriteriaForCase(caseId),
@@ -230,17 +243,48 @@ export async function runDraftingAgent(opts: {
   const threshold = caseRecord?.criteriaThreshold ?? 3;
   log("context gathered - criteria:", criteria.length, "threshold:", threshold);
 
-  const instructions = await buildDraftingSystemPrompt({
+  const promptOpts = {
     criteria,
     threshold,
     profile: (profile?.data as Record<string, unknown>) ?? null,
     analysis: analysis ? (analysis.criteria as CriterionResult[]) : null,
     documentName,
     existingContent,
-  });
+  };
+
+  // Try category-specific prompt first, fall back to generic drafting-agent prompt
+  const categorySlug = getCategoryPromptSlug(category);
+  let instructions: string;
+  let p = categorySlug ? await getPrompt(categorySlug) : null;
+  if (p) {
+    log("using category-specific prompt:", categorySlug);
+    const criteriaList = criteria
+      .map((c) => `- ${c.key}: ${c.name} -- ${c.description}`)
+      .join("\n");
+    const profileSection = promptOpts.profile
+      ? `CURRENT APPLICANT PROFILE:\n${JSON.stringify(promptOpts.profile, null, 2)}`
+      : "APPLICANT PROFILE: Not yet established.";
+    const analysisSection = promptOpts.analysis
+      ? `CURRENT ANALYSIS (${promptOpts.analysis.filter((c) => c.strength === "Strong").length} Strong, need ${threshold}+):\n${promptOpts.analysis.map((c) => `${c.criterionId}: ${c.strength} - ${c.reason}`).join("\n")}`
+      : "ANALYSIS: No analysis yet.";
+    const docSection = documentName
+      ? `CURRENT DOCUMENT: "${documentName}"${existingContent ? `\n\nEXISTING CONTENT:\n${existingContent}` : ""}`
+      : "";
+
+    instructions = substituteVars(p.content, {
+      criteria: criteriaList,
+      threshold: String(threshold),
+      profile: profileSection,
+      analysis: analysisSection,
+      documentName: docSection,
+      existingContent: "",
+    });
+  } else {
+    instructions = await buildDraftingSystemPrompt(promptOpts);
+    p = await getPrompt("drafting-agent");
+  }
 
   const tools = createDraftingAgentTools(caseId, documentId);
-  const p = await getPrompt("drafting-agent");
 
   log("creating ToolLoopAgent with model:", p?.modelName ?? FALLBACK_MODEL, "tools:", Object.keys(tools));
 

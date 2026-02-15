@@ -141,3 +141,9 @@
 - G-1450 variants (PPU, 300, I40) all share the same USCIS URL (/g-1450) since they are the same form used for different fee designations
 - "Fill on USCIS" link uses native `<a>` tag styled as outline button (not shadcn Button) to avoid button-inside-link accessibility issues
 - uscisUrl field is optional on LetterType; only upload-only USCIS form cards set it (draftable cards don't need external form links)
+- Added `COVER_LETTER` and `USCIS_ADVISORY` to TemplateType enum (not reusing OTHER) for cleaner type discrimination and admin filtering
+- Category-specific drafting prompts (`cover-letter-drafter`, `uscis-letter-drafter`) use same {{var}} template variables as the generic `drafting-agent` prompt; agent resolves category slug first, falls back to generic if no category-specific prompt found
+- `getCategoryPromptSlug()` returns null for categories without dedicated prompts (e.g., RECOMMENDATION_LETTER, PERSONAL_STATEMENT); these use the generic drafting-agent prompt -- future category prompts can be added by extending the switch statement + adding AgentPrompt seeds
+- R10 task 4 (wire Cover Letter / USCIS cards to DraftingPanel) was already implemented: DraftableCard passes `category` via `onOpenDraft`, DraftingPanel sends it in POST body to draft-chat, no additional UI wiring needed
+- Denial engine data not yet incorporated into cover letter / USCIS advisory prompts; prompts instruct agent to address weaknesses proactively but don't query DenialProbability table (deferred to R9 task 34)
+- `draft-chat/route.ts` passes `category` as `string | undefined` to `runDraftingAgent`; no Zod validation on category value since it originates from trusted UI (DocumentCategory enum values)
