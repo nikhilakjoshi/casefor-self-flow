@@ -4,9 +4,8 @@ import { useEffect, useState, useCallback, useMemo } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ExtractionRawPanel } from "./extraction-raw-panel"
-import { StrengthEvaluationPanel } from "./strength-evaluation-panel"
-import { GapAnalysisPanel } from "./gap-analysis-panel"
-import { CaseStrategyPanel } from "./case-strategy-panel"
+import { CriteriaTab } from "./criteria-tab"
+import { PlanningTab } from "./planning-tab"
 import { EvidenceListPanel } from "./evidence-list-panel"
 import { CriteriaRoutingPanel } from "./criteria-routing-panel"
 import { CaseConsolidationPanel } from "./case-consolidation-panel"
@@ -613,7 +612,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "strength" | "gap" | "strategy" | "evidence" | "routing" | "consolidation" | "consolidated-strategy" | "letters" | "denial" | "raw"
+type ReportTab = "summary" | "planning" | "evidence" | "routing" | "consolidation" | "consolidated-strategy" | "letters" | "denial" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -634,7 +633,7 @@ export function ReportPanel({
   const router = useRouter()
   const pathname = usePathname()
 
-  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "strength", "gap", "strategy", "evidence", "routing", "consolidation", "consolidated-strategy", "letters", "denial", "raw"]), [])
+  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "planning", "evidence", "routing", "consolidation", "consolidated-strategy", "letters", "denial", "raw"]), [])
   const subtabParam = searchParams.get('subtab')
   const initialSubTab = subtabParam && validSubTabs.has(subtabParam as ReportTab)
     ? (subtabParam as ReportTab)
@@ -820,55 +819,23 @@ export function ReportPanel({
                       Criteria
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">EB-1A criteria breakdown with evidence mapping</TooltipContent>
+                  <TooltipContent side="bottom">Criteria breakdown, strength evaluation, and tier scoring</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => handleSubTabChange("strength")}
+                      onClick={() => handleSubTabChange("planning")}
                       className={cn(
                         "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                        activeTab === "strength"
+                        activeTab === "planning"
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground hover:bg-background/60"
                       )}
                     >
-                      Strength Eval
+                      Planning
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Tier scoring and Kazarian two-step assessment</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleSubTabChange("gap")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                        activeTab === "gap"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                      )}
-                    >
-                      Gap Analysis
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Prioritized gaps with AAO-informed action plans</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleSubTabChange("strategy")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                        activeTab === "strategy"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                      )}
-                    >
-                      Strategy
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Filing strategy and evidence building roadmap</TooltipContent>
+                  <TooltipContent side="bottom">Gap analysis, filing strategy, and evidence roadmap</TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -1033,43 +1000,37 @@ export function ReportPanel({
 
       {/* Tab content */}
       {activeTab === "summary" ? (
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {analysis.criteria.map((c) => {
-            const cs = analysis.criteria_summary?.find(
-              (s) => s.criterion_id === c.criterionId
-            )
-            return (
-              <CriterionSection
-                key={c.criterionId}
-                criterion={c}
-                criteriaNames={analysis.criteriaNames}
-                criteriaSummary={cs}
-                extraction={analysis.extraction}
-                caseId={caseId}
-                docCount={analysis.docCountsByCriterion?.[c.criterionId] ?? 0}
-                docCountsByItem={analysis.docCountsByItem}
-                onNavigateToRouting={() => handleSubTabChange("routing")}
-                onCriterionUpdated={handleCriterionUpdated}
-              />
-            )
-          })}
-        </div>
-      ) : activeTab === "strength" ? (
-        <StrengthEvaluationPanel
+        <CriteriaTab
           caseId={caseId}
-          initialData={initialStrengthEvaluation}
+          criteriaContent={
+            analysis.criteria.map((c) => {
+              const cs = analysis.criteria_summary?.find(
+                (s) => s.criterion_id === c.criterionId
+              )
+              return (
+                <CriterionSection
+                  key={c.criterionId}
+                  criterion={c}
+                  criteriaNames={analysis.criteriaNames}
+                  criteriaSummary={cs}
+                  extraction={analysis.extraction}
+                  caseId={caseId}
+                  docCount={analysis.docCountsByCriterion?.[c.criterionId] ?? 0}
+                  docCountsByItem={analysis.docCountsByItem}
+                  onNavigateToRouting={() => handleSubTabChange("routing")}
+                  onCriterionUpdated={handleCriterionUpdated}
+                />
+              )
+            })
+          }
+          initialStrengthEvaluation={initialStrengthEvaluation}
         />
-      ) : activeTab === "gap" ? (
-        <GapAnalysisPanel
+      ) : activeTab === "planning" ? (
+        <PlanningTab
           caseId={caseId}
-          initialData={initialGapAnalysis}
+          initialGapAnalysis={initialGapAnalysis}
+          initialCaseStrategy={initialCaseStrategy}
           hasStrengthEval={!!initialStrengthEvaluation}
-        />
-      ) : activeTab === "strategy" ? (
-        <CaseStrategyPanel
-          caseId={caseId}
-          initialData={initialCaseStrategy}
-          hasGapAnalysis={!!initialGapAnalysis}
         />
       ) : activeTab === "evidence" ? (
         <EvidenceListPanel caseId={caseId} onDocumentsRouted={onDocumentsRouted} />

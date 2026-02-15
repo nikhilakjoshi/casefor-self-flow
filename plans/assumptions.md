@@ -121,3 +121,7 @@
 - `@default([])` on criteriaKeys means existing recommenders get empty array; no backfill needed
 - POST API defaults criteriaKeys to [] via Zod `.default([])`; PATCH treats it as optional (only updates when provided)
 - Criteria pills on recommender cards truncate at 3 and show "+N more" for overflow; full labels available via title tooltip
+- CriteriaTab uses `criteriaContent: React.ReactNode` prop rather than duplicating CriterionSection rendering logic; keeps analysis state management in report-panel
+- Old URL subtab values "strength", "gap", "strategy" fall back to "summary" default; no backward-compatibility shim needed since these are session-only URL params not persisted/shared
+- Collapsible sections in CriteriaTab/PlanningTab use manual useState + conditional rendering rather than Radix Collapsible primitive; sub-panels manage their own scroll/overflow internally and work better without Collapsible animation wrapper
+- PlanningTab derives `hasGapAnalysis` for CaseStrategyPanel from `!!initialGapAnalysis` rather than accepting it as a separate prop; reduces prop surface

@@ -70,7 +70,7 @@
       "Section 2: 'Strength Evaluation' containing StrengthEvaluationPanel content",
       "Default: Criteria section expanded, StrengthEval collapsed"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -83,7 +83,7 @@
       "Section 2: 'Case Strategy' containing CaseStrategyPanel content",
       "Default: Gap Analysis expanded, Strategy collapsed"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "ui",
@@ -96,7 +96,7 @@
       "Pass through all required props (caseId, analysis data, evaluation data, etc.)",
       "Remove direct imports of the 4 replaced panels if no longer used elsewhere"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "api",

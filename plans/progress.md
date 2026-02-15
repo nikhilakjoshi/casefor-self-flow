@@ -953,4 +953,34 @@
 - Criteria list is static from CRITERIA_LABELS (not dynamically fetched from case analysis); sufficient for EB-1A which always has 10 criteria
 - Criteria pills on recommender cards show key (C1) with full label on hover via title attribute
 - Pre-existing lint errors unchanged (13 errors, 27 warnings)
-- Next priority: R6 tasks 20-23,25 (letters-panel expansion) or R2 tasks 6-8 (tab merging) or R1 tasks (skip-to-survey, resume gen)
+- Next priority: R6 tasks 20-23,25 (letters-panel expansion) or R1 tasks (skip-to-survey, resume gen)
+
+## 2026-02-15: Phase 1 Tab Consolidation (PRD R2 Tasks 6-8)
+
+### Completed
+
+- Created `app/case/[caseId]/_components/criteria-tab.tsx`: merges Criteria + Strength Eval into single tab w/ collapsible sections
+  - Section 1 "Criteria": renders inline CriterionSection cards (passed as `criteriaContent` ReactNode prop)
+  - Section 2 "Strength Evaluation": renders StrengthEvaluationPanel
+  - Default: Criteria expanded, Strength Eval collapsed
+  - Uses ChevronDown icon w/ rotation for expand/collapse indicator
+- Created `app/case/[caseId]/_components/planning-tab.tsx`: merges Gap Analysis + Case Strategy into single tab w/ collapsible sections
+  - Section 1 "Gap Analysis": renders GapAnalysisPanel w/ hasStrengthEval prop
+  - Section 2 "Case Strategy": renders CaseStrategyPanel w/ hasGapAnalysis derived from initialGapAnalysis
+  - Default: Gap Analysis expanded, Strategy collapsed
+- Updated `report-panel.tsx` Phase 1 tabs: replaced 4 tabs (Criteria, Strength Eval, Gap Analysis, Strategy) w/ 2 tabs (Criteria, Planning)
+  - Removed `ReportTab` values: "strength", "gap", "strategy"; added "planning"
+  - Updated `validSubTabs` set accordingly
+  - Replaced direct imports of StrengthEvaluationPanel/GapAnalysisPanel/CaseStrategyPanel w/ CriteriaTab/PlanningTab
+  - Tab content routing updated: "summary" -> CriteriaTab, "planning" -> PlanningTab
+  - Tooltip descriptions updated to reflect merged content
+- Typecheck passes (next build clean); pre-existing lint errors unchanged (13 errors, 27 warnings)
+
+### Notes for Next Dev
+
+- CriteriaTab accepts `criteriaContent: React.ReactNode` for the inline criteria list -- keeps CriterionSection rendering logic in report-panel where it has access to analysis state + callbacks
+- Old URL subtab values "strength", "gap", "strategy" will fall back to "summary" default (no backward-compat shim needed; these are session-only URL params)
+- Type imports for StrengthEvaluation, GapAnalysis, CaseStrategy kept in report-panel.tsx since they're still used in ReportPanelProps interface (passed through to child components)
+- Collapsible sections use manual state + conditional rendering (not Radix Collapsible primitive) for simpler integration w/ the sub-panel components which manage their own scroll/overflow
+- Pre-existing lint errors unchanged (13 errors, 27 warnings)
+- Next priority: R5 tasks (ConsolidationTab + Phase 3 merge, same pattern as R2) or R6 tasks 20-23,25 (letters-panel expansion) or R1 tasks (skip-to-survey, resume gen)
