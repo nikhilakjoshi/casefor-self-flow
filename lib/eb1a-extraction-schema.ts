@@ -267,17 +267,67 @@ export type Education = z.infer<typeof EducationSchema>
 export type WorkExperience = z.infer<typeof WorkExperienceSchema>
 
 // Helper: criterion metadata
-export const CRITERIA_METADATA: Record<CriterionId, { name: string; description: string; uscis: string }> = {
-  C1: { name: "Awards", description: "Nationally/internationally recognized prizes", uscis: "Receipt of lesser nationally or internationally recognized prizes or awards for excellence in the field of endeavor." },
-  C2: { name: "Membership", description: "Selective associations requiring outstanding achievement", uscis: "Membership in associations in the field for which classification is sought that require outstanding achievement of their members, as judged by recognized national or international experts." },
-  C3: { name: "Published Material", description: "About the person in professional/major media", uscis: "Published material about the person in professional or major trade publications or other major media relating to the person's work in the field." },
-  C4: { name: "Judging", description: "Participation as judge of others' work", uscis: "The person's participation, either individually or on a panel, as a judge of the work of others in the same or an allied field." },
-  C5: { name: "Original Contributions", description: "Of major significance to the field", uscis: "The person's original scientific, scholarly, artistic, athletic, or business-related contributions of major significance in the field." },
-  C6: { name: "Scholarly Articles", description: "In professional journals", uscis: "The person's authorship of scholarly articles in the field, in professional or major trade publications or other major media." },
-  C7: { name: "Artistic Exhibitions", description: "Display of work at artistic exhibitions", uscis: "Display of the person's work in the field at artistic exhibitions or showcases." },
-  C8: { name: "Leading Role", description: "Leading/critical role for distinguished organizations", uscis: "The person has performed in a leading or critical role for organizations or establishments that have a distinguished reputation." },
-  C9: { name: "High Salary", description: "Significantly above field average", uscis: "The person has commanded a high salary, or other significantly high remuneration for services, in relation to others in the field." },
-  C10: { name: "Commercial Success", description: "In performing arts", uscis: "Commercial successes in the performing arts, as shown by box office receipts or record, cassette, compact disk, or video sales." },
+export const CRITERIA_METADATA: Record<CriterionId, { name: string; description: string; uscis: string; guidance: string }> = {
+  C1: {
+    name: "Awards",
+    description: "Nationally/internationally recognized prizes",
+    uscis: "Receipt of lesser nationally or internationally recognized prizes or awards for excellence in the field of endeavor.",
+    guidance: "The person must be a recipient of awards recognizing excellence. The regulation does not demand Nobel Prize-level prestige. Examples include awards from national institutions, professional associations, or doctoral dissertation recognitions. Officers assess the award's national or international significance, number of recipients, and limitations on competitors.",
+  },
+  C2: {
+    name: "Membership",
+    description: "Selective associations requiring outstanding achievement",
+    uscis: "Membership in associations in the field for which classification is sought that require outstanding achievement of their members, as judged by recognized national or international experts.",
+    guidance: "The person must demonstrate that membership required expert-judged accomplishments. Qualifying examples include professional association memberships or organizational fellowships with rigorous selection processes. General membership based solely on education level, fees, or employment does not suffice.",
+  },
+  C3: {
+    name: "Published Material",
+    description: "About the person in professional/major media",
+    uscis: "Published material about the person in professional or major trade publications or other major media relating to the person's work in the field.",
+    guidance: "The material must focus on the individual and their specific contributions, not their employer or marketing content. Qualifying sources include professional journals, major newspapers, academic publications, and professional audio/video coverage with substantial discussion of the person's achievements.",
+  },
+  C4: {
+    name: "Judging",
+    description: "Participation as judge of others' work",
+    uscis: "The person's participation, either individually or on a panel, as a judge of the work of others in the same or an allied field.",
+    guidance: "Requires documented evidence of actual participation, not just invitations. Examples include peer reviewing for scholarly journals, conference abstract reviews, Ph.D. dissertation committee participation, and government research funding reviews. Documentation confirming completion is essential.",
+  },
+  C5: {
+    name: "Original Contributions",
+    description: "Of major significance to the field",
+    uscis: "The person's original scientific, scholarly, artistic, athletic, or business-related contributions of major significance in the field.",
+    guidance: "Requires demonstrating both originality and major significance. Supporting evidence includes publications about the work's significance, expert testimonials, citation metrics, patents, or commercial use documentation. Funding or publication alone does not establish major significance.",
+  },
+  C6: {
+    name: "Scholarly Articles",
+    description: "In professional journals",
+    uscis: "The person's authorship of scholarly articles in the field, in professional or major trade publications or other major media.",
+    guidance: "Requires original research reporting by field experts, typically peer-reviewed with citations and bibliographies. For non-academic fields, articles must be written for learned persons with profound field knowledge. The publication venue must be professional or major media with appropriate circulation.",
+  },
+  C7: {
+    name: "Artistic Exhibitions",
+    description: "Display of work at artistic exhibitions",
+    uscis: "Display of the person's work in the field at artistic exhibitions or showcases.",
+    guidance: "Specifically requires artistic venues. The regulation defines \"exhibition\" as a public showing of works of art. Non-artistic exhibitions do not independently satisfy this criterion but may constitute comparable evidence when properly supported.",
+  },
+  C8: {
+    name: "Leading Role",
+    description: "Leading/critical role for distinguished organizations",
+    uscis: "The person has performed in a leading or critical role for organizations or establishments that have a distinguished reputation.",
+    guidance: "Examines whether the person held a leadership position or performed significantly important work for an established organization. Examples include senior faculty positions, principal investigator roles, key committee membership, or founding roles. Letters from employers detailing the role's importance are particularly helpful.",
+  },
+  C9: {
+    name: "High Salary",
+    description: "Significantly above field average",
+    uscis: "The person has commanded a high salary, or other significantly high remuneration for services, in relation to others in the field.",
+    guidance: "Compares compensation against field peers using surveys, tax documents, or job offers. Officers consider occupation descriptions, survey validity, geographic location, and hourly versus project-based payment structures. Prospective salary from credible contracts qualifies.",
+  },
+  C10: {
+    name: "Commercial Success",
+    description: "In performing arts",
+    uscis: "Commercial successes in the performing arts, as shown by box office receipts or record, cassette, compact disk, or video sales.",
+    guidance: "Focuses on sales volume and box office performance relative to comparable artists. Merely recording or performing is insufficient; evidence must demonstrate commercial success through sales metrics compared to industry peers.",
+  },
 }
 
 // Map legacy criterion IDs to canonical IDs
