@@ -4,10 +4,10 @@ import { parseFile } from "@/lib/file-parser"
 import { chunkText } from "@/lib/chunker"
 import { upsertChunks } from "@/lib/pinecone"
 import {
-  streamExtractAndEvaluate,
-  streamExtractAndEvaluateFromPdf,
   streamQuickProfile,
   streamQuickProfileFromPdf,
+  extractTextFromPdf,
+  extractAndEvaluate,
   extractionToLegacyFormat,
   countExtractionStrengths,
   type DetailedExtraction,
@@ -145,24 +145,30 @@ async function handleFileAnalysis(
     // Pass survey data if available
     const surveyData = caseRecord.profile?.data as Record<string, unknown> | undefined
 
-    // Start both calls in parallel: quick profile (fast) + full extraction
-    const parsedText = isPdf ? null : await parseFile(file)
+    // For PDFs: extract text first (gemini-flash, cheap) so we don't send PDF 10x to Claude
+    // For non-PDFs: parse text directly
+    const resumeText = isPdf
+      ? await extractTextFromPdf(buffer)
+      : await parseFile(file)
 
-    const [quickResult, fullResult] = await Promise.all([
-      isPdf
-        ? streamQuickProfileFromPdf(buffer, surveyData)
-        : streamQuickProfile(parsedText!, surveyData),
-      isPdf
-        ? streamExtractAndEvaluateFromPdf(buffer, surveyData)
-        : streamExtractAndEvaluate(parsedText!, surveyData),
-    ])
+    // Phase 1: Start quick profile stream (fast, ~1-2s)
+    const quickResult = isPdf
+      ? await streamQuickProfileFromPdf(buffer, surveyData)
+      : await streamQuickProfile(resumeText, surveyData)
 
     const encoder = new TextEncoder()
+
+    // Track multipass extraction state shared between stream and background save
+    let finalExtraction: DetailedExtraction | null = null
+    let extractionResolve: (ext: DetailedExtraction) => void
+    const extractionPromise = new Promise<DetailedExtraction>((resolve) => {
+      extractionResolve = resolve
+    })
 
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // Phase 1: stream quick profile (completes in ~1-2s)
+          // Phase 1: stream quick profile
           let quickFinal: Record<string, unknown> = {}
           for await (const partial of quickResult.partialOutputStream) {
             quickFinal = partial as Record<string, unknown>
@@ -171,13 +177,26 @@ async function handleFileAnalysis(
             )
           }
 
-          // Phase 2: stream full extraction, merging over quick profile data
-          for await (const partial of fullResult.partialOutputStream) {
-            const merged = { ...quickFinal, ...(partial as Record<string, unknown>) }
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify(merged)}\n\n`)
-            )
-          }
+          // Phase 2: multipass extraction — each criterion completion emits SSE
+          const extraction = await extractAndEvaluate(
+            resumeText,
+            surveyData,
+            (_criterion, partialAssembly) => {
+              const merged = { ...quickFinal, ...partialAssembly }
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify(merged)}\n\n`)
+              )
+            },
+          )
+
+          // Final merged event
+          const finalMerged = { ...quickFinal, ...extraction }
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(finalMerged)}\n\n`)
+          )
+
+          finalExtraction = { ...extraction, extracted_text: resumeText }
+          extractionResolve!(finalExtraction)
           controller.close()
         } catch (err) {
           controller.error(err)
@@ -185,13 +204,9 @@ async function handleFileAnalysis(
       },
     })
 
-    // Save to DB in background after full extraction completes
-    fullResult.output.then(async (output) => {
-      if (!output) return
-
-      const extraction = output as DetailedExtraction
-      const extractedText = extraction.extracted_text ?? ""
-      const textToChunk = extractedText || (isPdf ? "" : (parsedText ?? await parseFile(file)))
+    // Save to DB in background after extraction completes
+    extractionPromise.then(async (extraction) => {
+      const textToChunk = resumeText
 
       // Chunk and embed
       if (textToChunk) {

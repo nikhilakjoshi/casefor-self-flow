@@ -12,6 +12,7 @@ import {
   type CriteriaSummaryItem,
   CRITERIA_METADATA,
 } from "./eb1a-extraction-schema"
+import { multipassExtract } from "./multipass-extraction"
 
 // Legacy schema for backward compatibility
 export const CriterionResultSchema = z.object({
@@ -91,6 +92,32 @@ export async function streamQuickProfileFromPdf(
   })
 }
 
+// Extract text from PDF using gemini-flash (cheap, fast — avoids sending PDF 10x to Claude)
+export async function extractTextFromPdf(
+  pdfBuffer: ArrayBuffer,
+): Promise<string> {
+  const { text } = await generateText({
+    model: google(QUICK_PROFILE_MODEL),
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Extract ALL text from this PDF document. Return the complete text content, preserving structure (headings, lists, tables). Do not summarize or omit anything.",
+          },
+          {
+            type: "file",
+            data: Buffer.from(pdfBuffer),
+            mediaType: "application/pdf",
+          },
+        ],
+      },
+    ],
+  })
+  return text
+}
+
 const EXTRACTION_SYSTEM_PROMPT = `You are an EB-1A immigration expert. Extract ALL structured information from this resume/CV and map each item to the relevant EB-1A criteria. Do not use emojis in any output.
 
 THE 10 EB-1A CRITERIA:
@@ -128,23 +155,13 @@ const PdfExtractionSchema = z.object({
   ...DetailedExtractionSchema.omit({ extracted_text: true }).shape,
 })
 
-// New detailed extraction functions
+// Multipass extraction — 10 parallel per-criterion calls
 export async function extractAndEvaluate(
   resumeText: string,
-  surveyData?: Record<string, unknown>
+  surveyData?: Record<string, unknown>,
+  onCriterionComplete?: (criterion: string, partialAssembly: DetailedExtraction) => void,
 ): Promise<DetailedExtraction> {
-  const surveyContext = surveyData
-    ? `\n\nADDITIONAL CONTEXT FROM USER SURVEY:\n${JSON.stringify(surveyData, null, 2)}`
-    : ""
-
-  const { output } = await generateText({
-    model: anthropic(MODEL),
-    output: Output.object({ schema: DetailedExtractionSchema }),
-    system: EXTRACTION_SYSTEM_PROMPT,
-    prompt: `Extract all structured information from this resume and evaluate against EB-1A criteria:\n\n${resumeText}${surveyContext}`,
-  })
-
-  return output!
+  return multipassExtract(resumeText, surveyData, onCriterionComplete)
 }
 
 export async function extractAndEvaluateFromPdf(
@@ -350,3 +367,4 @@ export function countExtractionStrengths(extraction: DetailedExtraction): {
 
 // Re-export types and schemas from extraction schema
 export { DetailedExtractionSchema, type DetailedExtraction, type CriteriaSummaryItem }
+export { multipassExtract } from "./multipass-extraction"
