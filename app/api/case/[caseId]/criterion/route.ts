@@ -8,22 +8,10 @@ import { extractPdfText } from "@/lib/pdf-extractor"
 import { chunkText } from "@/lib/chunker"
 import { upsertChunks } from "@/lib/pinecone"
 import { isS3Configured, uploadToS3, buildDocumentKey } from "@/lib/s3"
-import { CRITERIA_METADATA, type CriterionId } from "@/lib/eb1a-extraction-schema"
+import { CRITERIA_METADATA, type CriterionId, resolveCanonicalId } from "@/lib/eb1a-extraction-schema"
 import { runSingleCriterionVerification } from "@/lib/evidence-verification"
 
 const MODEL = "claude-sonnet-4-20250514"
-
-// Map legacy criterion IDs (awards, published_material, etc.) to canonical IDs (C1, C2, etc.)
-const LEGACY_TO_CANONICAL: Record<string, CriterionId> = {
-  awards: "C1", membership: "C2", published_material: "C3",
-  judging: "C4", original_contributions: "C5", scholarly_articles: "C6",
-  exhibitions: "C7", leading_role: "C8", high_salary: "C9", commercial_success: "C10",
-}
-
-function resolveCanonicalId(id: string): CriterionId | null {
-  if (CRITERIA_METADATA[id as CriterionId]) return id as CriterionId
-  return LEGACY_TO_CANONICAL[id] ?? null
-}
 
 const CriterionEvaluationSchema = z.object({
   strength: z.enum(["Strong", "Weak", "None"]),
