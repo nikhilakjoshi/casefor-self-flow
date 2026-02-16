@@ -17,9 +17,11 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts Account[]
-  sessions Session[]
-  cases    Case[]
+  accounts       Account[]
+  sessions       Session[]
+  cases          Case[]
+  invitedShares  DocumentShare[] @relation("InvitedShares")
+  receivedShares DocumentShare[] @relation("ReceivedShares")
 }
 
 model Account {
@@ -325,6 +327,7 @@ model Document {
   recommender Recommender?     @relation(fields: [recommenderId], references: [id])
   evidenceVerifications EvidenceVerification[]
   criterionRoutings     DocumentCriterionRouting[]
+  shares                DocumentShare[]
 
   @@index([caseId])
 }
@@ -481,4 +484,39 @@ model AgentPrompt {
   active         Boolean  @default(true)
   updatedAt      DateTime @updatedAt
   createdAt      DateTime @default(now())
+}
+
+enum SharePermission {
+  VIEW
+  EDIT
+  FULL
+}
+
+enum ShareStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+model DocumentShare {
+  id           String          @id @default(cuid())
+  documentId   String
+  caseId       String
+  inviterId    String
+  inviteeEmail String
+  inviteeId    String?
+  permission   SharePermission
+  status       ShareStatus     @default(PENDING)
+  token        String          @unique
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  inviter  User     @relation("InvitedShares", fields: [inviterId], references: [id])
+  invitee  User?    @relation("ReceivedShares", fields: [inviteeId], references: [id])
+
+  @@unique([documentId, inviteeEmail])
+  @@index([inviteeEmail])
+  @@index([inviteeId])
+  @@index([token])
 }

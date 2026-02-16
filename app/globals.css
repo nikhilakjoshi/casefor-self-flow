@@ -1574,6 +1574,18 @@ body {
   height: 0;
 }
 
+/* Track change marks */
+.ProseMirror insert {
+  color: #2e7d32 !important;
+  text-decoration: underline !important;
+  background: rgba(46, 125, 50, 0.08);
+}
+.ProseMirror delete {
+  color: #c62828 !important;
+  text-decoration: line-through !important;
+  background: rgba(198, 40, 40, 0.08);
+}
+
 /* Persistent selection highlight when AI panel is open */
 .ai-selection-highlight {
   background-color: oklch(0.6231 0.188 259.8145 / 0.18);

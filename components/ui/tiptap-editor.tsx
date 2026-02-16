@@ -12,6 +12,8 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { TrackChangeExtension, MARK_INSERTION, MARK_DELETION, EXTENSION_NAME } from "@/lib/tiptap-track-change";
+import { toast } from "sonner";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -47,6 +49,10 @@ import {
   Sparkles,
   Loader2,
   ArrowRight,
+  Check,
+  XIcon,
+  CheckCheck,
+  XCircle,
 } from "lucide-react";
 
 // ProseMirror plugin to persist selection highlight when editor loses focus
@@ -84,6 +90,10 @@ interface TiptapEditorProps {
   caseId?: string;
   documentId?: string;
   documentName?: string;
+  inlineEditUrl?: string;
+  trackChangesDefault?: boolean;
+  userId?: string;
+  userNickname?: string;
 }
 
 export function TiptapEditor({
@@ -95,6 +105,10 @@ export function TiptapEditor({
   onClose,
   caseId,
   documentName,
+  inlineEditUrl,
+  trackChangesDefault = false,
+  userId,
+  userNickname,
 }: TiptapEditorProps) {
   const isEditable = editable && !streaming;
   const lastContentRef = useRef(content);
@@ -102,6 +116,7 @@ export function TiptapEditor({
   const [blockMenuOpen, setBlockMenuOpen] = useState(false);
   const blockMenuRef = useRef<HTMLDivElement>(null);
   const [, setTick] = useState(0);
+  const [trackChangesOn, setTrackChangesOn] = useState(trackChangesDefault);
 
   const editor = useEditor({
     extensions: [
@@ -119,6 +134,10 @@ export function TiptapEditor({
         transformCopiedText: true,
       }),
       AiHighlight,
+      TrackChangeExtension.configure({
+        enabled: trackChangesDefault,
+        onStatusChange: (enabled: boolean) => setTrackChangesOn(enabled),
+      }),
     ],
     content,
     editable: isEditable,
@@ -155,6 +174,62 @@ export function TiptapEditor({
     if (editor) editor.setEditable(isEditable);
   }, [editor, isEditable]);
 
+  // Sync user identity for track changes
+  useEffect(() => {
+    if (editor && userId) {
+      editor.commands.updateOpUserOption(userId, userNickname || "");
+    }
+  }, [editor, userId, userNickname]);
+
+  // Apply AI insertion marks when streaming ends
+  const wasStreamingRef = useRef(false);
+  useEffect(() => {
+    if (!editor) return;
+    if (wasStreamingRef.current && !streaming && trackChangesOn) {
+      const { doc, schema } = editor.state;
+      const tr = editor.state.tr;
+      const insertionMark = schema.marks.insertion.create({
+        "data-op-user-id": "ai",
+        "data-op-user-nickname": "AI Assistant",
+        "data-op-date": Math.round(new Date().getTime() / 1000 / 60) * 1000 * 60,
+      });
+      tr.addMark(0, doc.content.size, insertionMark);
+      tr.setMeta("trackManualChanged", true);
+      editor.view.dispatch(tr);
+    }
+    wasStreamingRef.current = streaming;
+  }, [editor, streaming, trackChangesOn]);
+
+  const hasUnresolvedChanges = useCallback(() => {
+    if (!editor) return false;
+    const { doc } = editor.state;
+    let found = false;
+    doc.descendants((node) => {
+      if (found) return false;
+      if (
+        node.marks.some(
+          (m) =>
+            m.type.name === MARK_INSERTION || m.type.name === MARK_DELETION,
+        )
+      ) {
+        found = true;
+        return false;
+      }
+    });
+    return found;
+  }, [editor]);
+
+  const guardedSave = useCallback(
+    (md: string) => {
+      if (hasUnresolvedChanges()) {
+        toast.warning("Accept or reject all changes before saving");
+        return;
+      }
+      onSave?.(md);
+    },
+    [onSave, hasUnresolvedChanges],
+  );
+
   // Cmd+S save shortcut
   useEffect(() => {
     if (!onSave || !editor) return;
@@ -163,19 +238,25 @@ export function TiptapEditor({
         e.preventDefault();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const md = (editor.storage as any).markdown.getMarkdown() as string;
-        onSave(md);
+        guardedSave(md);
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [editor, onSave]);
+  }, [editor, onSave, guardedSave]);
 
   // Sync external content changes (e.g. switching documents, streaming)
+  // Skip track change processing for programmatic setContent
   useEffect(() => {
     if (!editor) return;
     if (content !== lastContentRef.current) {
       lastContentRef.current = content;
+      const ext = editor.extensionManager.extensions.find(
+        (e) => e.name === EXTENSION_NAME,
+      );
+      if (ext) ext.options._skipTracking = true;
       editor.commands.setContent(content);
+      if (ext) ext.options._skipTracking = false;
     }
   }, [editor, content]);
 
@@ -230,7 +311,8 @@ export function TiptapEditor({
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const md = (editor.storage as any).markdown.getMarkdown() as string;
-        const res = await fetch(`/api/case/${caseId}/inline-edit`, {
+        const editUrl = inlineEditUrl || `/api/case/${caseId}/inline-edit`;
+        const res = await fetch(editUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -591,16 +673,54 @@ export function TiptapEditor({
             )}
           </div>
 
-          {/* Right: Show edits, Version, Close */}
+          {/* Right: Track changes, Version, Close */}
           <div className="flex items-center gap-0.5 shrink-0 ml-2">
             <button
               type="button"
-              className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-              title="Show edits (coming soon)"
+              onClick={() => editor.commands.toggleTrackChangeStatus()}
+              className={cn(
+                "flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-md transition-colors",
+                trackChangesOn
+                  ? "bg-primary/12 text-primary shadow-[inset_0_0_0_1px_rgba(var(--color-primary)/0.15)]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              )}
+              title="Toggle track changes"
             >
               <PenLine className="w-3.5 h-3.5" />
-              <span className="hidden xl:inline">Show edits</span>
+              <span className="hidden xl:inline">Track changes</span>
             </button>
+            {trackChangesOn && (
+              <>
+                <ToolbarButton
+                  active={false}
+                  onClick={() => editor.commands.acceptChange()}
+                  title="Accept change"
+                >
+                  <Check className="w-3.5 h-3.5 text-green-600" />
+                </ToolbarButton>
+                <ToolbarButton
+                  active={false}
+                  onClick={() => editor.commands.rejectChange()}
+                  title="Reject change"
+                >
+                  <XIcon className="w-3.5 h-3.5 text-red-600" />
+                </ToolbarButton>
+                <ToolbarButton
+                  active={false}
+                  onClick={() => editor.commands.acceptAllChanges()}
+                  title="Accept all changes"
+                >
+                  <CheckCheck className="w-3.5 h-3.5 text-green-600" />
+                </ToolbarButton>
+                <ToolbarButton
+                  active={false}
+                  onClick={() => editor.commands.rejectAllChanges()}
+                  title="Reject all changes"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-red-600" />
+                </ToolbarButton>
+              </>
+            )}
             <button
               type="button"
               className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"

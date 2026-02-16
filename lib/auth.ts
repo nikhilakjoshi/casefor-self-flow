@@ -68,6 +68,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         } catch {
           // cookies() may throw in edge cases, don't block sign-in
         }
+        // Auto-accept pending share invitations
+        if (user.email) {
+          try {
+            await db.documentShare.updateMany({
+              where: { inviteeEmail: user.email, status: 'PENDING' },
+              data: { inviteeId: user.id, status: 'ACCEPTED' },
+            })
+          } catch {
+            // don't block sign-in
+          }
+        }
       }
       return true
     },

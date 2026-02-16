@@ -18,6 +18,7 @@ import {
   FileStack,
   MessageSquare,
   Settings,
+  Share2,
 } from "lucide-react"
 
 import {
@@ -192,6 +193,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <Link href="/dashboard">
                     <LayoutDashboard className="size-4" />
                     <span>Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.startsWith("/shared")}>
+                  <Link href="/shared">
+                    <Share2 className="size-4" />
+                    <span>Shared with me</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

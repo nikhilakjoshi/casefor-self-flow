@@ -29,6 +29,7 @@ import {
   PenTool,
   Package,
   FolderUp,
+  Share2,
 } from 'lucide-react'
 import {
   Tooltip,
@@ -41,6 +42,7 @@ import { RecommenderForm } from './recommender-form'
 import type { RecommenderData } from './recommender-form'
 import { CsvImportModal } from './csv-import-modal'
 import type { DenialProbability } from '@/lib/denial-probability-schema'
+import { ShareDialog } from './share-dialog'
 
 export interface DocumentItem {
   id: string
@@ -249,10 +251,12 @@ export function DraftRow({
   doc,
   caseId,
   onOpenDraft,
+  onShare,
 }: {
   doc: DocumentItem
   caseId: string
   onOpenDraft: LettersPanelProps['onOpenDraft']
+  onShare?: (docId: string, docName: string) => void
 }) {
   const [loading, setLoading] = useState(false)
 
@@ -295,6 +299,18 @@ export function DraftRow({
         <Clock className="w-2.5 h-2.5" />
         {formatDate(doc.createdAt)}
       </span>
+      {onShare && (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={(e) => { e.stopPropagation(); onShare(doc.id, doc.name) }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onShare(doc.id, doc.name) } }}
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted shrink-0 cursor-pointer"
+          title="Share"
+        >
+          <Share2 className="w-3 h-3 text-muted-foreground" />
+        </div>
+      )}
     </button>
   )
 }
@@ -556,6 +572,7 @@ export function RecommenderCard({
   onAddRecommender,
   onImportCsv,
   onUploaded,
+  onShare,
 }: {
   letterType: LetterType
   recommenders: Recommender[]
@@ -566,6 +583,7 @@ export function RecommenderCard({
   onAddRecommender: () => void
   onImportCsv: () => void
   onUploaded: () => void
+  onShare?: (docId: string, docName: string) => void
 }) {
   const Icon = letterType.icon
   const hasContent = recommenders.length > 0 || allRecDocs.length > 0
@@ -827,6 +845,7 @@ export function RecommenderCard({
                                   doc={doc}
                                   caseId={caseId}
                                   onOpenDraft={onOpenDraft}
+                                  onShare={onShare}
                                 />
                               ))}
                             </div>
@@ -851,12 +870,14 @@ function DraftableCard({
   caseId,
   onOpenDraft,
   onUploaded,
+  onShare,
 }: {
   letterType: LetterType
   docs: DocumentItem[]
   caseId: string
   onOpenDraft: LettersPanelProps['onOpenDraft']
   onUploaded: () => void
+  onShare?: (docId: string, docName: string) => void
 }) {
   const Icon = letterType.icon
   const [expanded, setExpanded] = useState(false)
@@ -1010,6 +1031,7 @@ function DraftableCard({
               doc={doc}
               caseId={caseId}
               onOpenDraft={onOpenDraft}
+              onShare={onShare}
             />
           ))}
         </div>
@@ -1139,6 +1161,7 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
     fileName: string
     suggestedCategory: string | null
   }>({ open: false, documentId: '', fileName: '', suggestedCategory: null })
+  const [shareTarget, setShareTarget] = useState<{ docId: string; docName: string } | null>(null)
   const globalDragCounterRef = useRef(0)
 
   const fetchData = useCallback(async () => {
@@ -1351,6 +1374,7 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
                 onAddRecommender={() => setShowAddRecommender(true)}
                 onImportCsv={() => setShowCsvImport(true)}
                 onUploaded={fetchData}
+                onShare={(docId, docName) => setShareTarget({ docId, docName })}
               />
             )
           }
@@ -1379,6 +1403,7 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
               caseId={caseId}
               onOpenDraft={onOpenDraft}
               onUploaded={fetchData}
+              onShare={(docId, docName) => setShareTarget({ docId, docName })}
             />
           )
         })}
@@ -1434,6 +1459,16 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
       caseId={caseId}
       onCategorized={fetchData}
     />
+
+    {shareTarget && (
+      <ShareDialog
+        open={!!shareTarget}
+        onOpenChange={(open) => { if (!open) setShareTarget(null) }}
+        caseId={caseId}
+        docId={shareTarget.docId}
+        docName={shareTarget.docName}
+      />
+    )}
     </>
     </TooltipProvider>
   )
