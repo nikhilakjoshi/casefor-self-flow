@@ -2,7 +2,6 @@
 
 import { useSurvey } from "../_lib/use-survey";
 import { SurveyShell } from "./survey-shell";
-import { SurveyStepPersonal } from "./survey-step-personal";
 import { SurveyStepBackground } from "./survey-step-background";
 import { SurveyStepIntent } from "./survey-step-intent";
 import { SurveyStepAwards } from "./survey-step-awards";
@@ -48,54 +47,48 @@ export function SurveyInline({
     switch (currentStep) {
       case 0:
         return (
-          <SurveyStepPersonal
-            data={data.personal ?? {}}
-            onChange={(updates) => updateSection("personal", updates)}
-          />
-        );
-      case 1:
-        return (
           <SurveyStepBackground
             data={data.background ?? {}}
             onChange={(updates) => updateSection("background", updates)}
+            caseId={caseId}
           />
         );
-      case 2:
+      case 1:
         return (
           <SurveyStepIntent
             data={data.intent ?? {}}
             onChange={(updates) => updateSection("intent", updates)}
           />
         );
-      case 3:
+      case 2:
         return (
           <SurveyStepAwards
             data={data.awards ?? {}}
             onChange={(updates) => updateSection("awards", updates)}
           />
         );
-      case 4:
+      case 3:
         return (
           <SurveyStepStanding
             data={data.standing ?? {}}
             onChange={(updates) => updateSection("standing", updates)}
           />
         );
-      case 5:
+      case 4:
         return (
           <SurveyStepContributions
             data={data.contributions ?? {}}
             onChange={(updates) => updateSection("contributions", updates)}
           />
         );
-      case 6:
+      case 5:
         return (
           <SurveyStepLeadership
             data={data.leadership ?? {}}
             onChange={(updates) => updateSection("leadership", updates)}
           />
         );
-      case 7:
+      case 6:
         return (
           <SurveyStepEvidence
             data={data.evidence ?? {}}

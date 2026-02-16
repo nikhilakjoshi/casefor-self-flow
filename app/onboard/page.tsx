@@ -277,7 +277,6 @@ export default function OnboardPage() {
     if (caseId && fileRef.current) {
       startAnalysis(fileRef.current, caseId);
     } else if (caseId) {
-      // Survey-only flow: no file uploaded, go straight to case page
       window.location.href = `/case/${caseId}`;
     }
   }, [caseId, startAnalysis]);

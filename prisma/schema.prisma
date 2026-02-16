@@ -104,6 +104,7 @@ enum DocumentType {
   MARKDOWN
   DOCX
   PDF
+  IMAGE
 }
 
 enum DocumentSource {

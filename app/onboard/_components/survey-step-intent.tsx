@@ -12,6 +12,9 @@ interface SurveyStepIntentProps {
 }
 
 export function SurveyStepIntent({ data, onChange }: SurveyStepIntentProps) {
+  // Always true -- EB-1A requires intent to continue in field
+  if (!data.continueInField) onChange({ continueInField: true })
+
   return (
     <div className="space-y-6 max-w-lg">
       <div>
@@ -22,18 +25,6 @@ export function SurveyStepIntent({ data, onChange }: SurveyStepIntentProps) {
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-start gap-3">
-          <Checkbox
-            id="continueInField"
-            checked={data.continueInField ?? false}
-            onCheckedChange={(checked) => onChange({ continueInField: checked === true })}
-            className="mt-0.5"
-          />
-          <label htmlFor="continueInField" className="text-sm">
-            I plan to continue working in my field in the U.S.
-          </label>
-        </div>
-
         <div className="flex items-start gap-3">
           <Checkbox
             id="hasJobOffer"

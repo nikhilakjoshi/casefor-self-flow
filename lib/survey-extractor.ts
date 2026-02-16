@@ -142,6 +142,51 @@ export async function extractSurveyDataFromPdf(pdfBuffer: ArrayBuffer): Promise<
   return cleanExtraction(output!)
 }
 
+// --- ID Document extraction ---
+
+export const IdDocExtractionSchema = z.object({
+  fullName: z.string().nullable(),
+  dateOfBirth: z.string().nullable().describe("ISO date or readable date string"),
+  countryOfBirth: z.string().nullable(),
+  citizenship: z.string().nullable(),
+})
+
+export type IdDocExtraction = z.infer<typeof IdDocExtractionSchema>
+
+const ID_DOC_FALLBACK_PROMPT = `Extract identity information from this document (passport, driver's license, or visa page). Do not use emojis.
+Return the person's full name, date of birth, country of birth, and citizenship/nationality.
+If a field is not visible or not applicable for this document type, return null.`
+
+export async function extractFromIdDocument(
+  buffer: Buffer,
+  mediaType: "application/pdf" | "image/jpeg" | "image/png"
+): Promise<IdDocExtraction> {
+  const p = await getPrompt("id-doc-extractor")
+  const { output } = await generateText({
+    model: p ? resolveModel(p.provider, p.modelName) : google(FALLBACK_MODEL),
+    output: Output.object({ schema: IdDocExtractionSchema }),
+    system: p?.content ?? ID_DOC_FALLBACK_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Extract identity information from this document.",
+          },
+          {
+            type: "file",
+            data: buffer,
+            mediaType,
+          },
+        ],
+      },
+    ],
+  })
+
+  return output ?? { fullName: null, dateOfBirth: null, countryOfBirth: null, citizenship: null }
+}
+
 // Clean nulls from extraction to match survey schema expectations
 function cleanExtraction(data: SurveyExtraction): SurveyExtraction {
   const clean = (obj: Record<string, unknown>): Record<string, unknown> => {
