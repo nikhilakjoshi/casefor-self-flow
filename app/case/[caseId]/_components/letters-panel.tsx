@@ -30,6 +30,9 @@ import {
   Package,
   FolderUp,
   Share2,
+  MapPin,
+  Check,
+  AlertTriangle,
 } from 'lucide-react'
 import {
   Tooltip,
@@ -38,6 +41,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { CRITERIA_LABELS } from '@/lib/evidence-verification-schema'
+import type { SurveyIntent } from '@/app/onboard/_lib/survey-schema'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
 import { RecommenderForm } from './recommender-form'
 import type { RecommenderData } from './recommender-form'
 import { CsvImportModal } from './csv-import-modal'
@@ -74,6 +81,7 @@ interface LettersPanelProps {
     category?: string
   }) => void
   denialProbability?: DenialProbability | null
+  initialIntentData?: SurveyIntent
 }
 
 interface LetterType {
@@ -1146,7 +1154,165 @@ function CategoryPickerDialog({
   )
 }
 
-export function LettersPanel({ caseId, onOpenDraft, denialProbability }: LettersPanelProps) {
+function UsIntentCard({ caseId, initialData }: { caseId: string; initialData?: SurveyIntent }) {
+  const [data, setData] = useState<SurveyIntent>(initialData ?? {})
+  const [expanded, setExpanded] = useState(() => {
+    // Open if empty (no meaningful fields filled)
+    const d = initialData ?? {}
+    return !d.usBenefit && !d.moveTimeline && !d.hasJobOffer && !d.hasBusinessPlan
+  })
+  const [saving, setSaving] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const isComplete = !!(data.usBenefit || data.moveTimeline || data.hasJobOffer || data.hasBusinessPlan)
+
+  const save = useCallback(async (updated: SurveyIntent) => {
+    setSaving(true)
+    try {
+      const payload = { ...updated, continueInField: true }
+      await fetch(`/api/case/${caseId}/survey`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { intent: payload } }),
+      })
+      // Trigger reanalysis
+      fetch(`/api/case/${caseId}/analyze`, { method: 'POST' }).catch(() => {})
+    } catch (err) {
+      console.error('Failed to save intent:', err)
+    } finally {
+      setSaving(false)
+    }
+  }, [caseId])
+
+  const handleChange = useCallback((updates: Partial<SurveyIntent>) => {
+    setData((prev) => {
+      const next = { ...prev, ...updates }
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => save(next), 800)
+      return next
+    })
+  }, [save])
+
+  return (
+    <div
+      className={cn(
+        'rounded-xl border overflow-hidden transition-colors',
+        isComplete ? 'border-border/50 bg-card/50' : 'border-amber-500/50 bg-amber-500/5'
+      )}
+    >
+      <div
+        className="flex items-center gap-3 px-4 py-3 cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-sky-500/15 to-blue-500/15">
+          <MapPin className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-semibold">U.S. Intent</h3>
+          <p className="text-[11px] text-muted-foreground">
+            Your plans to work in the United States
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {isComplete ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+              <Check className="w-3 h-3" />
+              Completed
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+              <AlertTriangle className="w-3 h-3" />
+              Incomplete
+            </span>
+          )}
+          {saving && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+          <ChevronDown
+            className={cn(
+              'w-4 h-4 text-muted-foreground transition-transform',
+              expanded && 'rotate-180'
+            )}
+          />
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="px-4 pb-4 space-y-4 border-t border-border/30 pt-3">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="intent-hasJobOffer"
+              checked={data.hasJobOffer ?? false}
+              onCheckedChange={(checked) => handleChange({ hasJobOffer: checked === true })}
+              className="mt-0.5"
+            />
+            <label htmlFor="intent-hasJobOffer" className="text-sm">
+              I have a job offer or contract in the U.S.
+            </label>
+          </div>
+
+          {data.hasJobOffer && (
+            <div className="ml-6">
+              <label className="text-sm font-medium">Job Offer Details</label>
+              <Textarea
+                placeholder="Describe your job offer or contract..."
+                value={data.jobOfferDetails ?? ''}
+                onChange={(e) => handleChange({ jobOfferDetails: e.target.value })}
+                className="mt-1.5 min-h-[60px]"
+              />
+            </div>
+          )}
+
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="intent-hasBusinessPlan"
+              checked={data.hasBusinessPlan ?? false}
+              onCheckedChange={(checked) => handleChange({ hasBusinessPlan: checked === true })}
+              className="mt-0.5"
+            />
+            <label htmlFor="intent-hasBusinessPlan" className="text-sm">
+              I have a business plan (if entrepreneur)
+            </label>
+          </div>
+
+          {data.hasBusinessPlan && (
+            <div className="ml-6">
+              <label className="text-sm font-medium">Business Plan Details</label>
+              <Textarea
+                placeholder="Describe your business plan..."
+                value={data.businessPlanDetails ?? ''}
+                onChange={(e) => handleChange({ businessPlanDetails: e.target.value })}
+                className="mt-1.5 min-h-[60px]"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="text-sm font-medium">
+              How will your work benefit the U.S.?
+            </label>
+            <Textarea
+              placeholder="Describe the national benefit of your work..."
+              value={data.usBenefit ?? ''}
+              onChange={(e) => handleChange({ usBenefit: e.target.value })}
+              className="mt-1.5 min-h-[80px]"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Timeline for Move</label>
+            <Input
+              placeholder="e.g., Within 6 months, Next year"
+              value={data.moveTimeline ?? ''}
+              onChange={(e) => handleChange({ moveTimeline: e.target.value })}
+              className="mt-1.5"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function LettersPanel({ caseId, onOpenDraft, denialProbability, initialIntentData }: LettersPanelProps) {
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [recommenders, setRecommenders] = useState<Recommender[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -1360,6 +1526,7 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
     <ScrollArea className="h-full">
       <div className="p-4 space-y-3">
         {denialProbability && <DenialRiskBanner data={denialProbability} />}
+        <UsIntentCard caseId={caseId} initialData={initialIntentData} />
         {LETTER_TYPES.filter((lt) => !lt.isPerRecommender).map((letterType) => {
           if (letterType.isPerRecommender) {
             return (

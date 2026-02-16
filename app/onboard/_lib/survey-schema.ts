@@ -105,7 +105,6 @@ export type SurveyData = z.infer<typeof SurveyDataSchema>
 
 export const SURVEY_SECTIONS = [
   "background",
-  "intent",
   "awards",
   "standing",
   "contributions",
@@ -116,7 +115,6 @@ export type SurveySection = (typeof SURVEY_SECTIONS)[number]
 
 export const SECTION_LABELS: Record<SurveySection, string> = {
   background: "Background",
-  intent: "U.S. Intent",
   awards: "Awards",
   standing: "Standing",
   contributions: "Contributions",

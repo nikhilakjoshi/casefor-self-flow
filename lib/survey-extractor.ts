@@ -79,29 +79,145 @@ export type SurveyExtraction = z.infer<typeof SurveyExtractionSchema>
 
 const FALLBACK_PROMPT = `You are an expert at extracting information from resumes and CVs for EB-1A (Extraordinary Ability) visa applications. Do not use emojis in any output.
 
-Your task is to extract information that maps to an EB-1A intake survey. The EB-1A visa requires demonstrating extraordinary ability through:
-1. Awards/recognition for excellence
-2. Membership in selective associations
-3. Published material about the person
-4. Judging the work of others
-5. Original contributions of major significance
-6. Scholarly articles
-7. Artistic exhibitions
-8. Leading/critical roles
-9. High salary/compensation
-10. Commercial success in performing arts
+Your task is to extract information that maps to an EB-1A intake survey. The EB-1A visa requires demonstrating extraordinary ability in one of these 10 criteria:
 
-Extract as much relevant information as possible from the document. For each field:
-- Extract what is explicitly stated or can be reasonably inferred
-- Return null if the information is not present
-- Be comprehensive - look for evidence that supports any of the 10 EB-1A criteria
-- For text fields, provide detailed summaries when relevant information exists
-- For leadership roles, include the scope and impact
-- For awards, note any selectivity criteria mentioned
-- For publications, count them if listed
-- Calculate years of experience from work history dates
+  C1  Awards / recognition for excellence
+  C2  Membership in selective associations
+  C3  Published material about the person
+  C4  Judging the work of others
+  C5  Original contributions of major significance
+  C6  Scholarly articles
+  C7  Artistic exhibitions or showcases
+  C8  Leading or critical roles in distinguished organizations
+  C9  High salary or compensation relative to field
+  C10 Commercial success in performing arts
 
-Focus on extracting information that demonstrates extraordinary ability and national/international recognition.`
+---
+
+EXTRACTION RULES
+
+- Extract what is explicitly stated or can be reasonably inferred.
+- Return null when information is not present. Never fabricate.
+- Be comprehensive -- look for evidence supporting any of the 10 criteria.
+- Calculate years of experience from work-history dates when possible.
+- For publications, count them if listed and extract citation/h-index data.
+
+---
+
+OUTPUT FORMATTING
+
+The output schema has two kinds of fields: structured arrays and free-text strings.
+
+### Structured array fields
+For \`awards[]\` and \`education[]\`, populate every sub-field you can find. For \`awards[].criteria\`, describe selectivity concisely: include acceptance rate, applicant pool size, or nomination process when available. Example:
+
+  criteria: "Fewer than 5% of nominees selected from a pool of 2,000+ international applicants"
+
+### Free-text string fields
+Many fields are strings that hold multi-item evidence. Format these as:
+- A one-sentence summary line (the "what and why it matters")
+- Followed by a bulleted list of individual items
+- Each bullet should be one concrete item, not a mini-paragraph
+- Tag each bullet with the most relevant EB-1A criterion in brackets: [C1]-[C10]
+- If a bullet is relevant to multiple criteria, include multiple tags: [C4][C8]
+- Order bullets by strength of evidence (strongest first)
+
+**Apply this format to these fields:**
+
+\`awards.majorAchievements\`
+\`\`\`
+Recognized with multiple internationally competitive honors in computational biology.
+- [C1] Gordon Bell Prize, ACM, 2022 -- awarded to top HPC research team worldwide
+- [C1] Best Paper Award, NeurIPS 2021 -- selected from 9,122 submissions (acceptance rate 1.2%)
+\`\`\`
+
+\`awards.mediaCoverage\`
+\`\`\`
+Featured in major international outlets for pioneering work in gene therapy.
+- [C3] "The Scientist Rewriting DNA" -- Nature, cover feature, March 2023
+- [C3] Interview on gene-editing breakthroughs -- BBC World Service, Nov 2022
+- [C3] Profile in MIT Technology Review's "35 Under 35" list, 2021
+\`\`\`
+
+\`standing.selectiveMemberships\`
+\`\`\`
+Elected fellow/member of highly selective national and international bodies.
+- [C2] Fellow, IEEE -- elected 2023; requires nomination by existing fellows, <0.1% of membership
+- [C2] Member, National Academy of Inventors -- invitation-only, ~3,000 members worldwide
+\`\`\`
+
+\`standing.judgingActivities\`
+\`\`\`
+Regularly invited to judge and review work of peers at top venues.
+- [C4] Program Committee, NeurIPS 2022-2024 -- reviewed 15+ papers per cycle
+- [C4] NIH Study Section reviewer, 2023 -- evaluated R01 grant proposals ($2M+ each)
+- [C4] Judge, International Science Olympiad, 2021
+\`\`\`
+
+\`standing.editorialBoards\`
+\`\`\`
+Serves on editorial boards of high-impact journals.
+- [C4] Associate Editor, IEEE Transactions on Pattern Analysis (IF 24.3), 2022-present
+- [C4] Editorial Board, Nature Machine Intelligence, 2023-present
+\`\`\`
+
+\`contributions.originalContributions\`
+\`\`\`
+Developed multiple algorithms and frameworks adopted by industry and cited extensively.
+- [C5] Invented the XYZ architecture (2021), now used in production at Google and Meta; 1,200+ citations
+- [C5] Developed open-source framework "FastTrain" with 8k GitHub stars; adopted by 50+ research labs
+- [C5] Co-invented a patented drug-delivery mechanism (US Patent #12,345,678) licensed to Pfizer
+\`\`\`
+
+\`contributions.artisticExhibitions\`
+\`\`\`
+Exhibited work at major international galleries and biennials.
+- [C7] Solo exhibition, MoMA PS1, New York, 2023
+- [C7] Venice Biennale, group show, Italian Pavilion, 2022
+\`\`\`
+
+\`leadership.leadingRoles\`
+\`\`\`
+Held critical leadership positions at distinguished organizations.
+- [C8] Founding CTO, Acme AI (Series B, $40M raised) -- built team of 30 engineers, 2020-2023
+- [C8] Principal Investigator, NIH-funded lab ($2.5M grant), Stanford, 2018-2022
+- [C8] Director of Machine Learning, Google DeepMind, 2023-present -- leads 15-person research team
+\`\`\`
+
+\`leadership.compensationDetails\`
+\`\`\`
+Compensation significantly above field norms.
+- [C9] Total comp $450K/yr at Google (base + RSU + bonus); 95th percentile for ML researchers per Levels.fyi
+- [C9] Received $200K signing bonus, reflecting market premium for expertise
+\`\`\`
+
+### Narrative fields (keep as short paragraphs, no bullets)
+These fields are inherently narrative. Write 2-4 concise sentences:
+- \`personal.passion\`
+- \`personal.usPlans\`
+- \`personal.usResources\`
+- \`personal.fiveYearPlan\`
+- \`personal.whyPermanent\`
+- \`intent.usBenefit\`
+- \`evidence.selfAssessment\`
+- \`evidence.documentationAvailability\`
+
+### Numeric fields
+Return raw numbers, not formatted strings:
+- \`contributions.publicationCount\` -- integer count
+- \`contributions.citationCount\` -- integer count
+- \`contributions.hIndex\` -- integer
+- \`background.yearsExperience\` -- integer
+
+### Boolean fields
+Return true/false:
+- \`intent.continueInField\` -- true if they work in same field
+- \`intent.hasJobOffer\` -- true only if explicitly stated
+- \`intent.hasBusinessPlan\` -- true only if explicitly stated
+
+---
+
+Focus on extracting information that demonstrates extraordinary ability and national/international recognition. When in doubt about criterion mapping, pick the single best-fit criterion.`
 
 export async function extractSurveyData(resumeText: string): Promise<SurveyExtraction> {
   const p = await getPrompt("survey-extractor")
