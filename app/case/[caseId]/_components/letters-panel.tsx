@@ -1360,7 +1360,7 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability }: Letters
     <ScrollArea className="h-full">
       <div className="p-4 space-y-3">
         {denialProbability && <DenialRiskBanner data={denialProbability} />}
-        {LETTER_TYPES.map((letterType) => {
+        {LETTER_TYPES.filter((lt) => !lt.isPerRecommender).map((letterType) => {
           if (letterType.isPerRecommender) {
             return (
               <RecommenderCard
