@@ -12,7 +12,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "archive:prd": "tsx archive_prd.ts",
-    "db:seed": "node --env-file=.env --import tsx prisma/seed.ts"
+    "db:seed": "node --env-file=.env --import tsx prisma/seed.ts",
+    "db:seed:survey-extractor": "node --env-file=.env --import tsx prisma/seed-survey-extractor.ts"
   },
   "prisma": {
     "seed": "node --env-file=.env --import tsx prisma/seed.ts"
