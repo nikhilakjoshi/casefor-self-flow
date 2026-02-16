@@ -1040,14 +1040,13 @@ export function ReportPanel({
               )
             })
           }
-          initialStrengthEvaluation={initialStrengthEvaluation}
         />
       ) : activeTab === "planning" ? (
         <PlanningTab
           caseId={caseId}
           initialGapAnalysis={initialGapAnalysis}
           initialCaseStrategy={initialCaseStrategy}
-          hasStrengthEval={!!initialStrengthEvaluation}
+          initialStrengthEvaluation={initialStrengthEvaluation}
         />
       ) : activeTab === "evidence" ? (
         <EvidenceListPanel

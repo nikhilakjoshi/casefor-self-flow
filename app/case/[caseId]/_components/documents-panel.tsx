@@ -297,6 +297,202 @@ function StatusDot({ status }: { status: string }) {
   )
 }
 
+const ALL_CRITERIA_LIST = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10']
+
+function DocumentGroupCard({
+  group,
+  caseId,
+  getDocumentStrength,
+  verifyingDocs,
+  viewDocument,
+  handleVerifyAsEvidence,
+  onOpenDraft,
+  setDeleteTarget,
+}: {
+  group: DocumentGroup
+  caseId: string
+  getDocumentStrength: (name: string) => StrengthLevel | null
+  verifyingDocs: Map<string, { status: string; completed: Set<string>; results: Record<string, { score: number; recommendation: string }> }>
+  viewDocument: (id: string) => void
+  handleVerifyAsEvidence: (id: string) => void
+  onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
+  setDeleteTarget: (doc: DocumentItem | null) => void
+}) {
+  const strength = getDocumentStrength(group.latestDoc.name)
+  const docId = group.latestDoc.id
+  const isVerified = (group.latestDoc.evidenceVerificationCount ?? 0) > 0
+  const verifyProgress = verifyingDocs.get(docId)
+  const canVerify = group.latestDoc.source === 'USER_UPLOADED' && !isVerified && !verifyProgress
+
+  return (
+    <div className="group rounded-xl border border-border/50 bg-card/50 hover:bg-card hover:border-border transition-all duration-200">
+      <div className="flex items-center gap-3 p-3">
+        <SourceIcon source={group.latestDoc.source} />
+
+        <div
+          className="flex-1 min-w-0 cursor-pointer"
+          onClick={() => viewDocument(group.latestDoc.id)}
+        >
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium truncate">
+              {group.baseName}
+            </p>
+            <StatusDot status={group.latestDoc.status} />
+            {strength && <StrengthBadge strength={strength} />}
+            {group.latestDoc.category && <CategoryBadge category={group.latestDoc.category} />}
+            {isVerified && !verifyProgress && (
+              <span className="text-[9px] font-semibold tracking-wide px-1.5 py-0.5 rounded border bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20 flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" />
+                Verified
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <TypeBadge type={group.latestDoc.type} />
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {formatDate(group.latestDoc.createdAt)}
+            </span>
+          </div>
+        </div>
+
+        {canVerify && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs gap-1 text-muted-foreground hover:text-teal-600 dark:hover:text-teal-400 opacity-0 group-hover:opacity-100 transition-all"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleVerifyAsEvidence(docId)
+            }}
+            title="Verify as evidence"
+          >
+            <ScanSearch className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Verify</span>
+          </Button>
+        )}
+
+        {onOpenDraft && group.latestDoc.type === 'MARKDOWN' && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => {
+              e.stopPropagation()
+              fetch(`/api/case/${caseId}/documents/${group.latestDoc.id}`)
+                .then((res) => res.json())
+                .then((data) => {
+                  onOpenDraft({
+                    id: data.id,
+                    name: data.name,
+                    content: data.content,
+                    category: data.category,
+                  })
+                })
+                .catch(console.error)
+            }}
+            title="Draft with AI"
+          >
+            <PenLine className="w-3.5 h-3.5" />
+          </Button>
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+            >
+              v{group.documents.length}
+              <ChevronDown className="w-3 h-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            {group.documents.map((doc, idx) => (
+              <DropdownMenuItem
+                key={doc.id}
+                onClick={() => viewDocument(doc.id)}
+                className="flex items-center gap-2 py-2"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium">
+                      Version {group.documents.length - idx}
+                    </span>
+                    {idx === 0 && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                        Latest
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    {formatFullDate(doc.createdAt)}
+                  </span>
+                </div>
+                <StatusDot status={doc.status} />
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={(e) => {
+                e.preventDefault()
+                setDeleteTarget(group.latestDoc)
+              }}
+              className="gap-2"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete latest version
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {verifyProgress && (
+        <div className="px-3 pb-2.5 pt-0">
+          <div className="flex items-center gap-2">
+            {verifyProgress.status === 'verifying' && (
+              <Loader2 className="w-3 h-3 text-teal-500 animate-spin shrink-0" />
+            )}
+            {verifyProgress.status === 'complete' && (
+              <ShieldCheck className="w-3 h-3 text-teal-500 shrink-0" />
+            )}
+            <div className="flex items-center gap-1 flex-1">
+              {ALL_CRITERIA_LIST.map((c) => {
+                const done = verifyProgress.completed.has(c)
+                const result = verifyProgress.results[c]
+                const isPass = result && result.score >= 5.0
+                return (
+                  <div
+                    key={c}
+                    className={cn(
+                      'flex-1 h-1.5 rounded-full transition-all duration-300',
+                      done
+                        ? isPass
+                          ? 'bg-teal-500'
+                          : 'bg-stone-300 dark:bg-stone-600'
+                        : verifyProgress.status === 'verifying'
+                          ? 'bg-muted animate-pulse'
+                          : 'bg-muted'
+                    )}
+                    title={done ? `${c}: ${result?.score.toFixed(1)} - ${result?.recommendation}` : c}
+                  />
+                )
+              })}
+            </div>
+            <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
+              {verifyProgress.status === 'complete'
+                ? 'Verified'
+                : `${verifyProgress.completed.size}/10`}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ChecklistStatusIcon({ status }: { status: StrengthLevel }) {
   switch (status) {
     case 'missing':
@@ -551,8 +747,6 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
 
   // Evidence verification state
   const [verifyingDocs, setVerifyingDocs] = useState<Map<string, VerifyProgress>>(new Map())
-  const ALL_CRITERIA = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10']
-
   const handleVerifyAsEvidence = useCallback(async (docId: string) => {
     if (verifyingDocs.has(docId)) return
 
@@ -677,6 +871,8 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
   const knownDocIdsRef = useRef<Set<string>>(new Set())
 
   const documentGroups = useMemo(() => groupDocuments(documents), [documents])
+  const collectedGroups = useMemo(() => documentGroups.filter((g) => g.latestDoc.source === 'USER_UPLOADED'), [documentGroups])
+  const draftedGroups = useMemo(() => documentGroups.filter((g) => g.latestDoc.source === 'SYSTEM_GENERATED'), [documentGroups])
 
   // Fetch document checklist
   const fetchChecklist = useCallback(async () => {
@@ -1129,38 +1325,29 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
           />
         </div>
 
-        {/* Header */}
-        <div className="shrink-0 mb-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">All Documents</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {documents.length} file{documents.length !== 1 ? 's' : ''} across{' '}
-              {documentGroups.length} document{documentGroups.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {onOpenDraft && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs gap-1.5"
-                onClick={() => onOpenDraft()}
-              >
-                <FilePlus className="w-3.5 h-3.5" />
-                New Document
-              </Button>
-            )}
+        {/* Actions */}
+        <div className="shrink-0 mb-4 flex items-center justify-end gap-1.5">
+          {onOpenDraft && (
             <Button
               variant="outline"
               size="sm"
               className="h-8 text-xs gap-1.5"
-              disabled={isUploading}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => onOpenDraft()}
             >
-              <Upload className="w-3.5 h-3.5" />
-              {isUploading ? 'Uploading...' : 'Upload'}
+              <FilePlus className="w-3.5 h-3.5" />
+              New Document
             </Button>
-          </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5"
+            disabled={isUploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="w-3.5 h-3.5" />
+            {isUploading ? 'Uploading...' : 'Upload'}
+          </Button>
           <input
             ref={fileInputRef}
             type="file"
@@ -1194,187 +1381,56 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {documentGroups.map((group) => {
-                const strength = getDocumentStrength(group.latestDoc.name)
-                const docId = group.latestDoc.id
-                const isVerified = (group.latestDoc.evidenceVerificationCount ?? 0) > 0
-                const verifyProgress = verifyingDocs.get(docId)
-                const canVerify = group.latestDoc.source === 'USER_UPLOADED' && !isVerified && !verifyProgress
-
-                return (
-                  <div
-                    key={group.baseName}
-                    className="group rounded-xl border border-border/50 bg-card/50 hover:bg-card hover:border-border transition-all duration-200"
-                  >
-                    <div className="flex items-center gap-3 p-3">
-                      <SourceIcon source={group.latestDoc.source} />
-
-                      <div
-                        className="flex-1 min-w-0 cursor-pointer"
-                        onClick={() => viewDocument(group.latestDoc.id)}
-                      >
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium truncate">
-                            {group.baseName}
-                          </p>
-                          <StatusDot status={group.latestDoc.status} />
-                          {strength && <StrengthBadge strength={strength} />}
-                          {group.latestDoc.category && <CategoryBadge category={group.latestDoc.category} />}
-                          {isVerified && !verifyProgress && (
-                            <span className="text-[9px] font-semibold tracking-wide px-1.5 py-0.5 rounded border bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20 flex items-center gap-1">
-                              <ShieldCheck className="w-3 h-3" />
-                              Verified
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <TypeBadge type={group.latestDoc.type} />
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {formatDate(group.latestDoc.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {canVerify && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-xs gap-1 text-muted-foreground hover:text-teal-600 dark:hover:text-teal-400 opacity-0 group-hover:opacity-100 transition-all"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleVerifyAsEvidence(docId)
-                          }}
-                          title="Verify as evidence"
-                        >
-                          <ScanSearch className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">Verify</span>
-                        </Button>
-                      )}
-
-                      {onOpenDraft && group.latestDoc.type === 'MARKDOWN' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            // Fetch content then open draft
-                            fetch(`/api/case/${caseId}/documents/${group.latestDoc.id}`)
-                              .then((res) => res.json())
-                              .then((data) => {
-                                onOpenDraft({
-                                  id: data.id,
-                                  name: data.name,
-                                  content: data.content,
-                                  category: data.category,
-                                })
-                              })
-                              .catch(console.error)
-                          }}
-                          title="Draft with AI"
-                        >
-                          <PenLine className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                          >
-                            v{group.documents.length}
-                            <ChevronDown className="w-3 h-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                          {group.documents.map((doc, idx) => (
-                            <DropdownMenuItem
-                              key={doc.id}
-                              onClick={() => viewDocument(doc.id)}
-                              className="flex items-center gap-2 py-2"
-                            >
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-medium">
-                                    Version {group.documents.length - idx}
-                                  </span>
-                                  {idx === 0 && (
-                                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                                      Latest
-                                    </span>
-                                  )}
-                                </div>
-                                <span className="text-[10px] text-muted-foreground">
-                                  {formatFullDate(doc.createdAt)}
-                                </span>
-                              </div>
-                              <StatusDot status={doc.status} />
-                            </DropdownMenuItem>
-                          ))}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              setDeleteTarget(group.latestDoc)
-                            }}
-                            className="gap-2"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Delete latest version
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    {/* Inline verification progress */}
-                    {verifyProgress && (
-                      <div className="px-3 pb-2.5 pt-0">
-                        <div className="flex items-center gap-2">
-                          {verifyProgress.status === 'verifying' && (
-                            <Loader2 className="w-3 h-3 text-teal-500 animate-spin shrink-0" />
-                          )}
-                          {verifyProgress.status === 'complete' && (
-                            <ShieldCheck className="w-3 h-3 text-teal-500 shrink-0" />
-                          )}
-                          <div className="flex items-center gap-1 flex-1">
-                            {ALL_CRITERIA.map((c) => {
-                              const done = verifyProgress.completed.has(c)
-                              const result = verifyProgress.results[c]
-                              const isPass = result && result.score >= 5.0
-                              return (
-                                <div
-                                  key={c}
-                                  className={cn(
-                                    'flex-1 h-1.5 rounded-full transition-all duration-300',
-                                    done
-                                      ? isPass
-                                        ? 'bg-teal-500'
-                                        : 'bg-stone-300 dark:bg-stone-600'
-                                      : verifyProgress.status === 'verifying'
-                                        ? 'bg-muted animate-pulse'
-                                        : 'bg-muted'
-                                  )}
-                                  title={done ? `${c}: ${result?.score.toFixed(1)} - ${result?.recommendation}` : c}
-                                />
-                              )
-                            })}
-                          </div>
-                          <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
-                            {verifyProgress.status === 'complete'
-                              ? 'Verified'
-                              : `${verifyProgress.completed.size}/10`}
-                          </span>
-                        </div>
-                      </div>
-                    )}
+            <div className="space-y-6">
+              {/* Collected Evidence */}
+              {collectedGroups.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Collected Evidence</h3>
+                    <span className="text-[10px] text-muted-foreground">{collectedGroups.length}</span>
                   </div>
-                )
-              })}
+                  <div className="space-y-2">
+                    {collectedGroups.map((group) => (
+                      <DocumentGroupCard
+                        key={group.baseName}
+                        group={group}
+                        caseId={caseId}
+                        getDocumentStrength={getDocumentStrength}
+                        verifyingDocs={verifyingDocs}
+                        viewDocument={viewDocument}
+                        handleVerifyAsEvidence={handleVerifyAsEvidence}
+                        onOpenDraft={onOpenDraft}
+                        setDeleteTarget={setDeleteTarget}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Drafted Documents */}
+              {draftedGroups.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Drafted Documents</h3>
+                    <span className="text-[10px] text-muted-foreground">{draftedGroups.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {draftedGroups.map((group) => (
+                      <DocumentGroupCard
+                        key={group.baseName}
+                        group={group}
+                        caseId={caseId}
+                        getDocumentStrength={getDocumentStrength}
+                        verifyingDocs={verifyingDocs}
+                        viewDocument={viewDocument}
+                        handleVerifyAsEvidence={handleVerifyAsEvidence}
+                        onOpenDraft={onOpenDraft}
+                        setDeleteTarget={setDeleteTarget}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </ScrollArea>

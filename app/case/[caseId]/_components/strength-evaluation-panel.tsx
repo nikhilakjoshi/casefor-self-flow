@@ -51,20 +51,6 @@ function getRfeColor(rfe: string) {
   }
 }
 
-function ScoreBar({ score, max = 10 }: { score: number; max?: number }) {
-  if (score == null) return null
-  const pct = (score / max) * 100
-  const color = score >= 7 ? "bg-emerald-500" : score >= 5 ? "bg-amber-500" : score >= 3 ? "bg-orange-500" : "bg-red-500"
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-[10px] font-mono tabular-nums text-muted-foreground w-8 text-right">{score.toFixed(1)}</span>
-    </div>
-  )
-}
-
 function CriterionCard({ criterionKey, data }: { criterionKey: CriterionKey; data: StrengthEvaluation["criteria_evaluations"][CriterionKey] }) {
   if (!data) return null
   const tier = getTierColor(data.tier ?? 0)
@@ -102,7 +88,6 @@ function CriterionCard({ criterionKey, data }: { criterionKey: CriterionKey; dat
               </svg>
             </div>
           </div>
-          {!isNA && <div className="mt-2"><ScoreBar score={data.score} /></div>}
         </CollapsibleTrigger>
 
         <CollapsibleContent>
