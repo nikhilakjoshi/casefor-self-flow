@@ -27,6 +27,7 @@ interface SharedDraftingPanelProps {
     category: string | null
   }
   caseName: string
+  user?: { id: string; name: string | null }
 }
 
 export function SharedDraftingPanel({
@@ -34,6 +35,7 @@ export function SharedDraftingPanel({
   permission,
   document,
   caseName,
+  user,
 }: SharedDraftingPanelProps) {
   const router = useRouter()
   const canEdit = permission === 'EDIT' || permission === 'FULL'
@@ -258,6 +260,9 @@ export function SharedDraftingPanel({
             inlineEditUrl={canAI ? `/api/shared/${shareId}/inline-edit` : undefined}
             caseId={undefined}
             documentName={document.name}
+            trackChangesDefault={canEdit}
+            userId={user?.id}
+            userNickname={user?.name || undefined}
           />
         </div>
       </div>

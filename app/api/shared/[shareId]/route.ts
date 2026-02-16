@@ -34,6 +34,7 @@ export async function GET(_request: Request, { params }: Params) {
       category: share.document.category,
       status: share.document.status,
     },
+    user: { id: session.user.id, name: session.user.name },
   })
 }
 

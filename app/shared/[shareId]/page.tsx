@@ -16,6 +16,7 @@ interface ShareData {
     category: string | null
     status: string
   }
+  user?: { id: string; name: string | null }
 }
 
 export default function SharedDocPage() {
@@ -57,6 +58,7 @@ export default function SharedDocPage() {
       permission={data.permission}
       document={data.document}
       caseName={data.caseName}
+      user={data.user}
     />
   )
 }

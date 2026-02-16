@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { TiptapEditor } from '@/components/ui/tiptap-editor'
 import { ChatInput } from '@/components/ui/chat-input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -42,6 +43,7 @@ export function DraftingPanel({
   onClose,
   onSave,
 }: DraftingPanelProps) {
+  const { data: session } = useSession()
   const [docId, setDocId] = useState<string | undefined>(document?.id)
   const [docName, setDocName] = useState(document?.name || 'Untitled Document')
   const [editorContent, setEditorContent] = useState(document?.content || '')
@@ -394,6 +396,9 @@ export function DraftingPanel({
             caseId={caseId}
             documentId={docId}
             documentName={docName}
+            trackChangesDefault={true}
+            userId={session?.user?.id}
+            userNickname={session?.user?.name || undefined}
           />
         </div>
       </div>
