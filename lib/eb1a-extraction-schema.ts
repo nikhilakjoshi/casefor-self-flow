@@ -267,15 +267,27 @@ export type Education = z.infer<typeof EducationSchema>
 export type WorkExperience = z.infer<typeof WorkExperienceSchema>
 
 // Helper: criterion metadata
-export const CRITERIA_METADATA: Record<CriterionId, { name: string; description: string }> = {
-  C1: { name: "Awards", description: "Nationally/internationally recognized prizes" },
-  C2: { name: "Membership", description: "Selective associations requiring outstanding achievement" },
-  C3: { name: "Published Material", description: "About the person in professional/major media" },
-  C4: { name: "Judging", description: "Participation as judge of others' work" },
-  C5: { name: "Original Contributions", description: "Of major significance to the field" },
-  C6: { name: "Scholarly Articles", description: "In professional journals" },
-  C7: { name: "Artistic Exhibitions", description: "Display of work at artistic exhibitions" },
-  C8: { name: "Leading Role", description: "Leading/critical role for distinguished organizations" },
-  C9: { name: "High Salary", description: "Significantly above field average" },
-  C10: { name: "Commercial Success", description: "In performing arts" },
+export const CRITERIA_METADATA: Record<CriterionId, { name: string; description: string; uscis: string }> = {
+  C1: { name: "Awards", description: "Nationally/internationally recognized prizes", uscis: "Receipt of lesser nationally or internationally recognized prizes or awards for excellence in the field of endeavor." },
+  C2: { name: "Membership", description: "Selective associations requiring outstanding achievement", uscis: "Membership in associations in the field for which classification is sought that require outstanding achievement of their members, as judged by recognized national or international experts." },
+  C3: { name: "Published Material", description: "About the person in professional/major media", uscis: "Published material about the person in professional or major trade publications or other major media relating to the person's work in the field." },
+  C4: { name: "Judging", description: "Participation as judge of others' work", uscis: "The person's participation, either individually or on a panel, as a judge of the work of others in the same or an allied field." },
+  C5: { name: "Original Contributions", description: "Of major significance to the field", uscis: "The person's original scientific, scholarly, artistic, athletic, or business-related contributions of major significance in the field." },
+  C6: { name: "Scholarly Articles", description: "In professional journals", uscis: "The person's authorship of scholarly articles in the field, in professional or major trade publications or other major media." },
+  C7: { name: "Artistic Exhibitions", description: "Display of work at artistic exhibitions", uscis: "Display of the person's work in the field at artistic exhibitions or showcases." },
+  C8: { name: "Leading Role", description: "Leading/critical role for distinguished organizations", uscis: "The person has performed in a leading or critical role for organizations or establishments that have a distinguished reputation." },
+  C9: { name: "High Salary", description: "Significantly above field average", uscis: "The person has commanded a high salary, or other significantly high remuneration for services, in relation to others in the field." },
+  C10: { name: "Commercial Success", description: "In performing arts", uscis: "Commercial successes in the performing arts, as shown by box office receipts or record, cassette, compact disk, or video sales." },
+}
+
+// Map legacy criterion IDs to canonical IDs
+export const LEGACY_TO_CANONICAL: Record<string, CriterionId> = {
+  awards: "C1", membership: "C2", published_material: "C3",
+  judging: "C4", original_contributions: "C5", scholarly_articles: "C6",
+  exhibitions: "C7", leading_role: "C8", high_salary: "C9", commercial_success: "C10",
+}
+
+export function resolveCanonicalId(id: string): CriterionId | null {
+  if (CRITERIA_METADATA[id as CriterionId]) return id as CriterionId
+  return LEGACY_TO_CANONICAL[id] ?? null
 }

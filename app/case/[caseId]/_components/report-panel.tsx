@@ -12,7 +12,7 @@ import { ConsolidationTab } from "./consolidation-tab"
 import { LettersPanel } from "./letters-panel"
 import { DenialProbabilityPanel } from "./denial-probability-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
-import { CRITERIA_METADATA } from "@/lib/eb1a-extraction-schema"
+import { CRITERIA_METADATA, resolveCanonicalId } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
 import type { GapAnalysis } from "@/lib/gap-analysis-schema"
 import type { CaseStrategy } from "@/lib/case-strategy-schema"
@@ -387,7 +387,8 @@ function CriterionSection({
   const [contextText, setContextText] = useState("")
   const [removing, setRemoving] = useState<string | null>(null)
 
-  const meta = CRITERIA_METADATA[criterion.criterionId as keyof typeof CRITERIA_METADATA]
+  const canonicalId = resolveCanonicalId(criterion.criterionId)
+  const meta = canonicalId ? CRITERIA_METADATA[canonicalId] : undefined
   const displayName = criteriaNames?.[criterion.criterionId] ?? meta?.name ?? criterion.criterionId
   const evidenceCount = criteriaSummary?.evidence_count ?? criterion.evidence?.length ?? 0
   const summary = criteriaSummary?.summary ?? criterion.reason
@@ -611,6 +612,7 @@ function CriterionSection({
             {config.icon}
           </span>
           <div className="flex-1 min-w-0">
+            {canonicalId && <span className="text-[11px] font-mono font-medium text-muted-foreground mr-1">{canonicalId}</span>}
             <span className="text-sm font-semibold text-stone-800 dark:text-stone-200">{displayName}</span>
             {meta?.description && (
               <span className="ml-2 text-xs text-muted-foreground hidden sm:inline">{meta.description}</span>
@@ -662,6 +664,14 @@ function CriterionSection({
       {/* Expanded content */}
       {expanded && (
         <div className="px-3 pb-3 pt-1 space-y-3">
+          {/* USCIS definition */}
+          {meta?.uscis && (
+            <div className="flex items-start gap-2 pl-2 border-l-2 border-slate-300 dark:border-slate-600">
+              <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-px select-none">USCIS</span>
+              <p className="text-[11px] italic leading-relaxed text-slate-500 dark:text-slate-400">{meta.uscis}</p>
+            </div>
+          )}
+
           {/* Tier evidence guide */}
           <TierEvidenceGuide criterionId={criterion.criterionId} strengthEval={strengthEval} />
 
@@ -1194,7 +1204,10 @@ export function ReportPanel({
         <CriteriaTab
           caseId={caseId}
           criteriaContent={
-            analysis.criteria.map((c) => {
+            [...analysis.criteria].sort((a, b) => {
+              const order: Record<string, number> = { Strong: 0, Weak: 1, None: 2 }
+              return (order[a.strength] ?? 2) - (order[b.strength] ?? 2)
+            }).map((c) => {
               const cs = analysis.criteria_summary?.find(
                 (s) => s.criterion_id === c.criterionId
               )
