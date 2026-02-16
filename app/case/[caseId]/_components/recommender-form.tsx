@@ -18,6 +18,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { Checkbox } from '@/components/ui/checkbox'
+import { DatePicker } from '@/components/ui/date-picker'
 import {
   ChevronDown,
   User,
@@ -682,20 +683,18 @@ export function RecommenderForm({
           <FormSection title="Relationship Timeline" icon={Link2}>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Start Date">
-                <Input
-                  type="date"
+                <DatePicker
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="h-9"
+                  onChange={setStartDate}
+                  placeholder="Start date"
                 />
               </FormField>
 
               <FormField label="End Date">
-                <Input
-                  type="date"
+                <DatePicker
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="h-9"
+                  onChange={setEndDate}
+                  placeholder="End date"
                 />
               </FormField>
             </div>
