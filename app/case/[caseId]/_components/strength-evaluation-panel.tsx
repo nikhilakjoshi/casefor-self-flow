@@ -337,156 +337,22 @@ export function StrengthEvaluationPanel({ caseId, initialData, onEvalComplete }:
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Kazarian Steps */}
-        {(step1 || step2) && (
-          <div className="space-y-2">
-            <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Kazarian Two-Step</h4>
-            {step1 && (
-              <div className="rounded-lg border border-border p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold">Step 1: Criteria Count</span>
-                  <StepBadge result={step1.step1_result ?? ""} />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {step1.criteria_satisfied_count ?? 0} criteria satisfied
-                  {step1.criteria_borderline_count ? `, ${step1.criteria_borderline_count} borderline` : ""}
-                </p>
-                {step1.criteria_satisfied_list && step1.criteria_satisfied_list.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {step1.criteria_satisfied_list.map((c) => (
-                      <span key={c} className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 font-medium">
-                        {c}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {step2 && (
-              <div className="rounded-lg border border-border p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold">Step 2: Final Merits</span>
-                  <StepBadge result={step2.step2_result ?? ""} />
-                </div>
-                {step2.step2_rationale && (
-                  <p className="text-xs text-muted-foreground mt-1">{step2.step2_rationale}</p>
-                )}
-                <div className="flex flex-wrap gap-3 mt-2 text-[10px] text-muted-foreground">
-                  {step2.sustained_acclaim_years != null && (
-                    <span>Acclaim: {step2.sustained_acclaim_years}yr</span>
-                  )}
-                  {step2.geographic_reach && <span>Reach: {step2.geographic_reach}</span>}
-                  {step2.independence_level && <span>Independence: {step2.independence_level}</span>}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Criteria Grid */}
+        {/* Criteria Grid -- sorted strongest (lowest tier) first */}
         {criteria && (
           <div className="space-y-2">
             <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Criteria Evaluation</h4>
             <div className="space-y-2">
-              {(Object.keys(criteria) as CriterionKey[]).map((key) => (
-                <CriterionCard key={key} criterionKey={key} data={criteria[key]} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Red Flags */}
-        {redFlags && redFlags.total_red_flags > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-[10px] font-semibold text-red-600 uppercase tracking-wider">
-              Red Flags ({redFlags.total_red_flags})
-            </h4>
-            <div className="rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 p-3 space-y-2">
-              {redFlags.tier_5_evidence_found?.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-semibold text-red-700 dark:text-red-400 uppercase mb-0.5">Tier 5 Evidence</p>
-                  <ul className="text-xs text-red-600 dark:text-red-400 space-y-0.5">
-                    {redFlags.tier_5_evidence_found.map((f, i) => <li key={i}>- {f}</li>)}
-                  </ul>
-                </div>
-              )}
-              {redFlags.documentation_risks?.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-semibold text-orange-700 dark:text-orange-400 uppercase mb-0.5">Documentation Risks</p>
-                  <ul className="text-xs text-orange-600 dark:text-orange-400 space-y-0.5">
-                    {redFlags.documentation_risks.map((r, i) => <li key={i}>- {r}</li>)}
-                  </ul>
-                </div>
-              )}
-              {redFlags.independence_concerns?.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 uppercase mb-0.5">Independence Concerns</p>
-                  <ul className="text-xs text-amber-600 dark:text-amber-400 space-y-0.5">
-                    {redFlags.independence_concerns.map((c, i) => <li key={i}>- {c}</li>)}
-                  </ul>
-                </div>
-              )}
-              {redFlags.temporal_gaps?.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-0.5">Temporal Gaps</p>
-                  <ul className="text-xs text-muted-foreground space-y-0.5">
-                    {redFlags.temporal_gaps.map((g, i) => <li key={i}>- {g}</li>)}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Strengths & Weaknesses */}
-        {overall && (
-          <div className="grid grid-cols-2 gap-2">
-            {overall.top_3_strengths?.length > 0 && (
-              <div className="rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 p-3">
-                <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase mb-1">Top Strengths</p>
-                <ul className="text-xs text-stone-600 dark:text-stone-400 space-y-1">
-                  {overall.top_3_strengths.map((s, i) => <li key={i}>- {s}</li>)}
-                </ul>
-              </div>
-            )}
-            {overall.top_3_weaknesses?.length > 0 && (
-              <div className="rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 p-3">
-                <p className="text-[10px] font-semibold text-red-700 dark:text-red-400 uppercase mb-1">Top Weaknesses</p>
-                <ul className="text-xs text-stone-600 dark:text-stone-400 space-y-1">
-                  {overall.top_3_weaknesses.map((w, i) => <li key={i}>- {w}</li>)}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Field Comparison */}
-        {fieldComparison && (
-          <div className="space-y-2">
-            <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Field Comparison</h4>
-            <div className="rounded-lg border border-border p-3">
-              {fieldComparison.percentile_estimate && (
-                <p className="text-xs font-semibold text-stone-800 dark:text-stone-200 mb-2">
-                  Estimated: {fieldComparison.percentile_estimate}
-                </p>
-              )}
-              {fieldComparison.vs_median_successful && (
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {Object.entries(fieldComparison.vs_median_successful).map(([key, val]) => (
-                    <div key={key} className="flex justify-between">
-                      <span className="text-muted-foreground capitalize">{key.replace(/_/g, " ")}</span>
-                      <span className={cn(
-                        "font-medium",
-                        val === "ABOVE" ? "text-emerald-600 dark:text-emerald-400" :
-                        val === "AT" ? "text-amber-600 dark:text-amber-400" :
-                        "text-red-600 dark:text-red-400"
-                      )}>
-                        {val}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {(Object.keys(criteria) as CriterionKey[])
+                .slice()
+                .sort((a, b) => {
+                  const aNA = "applicable" in (criteria[a] ?? {}) && (criteria[a] as Record<string, unknown>).applicable === false
+                  const bNA = "applicable" in (criteria[b] ?? {}) && (criteria[b] as Record<string, unknown>).applicable === false
+                  if (aNA !== bNA) return aNA ? 1 : -1
+                  return (criteria[a]?.tier ?? 99) - (criteria[b]?.tier ?? 99)
+                })
+                .map((key) => (
+                  <CriterionCard key={key} criterionKey={key} data={criteria[key]} />
+                ))}
             </div>
           </div>
         )}
@@ -502,18 +368,6 @@ export function StrengthEvaluationPanel({ caseId, initialData, onEvalComplete }:
                 </span>
               ))}
             </div>
-            {overall.criteria_to_avoid?.length > 0 && (
-              <>
-                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-2">Avoid Claiming</h4>
-                <div className="flex flex-wrap gap-1">
-                  {overall.criteria_to_avoid.map((c) => (
-                    <span key={c} className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 font-medium">
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
           </div>
         )}
 
