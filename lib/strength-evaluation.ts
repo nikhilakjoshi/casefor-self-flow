@@ -204,6 +204,7 @@ SECTION 5: CRITICAL RULES
 6. scoring_rationale must reference specific thresholds.
 7. Always assess Step 2 independently.
 8. Do not invent data. Score only what is present.
+9. If the data includes an "APPLICANT-PROVIDED ADDITIONAL CONTEXT" section, you MUST incorporate that information into criterion scoring. This represents verified claims from the applicant that supplement the parsed resume.
 
 PRE-OUTPUT VALIDATION:
 - FIELD CHECK: detected_field matches mapping table
@@ -252,6 +253,22 @@ export async function buildEvaluationContext(caseId: string) {
   // Latest extraction/analysis
   const analysis = caseData.eb1aAnalyses[0]
   if (analysis) {
+    // User-provided context goes FIRST (before extraction) so the evaluator sees it early
+    if (analysis.criteria) {
+      const criteriaWithContext = (analysis.criteria as any[]).filter((c: any) => c.userContext)
+      if (criteriaWithContext.length > 0) {
+        const contextLines = criteriaWithContext.map((c: any) =>
+          `${c.criterionId}: ${c.userContext}`
+        )
+        sections.push(
+          `=== IMPORTANT: APPLICANT-PROVIDED ADDITIONAL CONTEXT ===\n` +
+          `The applicant has provided the following additional information for specific criteria.\n` +
+          `This context MUST be treated as factual and incorporated into your tier/score assessment for the relevant criteria.\n\n` +
+          contextLines.join("\n\n")
+        )
+      }
+    }
+
     if (analysis.extraction) {
       sections.push(`=== EB-1A EXTRACTION (v${analysis.version}) ===\n${JSON.stringify(analysis.extraction, null, 2)}`)
     }

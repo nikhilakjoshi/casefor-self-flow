@@ -18,6 +18,7 @@ import type { GapAnalysis } from "@/lib/gap-analysis-schema"
 import type { CaseStrategy } from "@/lib/case-strategy-schema"
 import type { CaseConsolidation } from "@/lib/case-consolidation-schema"
 import type { DenialProbability } from "@/lib/denial-probability-schema"
+import { TIER_EVIDENCE_GUIDE } from "@/lib/tier-evidence-guide"
 import {
   FileText,
   Award,
@@ -150,6 +151,31 @@ const EVIDENCE_CATEGORIES = [
 
 type EvidenceCategory = (typeof EVIDENCE_CATEGORIES)[number]
 
+const CRITERION_TO_EVAL_KEY: Record<string, string> = {
+  C1: "C1_awards", C2: "C2_membership", C3: "C3_press",
+  C4: "C4_judging", C5: "C5_contributions", C6: "C6_publications",
+  C7: "C7_exhibitions", C8: "C8_leading_role", C9: "C9_salary", C10: "C10_commercial",
+}
+
+function getTierColor(tier: number) {
+  switch (tier) {
+    case 1: return { bg: "bg-emerald-500/15", text: "text-emerald-700 dark:text-emerald-300", badge: "bg-emerald-600 text-white", border: "border-emerald-500" }
+    case 2: return { bg: "bg-blue-500/15", text: "text-blue-700 dark:text-blue-300", badge: "bg-blue-600 text-white", border: "border-blue-500" }
+    case 3: return { bg: "bg-amber-500/15", text: "text-amber-700 dark:text-amber-300", badge: "bg-amber-500 text-white", border: "border-amber-500" }
+    case 4: return { bg: "bg-orange-500/15", text: "text-orange-700 dark:text-orange-300", badge: "bg-orange-500 text-white", border: "border-orange-500" }
+    case 5: return { bg: "bg-red-500/15", text: "text-red-700 dark:text-red-300", badge: "bg-red-600 text-white", border: "border-red-500" }
+    default: return { bg: "bg-muted/60", text: "text-muted-foreground", badge: "bg-muted text-muted-foreground", border: "border-muted" }
+  }
+}
+
+interface CriterionEvalData {
+  tier: number
+  score: number
+  scoring_rationale: string
+  improvement_notes: string
+  rfe_risk: string
+}
+
 function getEvidenceForCriterion(
   extraction: DetailedExtraction,
   criterionId: string
@@ -252,6 +278,88 @@ function ItemSummary({ item, category }: { item: Record<string, unknown>; catego
   }
 }
 
+function TierEvidenceGuide({ criterionId, strengthEval }: { criterionId: string; strengthEval?: CriterionEvalData }) {
+  const guide = TIER_EVIDENCE_GUIDE[criterionId]
+  if (!guide) return null
+
+  const currentTier = strengthEval?.tier
+  const tierColor = currentTier ? getTierColor(currentTier) : null
+  const tierLabel = currentTier ? guide.find(t => t.tier === currentTier)?.label : null
+
+  return (
+    <div className="space-y-2">
+      {/* Current tier + score header */}
+      {strengthEval && tierColor && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={cn("px-2 py-0.5 rounded text-[11px] font-bold", tierColor.badge)}>
+            T{currentTier} {tierLabel}
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            Score: {strengthEval.score.toFixed(1)}/10
+          </span>
+          <span className="text-[11px] text-muted-foreground">|</span>
+          <span className={cn(
+            "text-[11px] font-medium",
+            strengthEval.rfe_risk === "LOW" ? "text-emerald-600 dark:text-emerald-400" :
+            strengthEval.rfe_risk === "MODERATE" ? "text-amber-600 dark:text-amber-400" :
+            "text-red-600 dark:text-red-400"
+          )}>
+            RFE Risk: {strengthEval.rfe_risk}
+          </span>
+        </div>
+      )}
+
+      {/* Tier ladder */}
+      <div className="space-y-0.5">
+        {guide.map((t) => {
+          const isActive = currentTier === t.tier
+          const color = getTierColor(t.tier)
+          return (
+            <div
+              key={t.tier}
+              className={cn(
+                "flex items-start gap-2 px-2 py-1 rounded text-[11px] transition-all",
+                isActive ? cn(color.bg, "border-l-2", color.border) : "opacity-50 pl-[10px]"
+              )}
+            >
+              <span className={cn(
+                "shrink-0 w-5 text-center font-bold rounded",
+                isActive ? color.text : "text-muted-foreground"
+              )}>
+                T{t.tier}
+              </span>
+              <span className={cn(
+                "leading-relaxed",
+                isActive ? "text-foreground/90 font-medium" : "text-muted-foreground"
+              )}>
+                {t.examples}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Rationale + improvement */}
+      {strengthEval && (
+        <div className="space-y-1.5 pt-1">
+          {strengthEval.scoring_rationale && (
+            <p className="text-[11px] text-foreground/70 leading-relaxed">
+              <span className="font-semibold text-muted-foreground">Rationale: </span>
+              {strengthEval.scoring_rationale}
+            </p>
+          )}
+          {strengthEval.improvement_notes && (
+            <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed bg-blue-500/5 rounded px-2 py-1">
+              <span className="font-semibold">Improve: </span>
+              {strengthEval.improvement_notes}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CriterionSection({
   criterion,
   criteriaNames,
@@ -260,6 +368,7 @@ function CriterionSection({
   caseId,
   docCount,
   docCountsByItem,
+  strengthEval,
   onNavigateToRouting,
   onCriterionUpdated,
   onFileDropped,
@@ -271,6 +380,7 @@ function CriterionSection({
   caseId: string
   docCount: number
   docCountsByItem?: Record<string, number>
+  strengthEval?: CriterionEvalData
   onNavigateToRouting: () => void
   onCriterionUpdated: (criterionId: string, result: { strength: Strength; reason: string; evidence: string[] }) => void
   onFileDropped?: () => void
@@ -500,6 +610,9 @@ function CriterionSection({
       {/* Expanded content */}
       {expanded && (
         <div className="px-3 pb-3 pt-1 space-y-3">
+          {/* Tier evidence guide */}
+          <TierEvidenceGuide criterionId={criterion.criterionId} strengthEval={strengthEval} />
+
           {/* Summary */}
           {summary && (
             <p className="text-xs leading-relaxed text-stone-600 dark:text-stone-400">{summary}</p>
@@ -1023,6 +1136,15 @@ export function ReportPanel({
               const cs = analysis.criteria_summary?.find(
                 (s) => s.criterion_id === c.criterionId
               )
+              const evalKey = CRITERION_TO_EVAL_KEY[c.criterionId] as keyof StrengthEvaluation["criteria_evaluations"] | undefined
+              const evalData = evalKey && initialStrengthEvaluation?.criteria_evaluations?.[evalKey]
+              const se = evalData ? {
+                tier: evalData.tier,
+                score: evalData.score,
+                scoring_rationale: evalData.scoring_rationale,
+                improvement_notes: evalData.improvement_notes,
+                rfe_risk: evalData.rfe_risk,
+              } : undefined
               return (
                 <CriterionSection
                   key={c.criterionId}
@@ -1033,6 +1155,7 @@ export function ReportPanel({
                   caseId={caseId}
                   docCount={analysis.docCountsByCriterion?.[c.criterionId] ?? 0}
                   docCountsByItem={analysis.docCountsByItem}
+                  strengthEval={se}
                   onNavigateToRouting={() => handleSubTabChange("routing")}
                   onCriterionUpdated={handleCriterionUpdated}
                   onFileDropped={refetchDocCounts}
