@@ -15,6 +15,7 @@ interface PlanningTabProps {
   initialGapAnalysis?: GapAnalysis | null
   initialCaseStrategy?: CaseStrategy | null
   initialStrengthEvaluation?: StrengthEvaluation | null
+  onStrengthEvalComplete?: () => void
 }
 
 function KazarianSummary({
@@ -112,6 +113,7 @@ export function PlanningTab({
   initialGapAnalysis,
   initialCaseStrategy,
   initialStrengthEvaluation,
+  onStrengthEvalComplete,
 }: PlanningTabProps) {
   const [strengthOpen, setStrengthOpen] = useState(false)
   const [gapOpen, setGapOpen] = useState(true)
@@ -145,6 +147,7 @@ export function PlanningTab({
           <StrengthEvaluationPanel
             caseId={caseId}
             initialData={initialStrengthEvaluation}
+            onEvalComplete={onStrengthEvalComplete}
           />
         )}
       </div>

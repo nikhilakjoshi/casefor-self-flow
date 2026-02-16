@@ -82,6 +82,18 @@ export const TIER_EVIDENCE_GUIDE: Record<string, TierDefinition[]> = {
   ],
 }
 
+// Legacy criterion ID aliases
+TIER_EVIDENCE_GUIDE.awards = TIER_EVIDENCE_GUIDE.C1
+TIER_EVIDENCE_GUIDE.membership = TIER_EVIDENCE_GUIDE.C2
+TIER_EVIDENCE_GUIDE.published_material = TIER_EVIDENCE_GUIDE.C3
+TIER_EVIDENCE_GUIDE.judging = TIER_EVIDENCE_GUIDE.C4
+TIER_EVIDENCE_GUIDE.original_contributions = TIER_EVIDENCE_GUIDE.C5
+TIER_EVIDENCE_GUIDE.scholarly_articles = TIER_EVIDENCE_GUIDE.C6
+TIER_EVIDENCE_GUIDE.exhibitions = TIER_EVIDENCE_GUIDE.C7
+TIER_EVIDENCE_GUIDE.leading_role = TIER_EVIDENCE_GUIDE.C8
+TIER_EVIDENCE_GUIDE.high_salary = TIER_EVIDENCE_GUIDE.C9
+TIER_EVIDENCE_GUIDE.commercial_success = TIER_EVIDENCE_GUIDE.C10
+
 export const TIER_LABELS: Record<number, string> = {
   1: "Exceptional",
   2: "Strong",
