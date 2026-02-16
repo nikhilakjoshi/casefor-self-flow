@@ -862,7 +862,7 @@ export function ReportPanel({
             {/* Phase 1 group */}
             <div className="flex flex-col gap-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
-                Phase 1
+                Phase 1: Data Analysis
               </span>
               <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
                 <Tooltip>
@@ -906,7 +906,7 @@ export function ReportPanel({
             {/* Phase 2 group */}
             <div className="flex flex-col gap-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
-                Phase 2
+                Phase 2: Evidence Capture
               </span>
               <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
                 <Tooltip>
@@ -950,35 +950,7 @@ export function ReportPanel({
             {/* Phase 3 group */}
             <div className="flex flex-col gap-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
-                Phase 3
-              </span>
-              <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleSubTabChange("consolidation")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                        activeTab === "consolidation"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                      )}
-                    >
-                      Consolidation
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Consolidated analysis, strategy, and filing readiness</TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
-
-            {/* Separator */}
-            <div className="h-8 w-px bg-border/50 shrink-0 mb-1" />
-
-            {/* Phase 4 group */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
-                Phase 4
+                Phase 3: Case Building
               </span>
               <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
                 <Tooltip>
