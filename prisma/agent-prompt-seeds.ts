@@ -220,6 +220,7 @@ SECTION 5: CRITICAL RULES
 6. scoring_rationale must reference specific thresholds.
 7. Always assess Step 2 independently.
 8. Do not invent data. Score only what is present.
+9. If the data includes an "APPLICANT-PROVIDED ADDITIONAL CONTEXT" section, you MUST incorporate that information into criterion scoring. This represents verified claims from the applicant that supplement the parsed resume.
 
 PRE-OUTPUT VALIDATION:
 - FIELD CHECK: detected_field matches mapping table

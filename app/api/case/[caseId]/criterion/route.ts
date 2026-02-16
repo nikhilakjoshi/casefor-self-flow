@@ -185,11 +185,12 @@ Be thorough but realistic. Focus ONLY on evidence relevant to this specific crit
         strength: string
         reason: string
         evidence: string[]
+        userContext?: string
       }>
 
       const updatedCriteria = existingCriteria.map((c) =>
         c.criterionId === criterionId
-          ? { ...c, ...output }
+          ? { ...c, ...output, userContext: additionalContext || c.userContext || "" }
           : c
       )
 
@@ -345,7 +346,7 @@ export async function DELETE(
 
     const existingExtraction = latestAnalysis.extraction as Record<string, unknown> | null
     const existingCriteria = latestAnalysis.criteria as Array<{
-      criterionId: string; strength: string; reason: string; evidence: string[]
+      criterionId: string; strength: string; reason: string; evidence: string[]; userContext?: string
     }>
 
     let updatedExtraction = existingExtraction ? { ...existingExtraction } : null
@@ -423,6 +424,11 @@ export async function DELETE(
       contextParts.push(`REMAINING EVIDENCE:\n${remainingCriterion.evidence.join("\n")}`)
     }
 
+    // Include persisted user context
+    if ((remainingCriterion as any)?.userContext) {
+      contextParts.push(`ADDITIONAL CONTEXT PROVIDED BY USER:\n${(remainingCriterion as any).userContext}`)
+    }
+
     // Gather remaining extraction items
     if (updatedExtraction) {
       for (const cat of EVIDENCE_CATEGORIES) {
@@ -476,7 +482,7 @@ Be thorough but realistic. Focus ONLY on evidence relevant to this specific crit
 
     // Apply Claude's re-evaluation
     updatedCriteria = updatedCriteria.map((c) =>
-      c.criterionId === criterionId ? { ...c, ...output } : c
+      c.criterionId === criterionId ? { ...c, ...output, userContext: c.userContext ?? "" } : c
     )
 
     const strongCount = updatedCriteria.filter((c) => c.strength === "Strong").length
