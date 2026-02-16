@@ -24,6 +24,7 @@ import type { GapAnalysis } from '@/lib/gap-analysis-schema'
 import type { CaseStrategy } from '@/lib/case-strategy-schema'
 import type { CaseConsolidation } from '@/lib/case-consolidation-schema'
 import type { DenialProbability } from '@/lib/denial-probability-schema'
+import type { SurveyIntent } from '@/app/onboard/_lib/survey-schema'
 
 function getRiskBadgeStyle(level: string) {
   switch (level) {
@@ -97,6 +98,7 @@ export function CasePageClient({
   initialCaseConsolidation,
   initialDenialProbability,
 }: CasePageClientProps) {
+  const initialIntentData = (initialProfileData as Record<string, unknown>)?.intent as SurveyIntent | undefined
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -456,6 +458,7 @@ export function CasePageClient({
               initialCaseStrategy={initialCaseStrategy}
               initialCaseConsolidation={initialCaseConsolidation}
               initialDenialProbability={initialDenialProbability}
+              initialIntentData={initialIntentData}
               onOpenDraft={onOpenDraft}
             />
           </div>

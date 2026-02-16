@@ -18,6 +18,7 @@ import type { GapAnalysis } from "@/lib/gap-analysis-schema"
 import type { CaseStrategy } from "@/lib/case-strategy-schema"
 import type { CaseConsolidation } from "@/lib/case-consolidation-schema"
 import type { DenialProbability } from "@/lib/denial-probability-schema"
+import type { SurveyIntent } from "@/app/onboard/_lib/survey-schema"
 import { TIER_EVIDENCE_GUIDE } from "@/lib/tier-evidence-guide"
 import {
   FileText,
@@ -81,6 +82,7 @@ interface ReportPanelProps {
   initialCaseStrategy?: CaseStrategy | null
   initialCaseConsolidation?: CaseConsolidation | null
   initialDenialProbability?: DenialProbability | null
+  initialIntentData?: SurveyIntent
   onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
 }
 
@@ -846,6 +848,7 @@ export function ReportPanel({
   initialCaseStrategy,
   initialCaseConsolidation,
   initialDenialProbability,
+  initialIntentData,
   onOpenDraft,
 }: ReportPanelProps) {
   const searchParams = useSearchParams()
@@ -1271,7 +1274,7 @@ export function ReportPanel({
         />
       ) : activeTab === "letters" ? (
         <div className="flex-1 overflow-y-auto">
-          <LettersPanel caseId={caseId} onOpenDraft={onOpenDraft ?? (() => {})} denialProbability={initialDenialProbability} />
+          <LettersPanel caseId={caseId} onOpenDraft={onOpenDraft ?? (() => {})} denialProbability={initialDenialProbability} initialIntentData={initialIntentData} />
         </div>
       ) : activeTab === "denial" ? (
         <DenialProbabilityPanel
