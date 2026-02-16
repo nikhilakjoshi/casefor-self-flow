@@ -8,7 +8,7 @@ import { extractPdfText } from "@/lib/pdf-extractor"
 import { chunkText } from "@/lib/chunker"
 import { upsertChunks } from "@/lib/pinecone"
 import { isS3Configured, uploadToS3, buildDocumentKey } from "@/lib/s3"
-import { CRITERIA_METADATA, type CriterionId } from "@/lib/eb1a-extraction-schema"
+import { CRITERIA_METADATA, type CriterionId, resolveCanonicalId } from "@/lib/eb1a-extraction-schema"
 import { runSingleCriterionVerification } from "@/lib/evidence-verification"
 
 const MODEL = "claude-sonnet-4-20250514"
@@ -120,14 +120,15 @@ export async function POST(
       additionalContext = body.context ?? ""
     }
 
-    if (!criterionId || !CRITERIA_METADATA[criterionId as CriterionId]) {
-      return new Response(JSON.stringify({ error: "Invalid criterion ID" }), {
+    const canonicalId = criterionId ? resolveCanonicalId(criterionId) : null
+    if (!canonicalId) {
+      return new Response(JSON.stringify({ error: "Invalid criterion ID", received: criterionId }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       })
     }
 
-    const meta = CRITERIA_METADATA[criterionId as CriterionId]
+    const meta = CRITERIA_METADATA[canonicalId]
     const latestAnalysis = caseRecord.eb1aAnalyses[0]
     const existingExtraction = latestAnalysis?.extraction as Record<string, unknown> | null
     const extractedText = existingExtraction?.extracted_text as string | undefined
@@ -137,11 +138,28 @@ export async function POST(
     if (extractedText) {
       contextParts.push(`EXISTING RESUME CONTENT:\n${extractedText.slice(0, 8000)}`)
     }
+
+    // Include existing criterion evidence so re-evaluation has full picture
+    const existingCriteria = latestAnalysis?.criteria as Array<{
+      criterionId: string; strength: string; reason: string; evidence: string[]; userContext?: string
+    }> | undefined
+    const existingCriterion = existingCriteria?.find((c) => c.criterionId === criterionId)
+    if (existingCriterion?.evidence?.length) {
+      contextParts.push(`EXISTING EVIDENCE FOR THIS CRITERION:\n${existingCriterion.evidence.join("\n")}`)
+    }
+    if (existingCriterion?.userContext) {
+      contextParts.push(`PREVIOUSLY PROVIDED USER CONTEXT:\n${existingCriterion.userContext}`)
+    }
+
     if (additionalContext) {
       contextParts.push(`ADDITIONAL CONTEXT PROVIDED BY USER:\n${additionalContext}`)
     }
     if (fileContent) {
       contextParts.push(`ADDITIONAL DOCUMENT CONTENT:\n${fileContent.slice(0, 8000)}`)
+    }
+
+    if (contextParts.length === 0) {
+      contextParts.push("No evidence or context available. Evaluate as None.")
     }
 
     const systemPrompt = `You are an EB-1A immigration expert. Evaluate the provided information ONLY for the following criterion. Do not use emojis.
@@ -329,7 +347,8 @@ export async function DELETE(
   try {
     const { criterionId, evidenceIndex, evidenceSource, category } = await request.json()
 
-    if (!criterionId || !CRITERIA_METADATA[criterionId as CriterionId]) {
+    const canonicalDeleteId = criterionId ? resolveCanonicalId(criterionId) : null
+    if (!canonicalDeleteId) {
       return new Response(JSON.stringify({ error: "Invalid criterion ID" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
@@ -410,7 +429,7 @@ export async function DELETE(
     }
 
     // Re-evaluate criterion with remaining evidence via Claude
-    const meta = CRITERIA_METADATA[criterionId as CriterionId]
+    const meta = CRITERIA_METADATA[canonicalDeleteId]
     const extractedText = updatedExtraction?.extracted_text as string | undefined
 
     const contextParts: string[] = []

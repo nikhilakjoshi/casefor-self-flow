@@ -396,7 +396,7 @@ export function DraftingPanel({
             caseId={caseId}
             documentId={docId}
             documentName={docName}
-            trackChangesDefault={true}
+            trackChangesDefault={false}
             userId={session?.user?.id}
             userNickname={session?.user?.name || undefined}
           />

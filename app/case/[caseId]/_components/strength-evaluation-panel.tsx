@@ -15,6 +15,7 @@ import {
 interface StrengthEvaluationPanelProps {
   caseId: string
   initialData?: StrengthEvaluation | null
+  onEvalComplete?: () => void
 }
 
 type CriterionKey = keyof StrengthEvaluation["criteria_evaluations"]
@@ -143,7 +144,7 @@ function StepBadge({ result }: { result: string }) {
   return <span className={cn("px-2 py-0.5 rounded text-xs font-semibold", color)}>{result}</span>
 }
 
-export function StrengthEvaluationPanel({ caseId, initialData }: StrengthEvaluationPanelProps) {
+export function StrengthEvaluationPanel({ caseId, initialData, onEvalComplete }: StrengthEvaluationPanelProps) {
   const [data, setData] = useState<Partial<StrengthEvaluation> | null>(initialData ?? null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -208,8 +209,9 @@ export function StrengthEvaluationPanel({ caseId, initialData }: StrengthEvaluat
       console.error("Evaluation error:", err)
     } finally {
       setIsStreaming(false)
+      onEvalComplete?.()
     }
-  }, [caseId])
+  }, [caseId, onEvalComplete])
 
   // No evaluation state
   if (!data && !isStreaming) {

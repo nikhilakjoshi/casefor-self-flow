@@ -360,65 +360,71 @@ export const TrackChangeExtension = Extension.create<{
           newChangeTr.removeMark(from, to, deletionMark.type);
         }
         if (step.from !== step.to && trackChangeEnabled) {
-          const skipSteps: Array<ReplaceStep> = [];
-
-          const reAddStep = new ReplaceStep(
-            invertedStep.from + reAddOffset,
-            invertedStep.from + reAddOffset,
-            invertedStep.slice,
-            // @ts-expect-error internal field
-            invertedStep.structure,
-          );
-
-          let addedEmptyOffset = 0;
-          const travelContent = (content: Fragment, parentOffset: number) => {
-            content.forEach((node, offset) => {
-              const start = parentOffset + offset;
-              const end = start + node.nodeSize;
+          // Filter insertion-marked leaf nodes from slice before re-adding,
+          // avoids "Inconsistent open depths" from post-insert deletions
+          let removedSize = 0;
+          const filterFragment = (frag: Fragment): Fragment => {
+            const kept: any[] = [];
+            frag.forEach((node) => {
               if (node.content && node.content.size) {
-                travelContent(node.content, start);
+                kept.push(node.copy(filterFragment(node.content)));
+              } else if (
+                node.marks.find((m) => m.type.name === MARK_INSERTION)
+              ) {
+                removedSize += node.nodeSize;
               } else {
-                if (node.marks.find((m) => m.type.name === MARK_INSERTION)) {
-                  skipSteps.push(
-                    new ReplaceStep(
-                      start - addedEmptyOffset,
-                      end - addedEmptyOffset,
-                      Slice.empty,
-                    ),
-                  );
-                  addedEmptyOffset += node.nodeSize;
-                  reAddOffset -= node.nodeSize;
-                }
+                kept.push(node);
               }
             });
+            return Fragment.from(kept);
           };
-          travelContent(invertedStep.slice.content, invertedStep.from);
-          reAddOffset += invertedStep.slice.size;
 
-          newChangeTr.step(reAddStep);
-          const { from } = reAddStep;
-          const to = from + reAddStep.slice.size;
-          newChangeTr.addMark(
-            from,
-            to,
-            newChangeTr.doc.type.schema.marks.deletion.create({
-              "data-op-user-id": thisExtension.options.dataOpUserId,
-              "data-op-user-nickname": thisExtension.options.dataOpUserNickname,
-              "data-op-date": getMinuteTime(),
-            }),
+          const filteredContent = filterFragment(
+            invertedStep.slice.content,
           );
-          skipSteps.forEach((s) => {
-            newChangeTr.step(s);
-          });
+          const filteredSlice = new Slice(
+            filteredContent,
+            invertedStep.slice.openStart,
+            invertedStep.slice.openEnd,
+          );
+
+          if (filteredSlice.size > 0) {
+            const reAddStep = new ReplaceStep(
+              invertedStep.from + reAddOffset,
+              invertedStep.from + reAddOffset,
+              filteredSlice,
+              // @ts-expect-error internal field
+              invertedStep.structure,
+            );
+            reAddOffset += filteredSlice.size;
+
+            newChangeTr.step(reAddStep);
+            const { from } = reAddStep;
+            const to = from + reAddStep.slice.size;
+            newChangeTr.addMark(
+              from,
+              to,
+              newChangeTr.doc.type.schema.marks.deletion.create({
+                "data-op-user-id": thisExtension.options.dataOpUserId,
+                "data-op-user-nickname":
+                  thisExtension.options.dataOpUserNickname,
+                "data-op-date": getMinuteTime(),
+              }),
+            );
+          }
         }
         const newState = editor.state.apply(newChangeTr);
         editor.view.updateState(newState);
       }
     });
 
-    const finalNewPos = trackChangeEnabled
+    const rawNewPos = trackChangeEnabled
       ? currentNewPos + posOffset
       : currentNewPos;
+    const finalNewPos = Math.min(
+      Math.max(0, rawNewPos),
+      editor.view.state.doc.content.size,
+    );
     if (trackChangeEnabled) {
       const trWithChange = editor.view.state.tr;
       trWithChange.setSelection(

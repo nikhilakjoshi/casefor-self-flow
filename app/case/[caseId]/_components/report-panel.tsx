@@ -12,7 +12,7 @@ import { ConsolidationTab } from "./consolidation-tab"
 import { LettersPanel } from "./letters-panel"
 import { DenialProbabilityPanel } from "./denial-probability-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
-import { CRITERIA_METADATA } from "@/lib/eb1a-extraction-schema"
+import { CRITERIA_METADATA, resolveCanonicalId } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
 import type { GapAnalysis } from "@/lib/gap-analysis-schema"
 import type { CaseStrategy } from "@/lib/case-strategy-schema"
@@ -155,6 +155,10 @@ const CRITERION_TO_EVAL_KEY: Record<string, string> = {
   C1: "C1_awards", C2: "C2_membership", C3: "C3_press",
   C4: "C4_judging", C5: "C5_contributions", C6: "C6_publications",
   C7: "C7_exhibitions", C8: "C8_leading_role", C9: "C9_salary", C10: "C10_commercial",
+  // Legacy criterion IDs
+  awards: "C1_awards", membership: "C2_membership", published_material: "C3_press",
+  judging: "C4_judging", original_contributions: "C5_contributions", scholarly_articles: "C6_publications",
+  exhibitions: "C7_exhibitions", leading_role: "C8_leading_role", high_salary: "C9_salary", commercial_success: "C10_commercial",
 }
 
 function getTierColor(tier: number) {
@@ -288,23 +292,11 @@ function TierEvidenceGuide({ criterionId, strengthEval }: { criterionId: string;
 
   return (
     <div className="space-y-2">
-      {/* Current tier + score header */}
+      {/* Current tier badge */}
       {strengthEval && tierColor && (
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center">
           <span className={cn("px-2 py-0.5 rounded text-[11px] font-bold", tierColor.badge)}>
             T{currentTier} {tierLabel}
-          </span>
-          <span className="text-[11px] text-muted-foreground">
-            Score: {strengthEval.score.toFixed(1)}/10
-          </span>
-          <span className="text-[11px] text-muted-foreground">|</span>
-          <span className={cn(
-            "text-[11px] font-medium",
-            strengthEval.rfe_risk === "LOW" ? "text-emerald-600 dark:text-emerald-400" :
-            strengthEval.rfe_risk === "MODERATE" ? "text-amber-600 dark:text-amber-400" :
-            "text-red-600 dark:text-red-400"
-          )}>
-            RFE Risk: {strengthEval.rfe_risk}
           </span>
         </div>
       )}
@@ -372,6 +364,7 @@ function CriterionSection({
   onNavigateToRouting,
   onCriterionUpdated,
   onFileDropped,
+  onRefetchStrengthEval,
 }: {
   criterion: CriterionResult
   criteriaNames?: Record<string, string>
@@ -384,6 +377,7 @@ function CriterionSection({
   onNavigateToRouting: () => void
   onCriterionUpdated: (criterionId: string, result: { strength: Strength; reason: string; evidence: string[] }) => void
   onFileDropped?: () => void
+  onRefetchStrengthEval?: () => void
 }) {
   const config = getStrengthConfig(criterion.strength)
   const [expanded, setExpanded] = useState(criterion.strength !== "None")
@@ -393,7 +387,8 @@ function CriterionSection({
   const [contextText, setContextText] = useState("")
   const [removing, setRemoving] = useState<string | null>(null)
 
-  const meta = CRITERIA_METADATA[criterion.criterionId as keyof typeof CRITERIA_METADATA]
+  const canonicalId = resolveCanonicalId(criterion.criterionId)
+  const meta = canonicalId ? CRITERIA_METADATA[canonicalId] : undefined
   const displayName = criteriaNames?.[criterion.criterionId] ?? meta?.name ?? criterion.criterionId
   const evidenceCount = criteriaSummary?.evidence_count ?? criterion.evidence?.length ?? 0
   const summary = criteriaSummary?.summary ?? criterion.reason
@@ -479,6 +474,38 @@ function CriterionSection({
     }
   }, [caseId, criterion.criterionId, evaluating, onCriterionUpdated, displayName, onFileDropped])
 
+  const handleEvaluate = useCallback(async () => {
+    if (evaluating) return
+    setEvaluating(true)
+    try {
+      const res = await fetch(`/api/case/${caseId}/criterion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ criterionId: criterion.criterionId, context: "" }),
+      })
+      if (!res.ok) throw new Error("Evaluation failed")
+      const data = await res.json()
+      onCriterionUpdated(criterion.criterionId, data)
+      // Fire strength evaluation in background, refetch when done
+      fetch(`/api/case/${caseId}/strength-evaluation`, { method: "POST" })
+        .then(async (r) => {
+          if (!r.ok || !r.body) return
+          // Consume the SSE stream so the server completes and saves to DB
+          const reader = r.body.getReader()
+          while (true) {
+            const { done } = await reader.read()
+            if (done) break
+          }
+          onRefetchStrengthEval?.()
+        })
+        .catch(() => {})
+    } catch (err) {
+      console.error("Criterion eval error:", err)
+    } finally {
+      setEvaluating(false)
+    }
+  }, [caseId, criterion.criterionId, evaluating, onCriterionUpdated, onRefetchStrengthEval])
+
   const handleContextSubmit = useCallback(async () => {
     if (!contextText.trim() || evaluating) return
     setEvaluating(true)
@@ -493,12 +520,24 @@ function CriterionSection({
       onCriterionUpdated(criterion.criterionId, data)
       setContextText("")
       setShowContext(false)
+      // Fire strength evaluation in background
+      fetch(`/api/case/${caseId}/strength-evaluation`, { method: "POST" })
+        .then(async (r) => {
+          if (!r.ok || !r.body) return
+          const reader = r.body.getReader()
+          while (true) {
+            const { done } = await reader.read()
+            if (done) break
+          }
+          onRefetchStrengthEval?.()
+        })
+        .catch(() => {})
     } catch (err) {
       console.error("Criterion context eval error:", err)
     } finally {
       setEvaluating(false)
     }
-  }, [caseId, criterion.criterionId, contextText, evaluating, onCriterionUpdated])
+  }, [caseId, criterion.criterionId, contextText, evaluating, onCriterionUpdated, onRefetchStrengthEval])
 
   const handleRemoveEvidence = useCallback(async (
     index: number,
@@ -564,52 +603,75 @@ function CriterionSection({
       )}
 
       {/* Header */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className={cn("w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5", config.headerBg)}
-      >
-        <span className={cn("flex items-center justify-center w-6 h-6 rounded-full shrink-0", config.badge)}>
-          {config.icon}
-        </span>
-        <div className="flex-1 min-w-0">
-          <span className="text-sm font-semibold text-stone-800 dark:text-stone-200">{displayName}</span>
-          {meta?.description && (
-            <span className="ml-2 text-xs text-muted-foreground hidden sm:inline">{meta.description}</span>
-          )}
-        </div>
-        {evidenceCount > 0 && (
-          <span className="text-xs text-muted-foreground shrink-0">{evidenceCount} items</span>
-        )}
-        {docCount > 0 ? (
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => { e.stopPropagation(); onNavigateToRouting() }}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onNavigateToRouting() } }}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 hover:bg-teal-200 dark:hover:bg-teal-900/60 transition-colors shrink-0 cursor-pointer"
-          >
-            <FileText className="w-3 h-3" />
-            {docCount} {docCount === 1 ? "doc" : "docs"}
-          </span>
-        ) : criterion.strength !== "None" ? (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
-            Mentioned
-          </span>
-        ) : null}
-        <svg
-          className={cn("w-4 h-4 text-muted-foreground shrink-0 transition-transform", expanded && "rotate-180")}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
+      <div className={cn("flex items-center gap-2.5 px-3 py-2.5 transition-colors", config.headerBg)}>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex-1 flex items-center gap-2.5 text-left min-w-0 hover:opacity-80 transition-opacity"
         >
-          <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
+          <span className={cn("flex items-center justify-center w-6 h-6 rounded-full shrink-0", config.badge)}>
+            {config.icon}
+          </span>
+          <div className="flex-1 min-w-0">
+            {canonicalId && <span className="text-[11px] font-mono font-medium text-muted-foreground mr-1">{canonicalId}</span>}
+            <span className="text-sm font-semibold text-stone-800 dark:text-stone-200">{displayName}</span>
+            {meta?.description && (
+              <span className="ml-2 text-xs text-muted-foreground hidden sm:inline">{meta.description}</span>
+            )}
+          </div>
+          {evidenceCount > 0 && (
+            <span className="text-xs text-muted-foreground shrink-0">{evidenceCount} items</span>
+          )}
+          {docCount > 0 ? (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => { e.stopPropagation(); onNavigateToRouting() }}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onNavigateToRouting() } }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 hover:bg-teal-200 dark:hover:bg-teal-900/60 transition-colors shrink-0 cursor-pointer"
+            >
+              <FileText className="w-3 h-3" />
+              {docCount} {docCount === 1 ? "doc" : "docs"}
+            </span>
+          ) : criterion.strength !== "None" ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
+              Mentioned
+            </span>
+          ) : null}
+          <svg
+            className={cn("w-4 h-4 text-muted-foreground shrink-0 transition-transform", expanded && "rotate-180")}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleEvaluate() }}
+          disabled={evaluating}
+          className={cn(
+            "shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all disabled:opacity-40",
+            criterion.strength === "None"
+              ? "bg-stone-800 text-white hover:bg-stone-700 dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-stone-300"
+              : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 border border-border"
+          )}
+        >
+          {evaluating ? "Evaluating..." : criterion.strength === "None" ? "Evaluate" : "Re-evaluate"}
+        </button>
+      </div>
 
       {/* Expanded content */}
       {expanded && (
         <div className="px-3 pb-3 pt-1 space-y-3">
+          {/* USCIS definition */}
+          {meta?.uscis && (
+            <div className="flex items-start gap-2 pl-2 border-l-2 border-slate-300 dark:border-slate-600">
+              <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-px select-none">USCIS</span>
+              <p className="text-[11px] italic leading-relaxed text-slate-500 dark:text-slate-400">{meta.uscis}</p>
+            </div>
+          )}
+
           {/* Tier evidence guide */}
           <TierEvidenceGuide criterionId={criterion.criterionId} strengthEval={strengthEval} />
 
@@ -726,10 +788,10 @@ function CriterionSection({
 
           {/* Nothing state */}
           {criterion.strength === "None" && !summary && keyEvidence.length === 0 && extractionGroups.length === 0 && (
-            <p className="text-xs text-muted-foreground italic">No evidence found for this criterion.</p>
+            <p className="text-xs text-muted-foreground italic">Not yet evaluated</p>
           )}
 
-          {/* Add context toggle */}
+          {/* Context input */}
           {!showContext ? (
             <button
               onClick={() => setShowContext(true)}
@@ -797,6 +859,7 @@ export function ReportPanel({
     : 'summary'
 
   const [analysis, setAnalysis] = useState<Analysis | null>(initialAnalysis ?? null)
+  const [strengthEval, setStrengthEval] = useState<StrengthEvaluation | null>(initialStrengthEvaluation ?? null)
   const [activeTab, setActiveTab] = useState<ReportTab>(initialSubTab)
   const [isLoading, setIsLoading] = useState(!initialAnalysis)
 
@@ -901,6 +964,16 @@ export function ReportPanel({
     [onStrongCountChange]
   )
 
+  const refetchStrengthEval = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/case/${caseId}/strength-evaluation`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data) setStrengthEval(data)
+      }
+    } catch {}
+  }, [caseId])
+
   if (!analysis) {
     return (
       <div className="h-full flex items-center justify-center p-4">
@@ -941,7 +1014,6 @@ export function ReportPanel({
     }
   }
 
-  const hasExtraction = !!analysis.extraction
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -969,7 +1041,7 @@ export function ReportPanel({
         </div>
 
         {/* Tabs */}
-        {hasExtraction && (
+        {(
           <TooltipProvider delayDuration={300}>
           <div className="flex items-end gap-3 mt-3">
             {/* Phase 1 group */}
@@ -1132,12 +1204,15 @@ export function ReportPanel({
         <CriteriaTab
           caseId={caseId}
           criteriaContent={
-            analysis.criteria.map((c) => {
+            [...analysis.criteria].sort((a, b) => {
+              const order: Record<string, number> = { Strong: 0, Weak: 1, None: 2 }
+              return (order[a.strength] ?? 2) - (order[b.strength] ?? 2)
+            }).map((c) => {
               const cs = analysis.criteria_summary?.find(
                 (s) => s.criterion_id === c.criterionId
               )
               const evalKey = CRITERION_TO_EVAL_KEY[c.criterionId] as keyof StrengthEvaluation["criteria_evaluations"] | undefined
-              const evalData = evalKey && initialStrengthEvaluation?.criteria_evaluations?.[evalKey]
+              const evalData = evalKey && strengthEval?.criteria_evaluations?.[evalKey]
               const se = evalData ? {
                 tier: evalData.tier,
                 score: evalData.score,
@@ -1159,6 +1234,7 @@ export function ReportPanel({
                   onNavigateToRouting={() => handleSubTabChange("routing")}
                   onCriterionUpdated={handleCriterionUpdated}
                   onFileDropped={refetchDocCounts}
+                  onRefetchStrengthEval={refetchStrengthEval}
                 />
               )
             })
@@ -1169,7 +1245,8 @@ export function ReportPanel({
           caseId={caseId}
           initialGapAnalysis={initialGapAnalysis}
           initialCaseStrategy={initialCaseStrategy}
-          initialStrengthEvaluation={initialStrengthEvaluation}
+          initialStrengthEvaluation={strengthEval}
+          onStrengthEvalComplete={refetchStrengthEval}
         />
       ) : activeTab === "evidence" ? (
         <EvidenceListPanel
@@ -1200,7 +1277,7 @@ export function ReportPanel({
         <DenialProbabilityPanel
           caseId={caseId}
           initialData={initialDenialProbability}
-          hasStrengthEval={!!initialStrengthEvaluation}
+          hasStrengthEval={!!strengthEval}
           hasGapAnalysis={!!initialGapAnalysis}
         />
       ) : (
