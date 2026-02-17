@@ -1358,6 +1358,11 @@ export function ReportPanel({
       {activeTab === "summary" ? (
         <CriteriaTab
           caseId={caseId}
+          onNavigateToEvidence={() => handleSubTabChange("evidence")}
+          strengthEval={strengthEval}
+          criteriaNames={analysis.criteriaNames}
+          gapAnalysis={initialGapAnalysis}
+          extraction={analysis.extraction}
           criteriaContent={
             [...analysis.criteria].sort((a, b) => {
               const order: Record<string, number> = { Strong: 0, Weak: 1, None: 2 }
