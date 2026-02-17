@@ -381,7 +381,7 @@ export function RecommenderForm({
   )
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col max-h-[85vh]">
+    <form onSubmit={handleSubmit} className="flex flex-col h-full">
       {/* Header */}
       <div className="shrink-0 px-4 py-3 flex items-center justify-between border-b border-border">
         <h3 className="text-sm font-semibold">

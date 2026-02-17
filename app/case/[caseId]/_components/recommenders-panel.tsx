@@ -29,7 +29,13 @@ import {
   Mail,
   Building2,
   Loader2,
+  Upload,
+  Check,
+  X,
+  Plus,
+  ArrowRight,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { RecommenderForm, RecommenderData } from './recommender-form'
 
 interface RecommenderItem {
@@ -47,7 +53,28 @@ interface RecommendersPanelProps {
   caseId: string
 }
 
-// Map relationship type to display label
+const SIMPLE_FIELDS = ['name', 'title', 'organization', 'email', 'phone', 'linkedIn', 'countryRegion'] as const
+const RICH_FIELDS = ['bio', 'credentials'] as const
+
+const FIELD_LABELS: Record<string, string> = {
+  name: 'Name',
+  title: 'Title',
+  organization: 'Organization',
+  email: 'Email',
+  phone: 'Phone',
+  linkedIn: 'LinkedIn',
+  countryRegion: 'Region',
+  bio: 'Bio',
+  credentials: 'Credentials',
+}
+
+interface PendingEnrichment {
+  recommenderId: string
+  recName: string
+  merged: Record<string, string>
+  fieldTypes: Record<string, 'new' | 'append'>
+}
+
 const RELATIONSHIP_LABELS: Record<string, string> = {
   ACADEMIC_ADVISOR: 'Academic Advisor',
   RESEARCH_COLLABORATOR: 'Research Collaborator',
@@ -59,7 +86,6 @@ const RELATIONSHIP_LABELS: Record<string, string> = {
   OTHER: 'Other',
 }
 
-// Get initials from name
 function getInitials(name: string): string {
   return name
     .split(' ')
@@ -69,7 +95,6 @@ function getInitials(name: string): string {
     .toUpperCase()
 }
 
-// Relationship type badge color
 function getRelationshipColor(type: string): string {
   const colors: Record<string, string> = {
     ACADEMIC_ADVISOR: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
@@ -91,6 +116,10 @@ export function RecommendersPanel({ caseId }: RecommendersPanelProps) {
   const [editingRecommender, setEditingRecommender] = useState<RecommenderData | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<RecommenderItem | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [enrichingId, setEnrichingId] = useState<string | null>(null)
+  const [pendingEnrichment, setPendingEnrichment] = useState<PendingEnrichment | null>(null)
+  const [isSavingEnrichment, setIsSavingEnrichment] = useState(false)
   const didFetchRef = useRef(false)
 
   const fetchRecommenders = useCallback(async () => {
@@ -116,7 +145,6 @@ export function RecommendersPanel({ caseId }: RecommendersPanelProps) {
   const handleSave = useCallback(
     (saved: RecommenderData) => {
       if (editingRecommender) {
-        // Update existing
         setRecommenders((prev) =>
           prev.map((r) =>
             r.id === saved.id
@@ -125,7 +153,6 @@ export function RecommendersPanel({ caseId }: RecommendersPanelProps) {
           )
         )
       } else {
-        // Add new - refetch to get _count
         fetchRecommenders()
       }
       setShowForm(false)
@@ -135,7 +162,6 @@ export function RecommendersPanel({ caseId }: RecommendersPanelProps) {
   )
 
   const handleEdit = useCallback(async (recommender: RecommenderItem) => {
-    // Fetch full recommender data
     try {
       const res = await fetch(`/api/case/${caseId}/recommenders/${recommender.id}`)
       if (res.ok) {
@@ -167,22 +193,116 @@ export function RecommendersPanel({ caseId }: RecommendersPanelProps) {
     }
   }, [caseId, deleteTarget])
 
-  // Show form
+  const handleFileDrop = useCallback(async (recommenderId: string, files: File[]) => {
+    setEnrichingId(recommenderId)
+    const allMerged: Record<string, string> = {}
+    const allFieldTypes: Record<string, 'new' | 'append'> = {}
+    let recName = ''
+
+    try {
+      for (const file of files) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const extractRes = await fetch(`/api/case/${caseId}/recommenders/extract`, {
+          method: 'POST',
+          body: formData,
+        })
+        if (!extractRes.ok) {
+          const err = await extractRes.json()
+          toast.error(`Extract failed: ${err.error || file.name}`)
+          continue
+        }
+        const { extracted } = await extractRes.json()
+
+        const currentRes = await fetch(`/api/case/${caseId}/recommenders/${recommenderId}`)
+        if (!currentRes.ok) break
+        const current = await currentRes.json()
+        recName = current.name
+
+        for (const field of SIMPLE_FIELDS) {
+          if (!current[field] && extracted[field]) {
+            allMerged[field] = extracted[field]
+            allFieldTypes[field] = 'new'
+          }
+        }
+        for (const field of RICH_FIELDS) {
+          if (extracted[field]) {
+            if (current[field]) {
+              allMerged[field] = current[field] + '\n\n' + extracted[field]
+              allFieldTypes[field] = 'append'
+            } else {
+              allMerged[field] = extracted[field]
+              allFieldTypes[field] = 'new'
+            }
+          }
+        }
+      }
+
+      if (Object.keys(allMerged).length > 0) {
+        setPendingEnrichment({
+          recommenderId,
+          recName,
+          merged: allMerged,
+          fieldTypes: allFieldTypes,
+        })
+      } else {
+        toast('No new fields found to update')
+      }
+    } catch (err) {
+      console.error('Enrichment failed:', err)
+      toast.error('Extraction failed')
+    } finally {
+      setEnrichingId(null)
+    }
+  }, [caseId])
+
+  const confirmEnrichment = useCallback(async () => {
+    if (!pendingEnrichment) return
+    setIsSavingEnrichment(true)
+    try {
+      const res = await fetch(
+        `/api/case/${caseId}/recommenders/${pendingEnrichment.recommenderId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pendingEnrichment.merged),
+        }
+      )
+      if (res.ok) {
+        const count = Object.keys(pendingEnrichment.merged).length
+        toast.success(`Updated ${count} field${count !== 1 ? 's' : ''} for ${pendingEnrichment.recName}`)
+        await fetchRecommenders()
+      } else {
+        toast.error('Failed to save changes')
+      }
+    } catch {
+      toast.error('Failed to save changes')
+    } finally {
+      setIsSavingEnrichment(false)
+      setPendingEnrichment(null)
+    }
+  }, [caseId, pendingEnrichment, fetchRecommenders])
+
+  const dismissEnrichment = useCallback(() => {
+    setPendingEnrichment(null)
+  }, [])
+
   if (showForm) {
     return (
-      <RecommenderForm
-        caseId={caseId}
-        recommender={editingRecommender ?? undefined}
-        onSave={handleSave}
-        onCancel={() => {
-          setShowForm(false)
-          setEditingRecommender(null)
-        }}
-      />
+      <div className="h-full overflow-hidden">
+        <RecommenderForm
+          caseId={caseId}
+          recommender={editingRecommender ?? undefined}
+          onSave={handleSave}
+          onCancel={() => {
+            setShowForm(false)
+            setEditingRecommender(null)
+          }}
+        />
+      </div>
     )
   }
 
-  // List view
   return (
     <>
       <div className="h-full flex flex-col p-4 overflow-hidden">
@@ -241,91 +361,242 @@ export function RecommendersPanel({ caseId }: RecommendersPanelProps) {
             </div>
           ) : (
             <div className="space-y-2">
-              {recommenders.map((rec) => (
-                <div
-                  key={rec.id}
-                  className="group rounded-xl border border-border/50 bg-card/50 hover:bg-card hover:border-border transition-all duration-200 p-3"
-                >
-                  <div className="flex items-start gap-3">
-                    {/* Avatar */}
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shrink-0">
-                      <span className="text-sm font-semibold text-primary">
-                        {getInitials(rec.name)}
-                      </span>
+              {recommenders.map((rec) => {
+                const isPending = pendingEnrichment?.recommenderId === rec.id
+                const isEnriching = enrichingId === rec.id
+                const isDragOver = dragOverId === rec.id
+
+                return (
+                  <div
+                    key={rec.id}
+                    className={cn(
+                      'group relative rounded-xl border overflow-hidden transition-all duration-200',
+                      isDragOver
+                        ? 'border-primary ring-2 ring-primary/20 bg-primary/[0.03]'
+                        : isPending
+                          ? 'border-primary/40 bg-card'
+                          : 'border-border/50 bg-card/50 hover:bg-card hover:border-border'
+                    )}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      if (!isEnriching && !isPending) setDragOverId(rec.id)
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        setDragOverId(null)
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setDragOverId(null)
+                      const files = Array.from(e.dataTransfer.files)
+                      if (files.length > 0 && !enrichingId && !isPending) {
+                        handleFileDrop(rec.id, files)
+                      }
+                    }}
+                  >
+                    {/* Drag overlay */}
+                    {isDragOver && !isEnriching && (
+                      <div className="absolute inset-0 z-10 bg-primary/10 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/15 border border-primary/25">
+                          <Upload className="w-3.5 h-3.5 text-primary" />
+                          <span className="text-xs font-medium text-primary">Drop to enrich profile</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Extracting overlay */}
+                    {isEnriching && (
+                      <div className="absolute inset-0 z-10 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          <span className="text-xs text-muted-foreground">Extracting...</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Card content */}
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        {/* Avatar */}
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shrink-0">
+                          <span className="text-sm font-semibold text-primary">
+                            {getInitials(rec.name)}
+                          </span>
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium truncate">{rec.name}</p>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[9px] font-medium px-1.5 py-0 h-4',
+                                getRelationshipColor(rec.relationshipType)
+                              )}
+                            >
+                              {RELATIONSHIP_LABELS[rec.relationshipType] || rec.relationshipType}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {rec.title}
+                          </p>
+                          <div className="flex items-center gap-3 mt-1.5">
+                            {rec.organization && (
+                              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                <Building2 className="w-3 h-3" />
+                                {rec.organization}
+                              </span>
+                            )}
+                            {rec.email && (
+                              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                <Mail className="w-3 h-3" />
+                                {rec.email}
+                              </span>
+                            )}
+                            {rec._count && rec._count.documents > 0 && (
+                              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                <FileText className="w-3 h-3" />
+                                {rec._count.documents} letter{rec._count.documents !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        {!isPending && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem
+                                onClick={() => handleEdit(rec)}
+                                className="gap-2"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onClick={() => setDeleteTarget(rec)}
+                                className="gap-2"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium truncate">{rec.name}</p>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'text-[9px] font-medium px-1.5 py-0 h-4',
-                            getRelationshipColor(rec.relationshipType)
-                          )}
-                        >
-                          {RELATIONSHIP_LABELS[rec.relationshipType] || rec.relationshipType}
-                        </Badge>
+                    {/* Drop hint */}
+                    {!isPending && !isEnriching && (
+                      <div className="px-3 pb-2 -mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-[10px] text-muted-foreground/50 flex items-center gap-1">
+                          <Upload className="w-2.5 h-2.5" />
+                          Drop CV or bio to enrich profile
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {rec.title}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        {rec.organization && (
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <Building2 className="w-3 h-3" />
-                            {rec.organization}
-                          </span>
-                        )}
-                        {rec.email && (
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <Mail className="w-3 h-3" />
-                            {rec.email}
-                          </span>
-                        )}
-                        {rec._count && rec._count.documents > 0 && (
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <FileText className="w-3 h-3" />
-                            {rec._count.documents} letter{rec._count.documents !== 1 ? 's' : ''}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                    )}
 
-                    {/* Actions */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem
-                          onClick={() => handleEdit(rec)}
-                          className="gap-2"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setDeleteTarget(rec)}
-                          className="gap-2"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {/* Enrichment preview */}
+                    {isPending && pendingEnrichment && (
+                      <div className="border-t border-primary/20">
+                        {/* Field list */}
+                        <div className="px-3 py-2 space-y-1.5">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-2">
+                            Extracted fields
+                          </p>
+                          {Object.entries(pendingEnrichment.merged).map(([field, value]) => {
+                            const isAppend = pendingEnrichment.fieldTypes[field] === 'append'
+                            return (
+                              <div
+                                key={field}
+                                className={cn(
+                                  'rounded-md px-2.5 py-1.5 text-[11px] border',
+                                  isAppend
+                                    ? 'bg-amber-500/[0.06] border-amber-500/15 dark:bg-amber-500/[0.08]'
+                                    : 'bg-emerald-500/[0.06] border-emerald-500/15 dark:bg-emerald-500/[0.08]'
+                                )}
+                              >
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  {isAppend ? (
+                                    <ArrowRight className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                                  ) : (
+                                    <Plus className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                  )}
+                                  <span className={cn(
+                                    'font-semibold',
+                                    isAppend
+                                      ? 'text-amber-700 dark:text-amber-300'
+                                      : 'text-emerald-700 dark:text-emerald-300'
+                                  )}>
+                                    {FIELD_LABELS[field] || field}
+                                  </span>
+                                  <span className={cn(
+                                    'ml-auto text-[10px]',
+                                    isAppend
+                                      ? 'text-amber-600/60 dark:text-amber-400/60'
+                                      : 'text-emerald-600/60 dark:text-emerald-400/60'
+                                  )}>
+                                    {isAppend ? 'append' : 'new'}
+                                  </span>
+                                </div>
+                                <p className="text-foreground/70 leading-relaxed line-clamp-2 pl-[18px]">
+                                  {isAppend
+                                    ? value.split('\n\n').slice(-1)[0]
+                                    : value}
+                                </p>
+                              </div>
+                            )
+                          })}
+                        </div>
+
+                        {/* Action bar */}
+                        <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/30 border-t border-border/50">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            className="flex-1 text-muted-foreground"
+                            onClick={dismissEnrichment}
+                            disabled={isSavingEnrichment}
+                          >
+                            <X className="w-3 h-3" />
+                            Discard
+                          </Button>
+                          <Button
+                            size="xs"
+                            className="flex-1"
+                            onClick={confirmEnrichment}
+                            disabled={isSavingEnrichment}
+                          >
+                            {isSavingEnrichment ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Check className="w-3 h-3" />
+                            )}
+                            {isSavingEnrichment ? 'Saving...' : 'Apply'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </ScrollArea>
