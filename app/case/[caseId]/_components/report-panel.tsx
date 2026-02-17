@@ -48,11 +48,18 @@ import {
 
 type Strength = "Strong" | "Weak" | "None"
 
+interface WebSearchResult {
+  query: string
+  answer?: string
+  results: { title: string; url: string; content: string; score: number }[]
+}
+
 interface CriterionResult {
   criterionId: string
   strength: Strength
   reason: string
   evidence: string[]
+  webSearches?: WebSearchResult[]
 }
 
 interface Analysis {
@@ -90,9 +97,9 @@ function getStrengthConfig(strength: Strength) {
   switch (strength) {
     case "Strong":
       return {
-        bg: "bg-emerald-500/5",
+        bg: "bg-emerald-50 dark:bg-emerald-950",
         border: "border-l-emerald-500",
-        headerBg: "bg-emerald-500/10",
+        headerBg: "bg-emerald-100 dark:bg-emerald-900",
         badge: "bg-emerald-600 text-white",
         icon: (
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -102,9 +109,9 @@ function getStrengthConfig(strength: Strength) {
       }
     case "Weak":
       return {
-        bg: "bg-amber-500/5",
+        bg: "bg-amber-50 dark:bg-amber-950",
         border: "border-l-amber-500",
-        headerBg: "bg-amber-500/10",
+        headerBg: "bg-amber-100 dark:bg-amber-900",
         badge: "bg-amber-500 text-white",
         icon: (
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -114,9 +121,9 @@ function getStrengthConfig(strength: Strength) {
       }
     default:
       return {
-        bg: "bg-muted/30",
+        bg: "bg-stone-50 dark:bg-stone-900",
         border: "border-l-muted-foreground/30",
-        headerBg: "bg-muted/50",
+        headerBg: "bg-stone-100 dark:bg-stone-800",
         badge: "bg-muted-foreground/70 text-background",
         icon: (
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -377,7 +384,7 @@ function CriterionSection({
   docCountsByItem?: Record<string, number>
   strengthEval?: CriterionEvalData
   onNavigateToRouting: () => void
-  onCriterionUpdated: (criterionId: string, result: { strength: Strength; reason: string; evidence: string[] }) => void
+  onCriterionUpdated: (criterionId: string, result: { strength: Strength; reason: string; evidence: string[]; webSearches?: WebSearchResult[] }) => void
   onFileDropped?: () => void
   onRefetchStrengthEval?: () => void
 }) {
@@ -582,7 +589,7 @@ function CriterionSection({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={cn(
-        "rounded-lg border border-l-4 overflow-hidden transition-all relative",
+        "rounded-lg border border-l-4 transition-all relative",
         config.border, config.bg,
         dragOver ? "border-primary ring-2 ring-primary/30" : "border-border",
       )}
@@ -605,7 +612,7 @@ function CriterionSection({
       )}
 
       {/* Header */}
-      <div className={cn("flex items-center gap-2.5 px-3 py-2.5 transition-colors", config.headerBg)}>
+      <div className={cn("flex items-center gap-2.5 px-3 py-2.5 transition-colors sticky top-[41px] z-[5] rounded-t-[7px]", config.headerBg)}>
         <button
           onClick={() => setExpanded(!expanded)}
           className="flex-1 flex items-center gap-2.5 text-left min-w-0 hover:opacity-80 transition-opacity"
@@ -706,6 +713,38 @@ function CriterionSection({
               ))}
             </div>
           )}
+
+          {/* Web verification searches (C6) */}
+          {criterion.webSearches?.length ? (
+            <details className="group">
+              <summary className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors cursor-pointer list-none">
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" strokeLinecap="round" />
+                </svg>
+                Web Verification ({criterion.webSearches.length} {criterion.webSearches.length === 1 ? "search" : "searches"})
+                <svg className="w-3 h-3 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </summary>
+              <div className="mt-2 space-y-3">
+                {criterion.webSearches.map((search, si) => (
+                  <div key={si} className="space-y-1">
+                    <p className="text-[10px] text-muted-foreground">&ldquo;{search.query}&rdquo;</p>
+                    {search.answer && (
+                      <p className="text-xs text-foreground/70 italic pl-2.5 border-l-2 border-blue-300">{search.answer}</p>
+                    )}
+                    {search.results.map((r, ri) => (
+                      <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer"
+                         className="block pl-2.5 border-l-2 border-stone-200 hover:border-stone-400 transition-colors">
+                        <span className="text-xs font-medium text-blue-600 hover:underline">{r.title}</span>
+                        <p className="text-[10px] text-muted-foreground line-clamp-2">{r.content}</p>
+                      </a>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
 
           {/* Legacy evidence strings (no extraction) */}
           {!criteriaSummary && criterion.evidence?.length > 0 && (
@@ -947,7 +986,7 @@ export function ReportPanel({
   }, [caseId])
 
   const handleCriterionUpdated = useCallback(
-    (criterionId: string, result: { strength: Strength; reason: string; evidence: string[] }) => {
+    (criterionId: string, result: { strength: Strength; reason: string; evidence: string[]; webSearches?: WebSearchResult[] }) => {
       setAnalysis((prev) => {
         if (!prev) return prev
         const updatedCriteria = prev.criteria.map((c) =>

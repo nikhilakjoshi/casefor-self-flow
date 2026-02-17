@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { anthropic } from "@ai-sdk/anthropic"
-import { generateText, Output } from "ai"
+import { generateText, Output, stepCountIs } from "ai"
+import { tavilySearch } from "@tavily/ai-sdk"
 import { z } from "zod"
 import { parseFile } from "@/lib/file-parser"
 import { extractPdfText } from "@/lib/pdf-extractor"
@@ -10,8 +11,77 @@ import { upsertChunks } from "@/lib/pinecone"
 import { isS3Configured, uploadToS3, buildDocumentKey } from "@/lib/s3"
 import { CRITERIA_METADATA, type CriterionId, resolveCanonicalId } from "@/lib/eb1a-extraction-schema"
 import { runSingleCriterionVerification } from "@/lib/evidence-verification"
+import { getPrompt, resolveModel } from "@/lib/agent-prompt"
 
 const MODEL = "claude-sonnet-4-20250514"
+
+const ANALYSIS_SLUGS: Record<string, string> = {
+  C1: "ax-c1-awards",
+  C2: "ax-c2-memberships",
+  C3: "ax-c3-published-material",
+  C4: "ax-c4-judging",
+  C5: "ax-c5-contributions",
+  C6: "ax-c6-scholarly-articles",
+  C7: "ax-c7-exhibitions",
+  C8: "ax-c8-leading-role",
+  C9: "ax-c9-high-salary",
+  C10: "ax-c10-commercial-success",
+}
+
+const FALLBACK_PROMPT = (criterionId: string, meta: { name: string; description: string }) =>
+  `You are an EB-1A immigration expert. Evaluate the provided information ONLY for the following criterion. Do not use emojis.
+
+CRITERION ${criterionId}: ${meta.name}
+${meta.description}
+
+EVALUATION GUIDELINES:
+- Strong: Clear, compelling evidence that meets USCIS standards for this criterion
+- Weak: Some evidence but needs strengthening or more documentation
+- None: No relevant evidence found for this criterion
+
+Provide:
+1. strength: Your assessment (Strong/Weak/None)
+2. reason: A concise explanation (2-3 sentences)
+3. evidence: Array of specific quotes or facts that support your assessment (empty if None)
+
+Be thorough but realistic. Focus ONLY on evidence relevant to this specific criterion.`
+
+async function getCriterionPrompt(canonicalId: string, meta: { name: string; description: string }) {
+  const slug = ANALYSIS_SLUGS[canonicalId]
+  const dbPrompt = slug ? await getPrompt(slug) : null
+
+  if (dbPrompt) {
+    return {
+      system: dbPrompt.content,
+      model: resolveModel(dbPrompt.provider, dbPrompt.modelName),
+    }
+  }
+
+  return {
+    system: FALLBACK_PROMPT(canonicalId, meta),
+    model: anthropic(MODEL),
+  }
+}
+
+function getC6Tools() {
+  if (!process.env.TAVILY_API_KEY) return undefined
+  return {
+    tavilySearch: tavilySearch({
+      maxResults: 5,
+      searchDepth: "advanced",
+      topic: "general",
+      includeAnswer: true,
+      includeDomains: [
+        "scholar.google.com",
+        "semanticscholar.org",
+        "pubmed.ncbi.nlm.nih.gov",
+        "researchgate.net",
+        "arxiv.org",
+        "doi.org",
+      ],
+    }),
+  }
+}
 
 const CriterionEvaluationSchema = z.object({
   strength: z.enum(["Strong", "Weak", "None"]),
@@ -162,32 +232,51 @@ export async function POST(
       contextParts.push("No evidence or context available. Evaluate as None.")
     }
 
-    const systemPrompt = `You are an EB-1A immigration expert. Evaluate the provided information ONLY for the following criterion. Do not use emojis.
+    const { system: baseSystem, model } = await getCriterionPrompt(canonicalId, meta)
+    let systemPrompt = baseSystem + `\n\nIf the user indicates evidence is incorrect or irrelevant, exclude it from your evaluation.\nWhen evidence has been removed, re-evaluate strength based on remaining evidence only.`
 
-CRITERION ${criterionId}: ${meta.name}
-${meta.description}
+    const c6Tools = canonicalId === "C6" ? getC6Tools() : undefined
+    if (c6Tools) {
+      systemPrompt += `\n\nVERIFICATION: You have a tavilySearch tool. Use it to:
+1. Search each significant publication by title to verify existence and citation count
+2. Search applicant name + "scholar" to verify h-index/total citations if claimed
+3. Verify journal/venue tier claims
+Note unverifiable articles in your evidence. Do not fabricate verification results.`
+    }
 
-EVALUATION GUIDELINES:
-- Strong: Clear, compelling evidence that meets USCIS standards for this criterion
-- Weak: Some evidence but needs strengthening or more documentation
-- None: No relevant evidence found for this criterion
-
-Provide:
-1. strength: Your assessment (Strong/Weak/None)
-2. reason: A concise explanation (2-3 sentences)
-3. evidence: Array of specific quotes or facts that support your assessment (empty if None)
-
-If the user indicates evidence is incorrect or irrelevant, exclude it from your evaluation.
-When evidence has been removed, re-evaluate strength based on remaining evidence only.
-
-Be thorough but realistic. Focus ONLY on evidence relevant to this specific criterion.`
-
-    const { output } = await generateText({
-      model: anthropic(MODEL),
+    const { output, steps } = await generateText({
+      model,
       output: Output.object({ schema: CriterionEvaluationSchema }),
       system: systemPrompt,
       prompt: contextParts.join("\n\n---\n\n"),
+      ...(c6Tools && { tools: c6Tools, stopWhen: stepCountIs(5) }),
     })
+
+    let webSearches: { query: string; answer?: string; results: { title: string; url: string; content: string; score: number }[] }[] | undefined
+
+    if (c6Tools) {
+      const searches: typeof webSearches = []
+      for (const step of steps) {
+        for (const tc of step.toolCalls) {
+          const args = (tc as any).input ?? (tc as any).args ?? {}
+          const tr = step.toolResults.find((r: any) => r.toolCallId === tc.toolCallId)
+          const result = tr ? ((tr as any).output ?? (tr as any).result ?? null) : null
+          if (result?.results) {
+            searches.push({
+              query: (args.query as string) ?? "",
+              answer: result.answer,
+              results: result.results.map((r: any) => ({
+                title: r.title ?? "",
+                url: r.url ?? "",
+                content: (r.content ?? "").slice(0, 300),
+                score: r.score ?? 0,
+              })),
+            })
+          }
+        }
+      }
+      if (searches.length) webSearches = searches
+    }
 
     if (!output) {
       return new Response(JSON.stringify({ error: "Evaluation failed" }), {
@@ -208,7 +297,7 @@ Be thorough but realistic. Focus ONLY on evidence relevant to this specific crit
 
       const updatedCriteria = existingCriteria.map((c) =>
         c.criterionId === criterionId
-          ? { ...c, ...output, userContext: additionalContext || c.userContext || "" }
+          ? { ...c, ...output, userContext: additionalContext || c.userContext || "", ...(webSearches && { webSearches }) }
           : c
       )
 
@@ -296,6 +385,7 @@ Be thorough but realistic. Focus ONLY on evidence relevant to this specific crit
         criterionId,
         ...output,
         ...(verification && { verification }),
+        ...(webSearches && { webSearches }),
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     )
@@ -465,32 +555,51 @@ export async function DELETE(
 
     contextParts.push("NOTICE: Evidence was removed by the user. Re-evaluate based on remaining evidence only.")
 
-    const systemPrompt = `You are an EB-1A immigration expert. Evaluate the provided information ONLY for the following criterion. Do not use emojis.
+    const { system: baseSystem, model } = await getCriterionPrompt(canonicalDeleteId, meta)
+    let systemPrompt = baseSystem + `\n\nIf the user indicates evidence is incorrect or irrelevant, exclude it from your evaluation.\nWhen evidence has been removed, re-evaluate strength based on remaining evidence only.`
 
-CRITERION ${criterionId}: ${meta.name}
-${meta.description}
+    const c6Tools = canonicalDeleteId === "C6" ? getC6Tools() : undefined
+    if (c6Tools) {
+      systemPrompt += `\n\nVERIFICATION: You have a tavilySearch tool. Use it to:
+1. Search each significant publication by title to verify existence and citation count
+2. Search applicant name + "scholar" to verify h-index/total citations if claimed
+3. Verify journal/venue tier claims
+Note unverifiable articles in your evidence. Do not fabricate verification results.`
+    }
 
-EVALUATION GUIDELINES:
-- Strong: Clear, compelling evidence that meets USCIS standards for this criterion
-- Weak: Some evidence but needs strengthening or more documentation
-- None: No relevant evidence found for this criterion
-
-If the user indicates evidence is incorrect or irrelevant, exclude it from your evaluation.
-When evidence has been removed, re-evaluate strength based on remaining evidence only.
-
-Provide:
-1. strength: Your assessment (Strong/Weak/None)
-2. reason: A concise explanation (2-3 sentences)
-3. evidence: Array of specific quotes or facts that support your assessment (empty if None)
-
-Be thorough but realistic. Focus ONLY on evidence relevant to this specific criterion.`
-
-    const { output } = await generateText({
-      model: anthropic(MODEL),
+    const { output, steps } = await generateText({
+      model,
       output: Output.object({ schema: CriterionEvaluationSchema }),
       system: systemPrompt,
       prompt: contextParts.join("\n\n---\n\n"),
+      ...(c6Tools && { tools: c6Tools, stopWhen: stepCountIs(5) }),
     })
+
+    let webSearches: { query: string; answer?: string; results: { title: string; url: string; content: string; score: number }[] }[] | undefined
+
+    if (c6Tools) {
+      const searches: typeof webSearches = []
+      for (const step of steps) {
+        for (const tc of step.toolCalls) {
+          const args = (tc as any).input ?? (tc as any).args ?? {}
+          const tr = step.toolResults.find((r: any) => r.toolCallId === tc.toolCallId)
+          const result = tr ? ((tr as any).output ?? (tr as any).result ?? null) : null
+          if (result?.results) {
+            searches.push({
+              query: (args.query as string) ?? "",
+              answer: result.answer,
+              results: result.results.map((r: any) => ({
+                title: r.title ?? "",
+                url: r.url ?? "",
+                content: (r.content ?? "").slice(0, 300),
+                score: r.score ?? 0,
+              })),
+            })
+          }
+        }
+      }
+      if (searches.length) webSearches = searches
+    }
 
     if (!output) {
       return new Response(JSON.stringify({ error: "Re-evaluation failed" }), {
@@ -501,7 +610,7 @@ Be thorough but realistic. Focus ONLY on evidence relevant to this specific crit
 
     // Apply Claude's re-evaluation
     updatedCriteria = updatedCriteria.map((c) =>
-      c.criterionId === criterionId ? { ...c, ...output, userContext: c.userContext ?? "" } : c
+      c.criterionId === criterionId ? { ...c, ...output, userContext: c.userContext ?? "", ...(webSearches && { webSearches }) } : c
     )
 
     const strongCount = updatedCriteria.filter((c) => c.strength === "Strong").length
@@ -530,7 +639,7 @@ Be thorough but realistic. Focus ONLY on evidence relevant to this specific crit
     })
 
     return new Response(
-      JSON.stringify({ criterionId, ...output }),
+      JSON.stringify({ criterionId, ...output, ...(webSearches && { webSearches }) }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     )
   } catch (err) {
