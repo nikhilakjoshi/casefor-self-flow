@@ -22,6 +22,12 @@ import {
   Loader2,
   Plus,
   ChevronDown,
+  Upload,
+  Trash2,
+  Stamp,
+  BookOpen,
+  ClipboardCheck,
+  Plane,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -665,6 +671,156 @@ function EvidenceCriterionCard({
   )
 }
 
+// -- Immigration Documents --
+
+const IMMIGRATION_DOC_TYPES = [
+  { category: 'PASSPORT_ID', label: 'Passport', description: 'Valid passport bio page', group: 'identity', icon: FileText },
+  { category: 'I20', label: 'I-20', description: 'Certificate of Eligibility', group: 'identity', icon: BookOpen },
+  { category: 'VISA_STAMP', label: 'Visa Stamps', description: 'US visa stamps from passport', group: 'identity', icon: Stamp },
+  { category: 'I140', label: 'I-140', description: 'Immigrant Petition for Alien Workers', group: 'petition', icon: FileText },
+  { category: 'I797_APPROVAL', label: 'I-797 Approval', description: 'USCIS approval notice', group: 'petition', icon: ClipboardCheck },
+  { category: 'I94', label: 'I-94', description: 'Arrival/Departure record', group: 'petition', icon: Plane },
+] as const
+
+const IMMIGRATION_CATEGORIES = IMMIGRATION_DOC_TYPES.map(d => d.category)
+
+function ImmigrationDocCard({
+  docType,
+  docs,
+  caseId,
+  onUploaded,
+}: {
+  docType: typeof IMMIGRATION_DOC_TYPES[number]
+  docs: LetterDocItem[]
+  caseId: string
+  onUploaded: () => void
+}) {
+  const Icon = docType.icon
+  const [dragOver, setDragOver] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleUpload = async (file: File) => {
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('category', docType.category)
+      const res = await fetch(`/api/case/${caseId}/documents`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (res.ok) {
+        toast.success(`Uploaded ${file.name}`)
+        onUploaded()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Upload failed')
+      }
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleDelete = async (docId: string) => {
+    setDeleting(docId)
+    try {
+      const res = await fetch(`/api/case/${caseId}/documents/${docId}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Deleted')
+        onUploaded()
+      } else {
+        toast.error('Delete failed')
+      }
+    } catch {
+      toast.error('Delete failed')
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  return (
+    <div
+      className={cn(
+        'rounded-lg border border-border/50 bg-card/50 overflow-hidden transition-colors',
+        dragOver && 'border-primary/50 bg-primary/5'
+      )}
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setDragOver(false)
+        const file = e.dataTransfer.files[0]
+        if (file) handleUpload(file)
+      }}
+    >
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-muted/80">
+          <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="text-xs font-semibold">{docType.label}</h4>
+          <p className="text-[10px] text-muted-foreground truncate">{docType.description}</p>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {docs.length > 0 && (
+            <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+              {docs.length}
+            </span>
+          )}
+          <button
+            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium border border-border hover:bg-muted transition-colors disabled:opacity-50"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {uploading ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Upload className="w-3 h-3" />
+            )}
+            Upload
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.jpg,.jpeg,.png,.docx,.doc"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) handleUpload(file)
+              e.target.value = ''
+            }}
+          />
+        </div>
+      </div>
+      {docs.length > 0 && (
+        <div className="px-3 pb-2.5 space-y-1">
+          {docs.map((doc) => (
+            <div key={doc.id} className="flex items-center gap-2 px-2 py-1 rounded bg-muted/40 group">
+              <FileText className="w-3 h-3 text-muted-foreground shrink-0" />
+              <span className="text-[11px] text-foreground/80 truncate flex-1 min-w-0">{doc.name}</span>
+              <button
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-50"
+                disabled={deleting === doc.id}
+                onClick={() => handleDelete(doc.id)}
+              >
+                {deleting === doc.id ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3 h-3" />
+                )}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // -- Main panel --
 
 export function EvidenceListPanel({
@@ -686,9 +842,11 @@ export function EvidenceListPanel({
   const [showAddRecommender, setShowAddRecommender] = useState(false)
   const [showCsvImport, setShowCsvImport] = useState(false)
   const [recommendersOpen, setRecommendersOpen] = useState(true)
+  const [immigrationDocsOpen, setImmigrationDocsOpen] = useState(true)
   const [evidenceOpen, setEvidenceOpen] = useState(true)
   const [recommenders, setRecommenders] = useState<Recommender[]>([])
   const [recLetterDocs, setRecLetterDocs] = useState<LetterDocItem[]>([])
+  const [immigrationDocs, setImmigrationDocs] = useState<LetterDocItem[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const processSSE = useSSEProcessor()
 
@@ -718,6 +876,7 @@ export function EvidenceListPanel({
       if (docsRes.ok) {
         const docs: LetterDocItem[] = await docsRes.json()
         setRecLetterDocs(docs.filter((d) => d.category === "RECOMMENDATION_LETTER"))
+        setImmigrationDocs(docs.filter((d) => d.category && IMMIGRATION_CATEGORIES.includes(d.category as typeof IMMIGRATION_CATEGORIES[number])))
       }
     } catch (err) {
       console.error("Failed to load recommender data:", err)
@@ -883,6 +1042,59 @@ export function EvidenceListPanel({
                   />
                 )
               })()}
+            </div>
+          )}
+        </div>
+
+        {/* Immigration Documents section */}
+        <div className="border-b border-border">
+          <button
+            onClick={() => setImmigrationDocsOpen(!immigrationDocsOpen)}
+            className="sticky top-0 z-10 bg-background w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors border-b border-border"
+          >
+            <ChevronDown
+              className={cn(
+                "w-4 h-4 text-muted-foreground transition-transform",
+                !immigrationDocsOpen && "-rotate-90"
+              )}
+            />
+            <span className="text-sm font-semibold">Immigration Documents</span>
+            {immigrationDocs.length > 0 && (
+              <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                {immigrationDocs.length}
+              </span>
+            )}
+          </button>
+          {immigrationDocsOpen && (
+            <div className="p-3 space-y-3">
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Identity</span>
+                <div className="space-y-1.5">
+                  {IMMIGRATION_DOC_TYPES.filter(d => d.group === 'identity').map((docType) => (
+                    <ImmigrationDocCard
+                      key={docType.category}
+                      docType={docType}
+                      docs={immigrationDocs.filter(d => d.category === docType.category)}
+                      caseId={caseId}
+                      onUploaded={fetchRecommenderData}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Petition</span>
+                <div className="space-y-1.5">
+                  {IMMIGRATION_DOC_TYPES.filter(d => d.group === 'petition').map((docType) => (
+                    <ImmigrationDocCard
+                      key={docType.category}
+                      docType={docType}
+                      docs={immigrationDocs.filter(d => d.category === docType.category)}
+                      caseId={caseId}
+                      onUploaded={fetchRecommenderData}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>

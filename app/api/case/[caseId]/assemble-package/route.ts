@@ -30,6 +30,10 @@ const CATEGORY_ORDER: string[] = [
   'CITATION_REPORT',
   'JUDGING_EVIDENCE',
   'PASSPORT_ID',
+  'I20',
+  'VISA_STAMP',
+  'I797_APPROVAL',
+  'I94',
   'DEGREE_CERTIFICATE',
   'OTHER',
 ]
@@ -58,6 +62,10 @@ const CATEGORY_LABELS: Record<string, string> = {
   CITATION_REPORT: 'Citation Reports',
   JUDGING_EVIDENCE: 'Judging Evidence',
   PASSPORT_ID: 'Passport / ID',
+  I20: 'I-20 (Certificate of Eligibility)',
+  VISA_STAMP: 'Visa Stamps',
+  I797_APPROVAL: 'I-797 Approval Notice',
+  I94: 'I-94 (Arrival/Departure Record)',
   DEGREE_CERTIFICATE: 'Degree Certificates',
   OTHER: 'Other Documents',
 }

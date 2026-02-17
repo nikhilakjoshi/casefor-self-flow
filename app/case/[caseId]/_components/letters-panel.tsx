@@ -33,6 +33,8 @@ import {
   MapPin,
   Check,
   AlertTriangle,
+  ArrowRight,
+  X,
 } from 'lucide-react'
 import {
   Tooltip,
@@ -600,6 +602,109 @@ export function RecommenderCard({
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Per-recommender enrichment state
+  const [dragOverRecId, setDragOverRecId] = useState<string | null>(null)
+  const [enrichingRecId, setEnrichingRecId] = useState<string | null>(null)
+  const [pendingEnrichment, setPendingEnrichment] = useState<{
+    recommenderId: string
+    recName: string
+    merged: Record<string, string>
+    fieldTypes: Record<string, 'new' | 'append'>
+  } | null>(null)
+  const [isSavingEnrichment, setIsSavingEnrichment] = useState(false)
+
+  const SIMPLE_FIELDS = ['name', 'title', 'organization', 'email', 'phone', 'linkedIn', 'countryRegion'] as const
+  const RICH_FIELDS = ['bio', 'credentials'] as const
+  const FIELD_LABELS: Record<string, string> = {
+    name: 'Name', title: 'Title', organization: 'Organization', email: 'Email',
+    phone: 'Phone', linkedIn: 'LinkedIn', countryRegion: 'Region', bio: 'Bio', credentials: 'Credentials',
+  }
+
+  const handleEnrichDrop = useCallback(async (recommenderId: string, files: File[]) => {
+    setEnrichingRecId(recommenderId)
+    const allMerged: Record<string, string> = {}
+    const allFieldTypes: Record<string, 'new' | 'append'> = {}
+    let recName = ''
+
+    try {
+      for (const file of files) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const extractRes = await fetch(`/api/case/${caseId}/recommenders/extract`, {
+          method: 'POST',
+          body: formData,
+        })
+        if (!extractRes.ok) {
+          const err = await extractRes.json()
+          toast.error(`Extract failed: ${err.error || file.name}`)
+          continue
+        }
+        const { extracted } = await extractRes.json()
+
+        const currentRes = await fetch(`/api/case/${caseId}/recommenders/${recommenderId}`)
+        if (!currentRes.ok) break
+        const current = await currentRes.json()
+        recName = current.name
+
+        for (const field of SIMPLE_FIELDS) {
+          if (!current[field] && extracted[field]) {
+            allMerged[field] = extracted[field]
+            allFieldTypes[field] = 'new'
+          }
+        }
+        for (const field of RICH_FIELDS) {
+          if (extracted[field]) {
+            if (current[field]) {
+              allMerged[field] = current[field] + '\n\n' + extracted[field]
+              allFieldTypes[field] = 'append'
+            } else {
+              allMerged[field] = extracted[field]
+              allFieldTypes[field] = 'new'
+            }
+          }
+        }
+      }
+
+      if (Object.keys(allMerged).length > 0) {
+        setPendingEnrichment({ recommenderId, recName, merged: allMerged, fieldTypes: allFieldTypes })
+      } else {
+        toast('No new fields found to update')
+      }
+    } catch (err) {
+      console.error('Enrichment failed:', err)
+      toast.error('Extraction failed')
+    } finally {
+      setEnrichingRecId(null)
+    }
+  }, [caseId])
+
+  const confirmEnrichment = useCallback(async () => {
+    if (!pendingEnrichment) return
+    setIsSavingEnrichment(true)
+    try {
+      const res = await fetch(
+        `/api/case/${caseId}/recommenders/${pendingEnrichment.recommenderId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pendingEnrichment.merged),
+        }
+      )
+      if (res.ok) {
+        const count = Object.keys(pendingEnrichment.merged).length
+        toast.success(`Updated ${count} field${count !== 1 ? 's' : ''} for ${pendingEnrichment.recName}`)
+        onUploaded()
+      } else {
+        toast.error('Failed to save changes')
+      }
+    } catch {
+      toast.error('Failed to save changes')
+    } finally {
+      setIsSavingEnrichment(false)
+      setPendingEnrichment(null)
+    }
+  }, [caseId, pendingEnrichment, onUploaded])
+
   const handleUpload = async (file: File) => {
     setUploading(true)
     try {
@@ -783,79 +888,223 @@ export function RecommenderCard({
                     </h4>
                     {recs.map((rec) => {
                       const recDocs = getDocsForRecommender(rec.id)
+                      const isPending = pendingEnrichment?.recommenderId === rec.id
+                      const isEnriching = enrichingRecId === rec.id
+                      const isDragOverRec = dragOverRecId === rec.id
                       return (
                         <div
                           key={rec.id}
-                          className="rounded-lg border border-border/40 bg-background/50 p-3"
+                          className={cn(
+                            'group/rec relative rounded-lg border overflow-hidden bg-background/50 transition-all duration-200',
+                            isDragOverRec
+                              ? 'border-primary ring-2 ring-primary/20 bg-primary/[0.03]'
+                              : isPending
+                                ? 'border-primary/40'
+                                : 'border-border/40'
+                          )}
+                          onDragOver={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            if (!isEnriching && !isPending) setDragOverRecId(rec.id)
+                          }}
+                          onDragLeave={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                              setDragOverRecId(null)
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setDragOverRecId(null)
+                            const files = Array.from(e.dataTransfer.files)
+                            if (files.length > 0 && !enrichingRecId && !isPending) {
+                              handleEnrichDrop(rec.id, files)
+                            }
+                          }}
                         >
-                          <div className="flex items-center justify-between mb-1.5">
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <div className="w-6 h-6 rounded-md bg-blue-500/10 flex items-center justify-center shrink-0">
-                                <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400">
-                                  {rec.name
-                                    .split(' ')
-                                    .slice(0, 2)
-                                    .map((n) => n[0])
-                                    .join('')
-                                    .toUpperCase()}
-                                </span>
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs font-medium truncate">
-                                  {rec.name}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground truncate">
-                                  {rec.title}
-                                  {rec.organization && `, ${rec.organization}`}
-                                </p>
-                                {rec.criteriaKeys && rec.criteriaKeys.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {rec.criteriaKeys.slice(0, 3).map((key) => (
-                                      <span
-                                        key={key}
-                                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                                        title={CRITERIA_LABELS[key] ?? key}
-                                      >
-                                        {key}
-                                      </span>
-                                    ))}
-                                    {rec.criteriaKeys.length > 3 && (
-                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground">
-                                        +{rec.criteriaKeys.length - 3} more
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
+                          {/* Drag overlay */}
+                          {isDragOverRec && !isEnriching && (
+                            <div className="absolute inset-0 z-10 bg-primary/10 backdrop-blur-[1px] flex items-center justify-center pointer-events-none rounded-lg">
+                              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/15 border border-primary/25">
+                                <Upload className="w-3.5 h-3.5 text-primary" />
+                                <span className="text-xs font-medium text-primary">Drop to enrich profile</span>
                               </div>
                             </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-[11px] gap-1 shrink-0 ml-2"
-                              onClick={() =>
-                                onOpenDraft({
-                                  name: `Recommendation Letter - ${rec.name}`,
-                                  category: 'RECOMMENDATION_LETTER',
-                                  recommenderId: rec.id,
-                                })
-                              }
-                            >
-                              <PenLine className="w-3 h-3" />
-                              Draft
-                            </Button>
+                          )}
+
+                          {/* Extracting overlay */}
+                          {isEnriching && (
+                            <div className="absolute inset-0 z-10 bg-background/60 backdrop-blur-[2px] flex items-center justify-center rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                <span className="text-xs text-muted-foreground">Extracting...</span>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="relative p-3">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <div className="w-6 h-6 rounded-md bg-blue-500/10 flex items-center justify-center shrink-0">
+                                  <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400">
+                                    {rec.name
+                                      .split(' ')
+                                      .slice(0, 2)
+                                      .map((n) => n[0])
+                                      .join('')
+                                      .toUpperCase()}
+                                  </span>
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-medium truncate">
+                                    {rec.name}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground truncate">
+                                    {rec.title}
+                                    {rec.organization && `, ${rec.organization}`}
+                                  </p>
+                                  {rec.criteriaKeys && rec.criteriaKeys.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {rec.criteriaKeys.slice(0, 3).map((key) => (
+                                        <span
+                                          key={key}
+                                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                          title={CRITERIA_LABELS[key] ?? key}
+                                        >
+                                          {key}
+                                        </span>
+                                      ))}
+                                      {rec.criteriaKeys.length > 3 && (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground">
+                                          +{rec.criteriaKeys.length - 3} more
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              {!isPending && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-[11px] gap-1 shrink-0 ml-2"
+                                  onClick={() =>
+                                    onOpenDraft({
+                                      name: `Recommendation Letter - ${rec.name}`,
+                                      category: 'RECOMMENDATION_LETTER',
+                                      recommenderId: rec.id,
+                                    })
+                                  }
+                                >
+                                  <PenLine className="w-3 h-3" />
+                                  Draft
+                                </Button>
+                              )}
+                            </div>
+
+                            {recDocs.length > 0 && !isPending && (
+                              <div className="mt-2 space-y-1">
+                                {recDocs.map((doc) => (
+                                  <DraftRow
+                                    key={doc.id}
+                                    doc={doc}
+                                    caseId={caseId}
+                                    onOpenDraft={onOpenDraft}
+                                    onShare={onShare}
+                                  />
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Drop hint */}
+                            {!isPending && !isEnriching && (
+                              <div className="mt-1.5 opacity-0 group-hover/rec:opacity-100 transition-opacity">
+                                <p className="text-[10px] text-muted-foreground/50 flex items-center gap-1">
+                                  <Upload className="w-2.5 h-2.5" />
+                                  Drop CV or bio to enrich profile
+                                </p>
+                              </div>
+                            )}
                           </div>
 
-                          {recDocs.length > 0 && (
-                            <div className="mt-2 space-y-1">
-                              {recDocs.map((doc) => (
-                                <DraftRow
-                                  key={doc.id}
-                                  doc={doc}
-                                  caseId={caseId}
-                                  onOpenDraft={onOpenDraft}
-                                  onShare={onShare}
-                                />
-                              ))}
+                          {/* Enrichment preview */}
+                          {isPending && pendingEnrichment && (
+                            <div className="border-t border-primary/20">
+                              <div className="px-3 py-2 space-y-1.5">
+                                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-2">
+                                  Extracted fields
+                                </p>
+                                {Object.entries(pendingEnrichment.merged).map(([field, value]) => {
+                                  const isAppend = pendingEnrichment.fieldTypes[field] === 'append'
+                                  return (
+                                    <div
+                                      key={field}
+                                      className={cn(
+                                        'rounded-md px-2.5 py-1.5 text-[11px] border',
+                                        isAppend
+                                          ? 'bg-amber-500/[0.06] border-amber-500/15 dark:bg-amber-500/[0.08]'
+                                          : 'bg-emerald-500/[0.06] border-emerald-500/15 dark:bg-emerald-500/[0.08]'
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-1.5 mb-0.5">
+                                        {isAppend ? (
+                                          <ArrowRight className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                                        ) : (
+                                          <Plus className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                        )}
+                                        <span className={cn(
+                                          'font-semibold',
+                                          isAppend
+                                            ? 'text-amber-700 dark:text-amber-300'
+                                            : 'text-emerald-700 dark:text-emerald-300'
+                                        )}>
+                                          {FIELD_LABELS[field] || field}
+                                        </span>
+                                        <span className={cn(
+                                          'ml-auto text-[10px]',
+                                          isAppend
+                                            ? 'text-amber-600/60 dark:text-amber-400/60'
+                                            : 'text-emerald-600/60 dark:text-emerald-400/60'
+                                        )}>
+                                          {isAppend ? 'append' : 'new'}
+                                        </span>
+                                      </div>
+                                      <p className="text-foreground/70 leading-relaxed line-clamp-2 pl-[18px]">
+                                        {isAppend
+                                          ? value.split('\n\n').slice(-1)[0]
+                                          : value}
+                                      </p>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                              <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/30 border-t border-border/50">
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  className="flex-1 text-muted-foreground"
+                                  onClick={() => setPendingEnrichment(null)}
+                                  disabled={isSavingEnrichment}
+                                >
+                                  <X className="w-3 h-3" />
+                                  Discard
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  className="flex-1"
+                                  onClick={confirmEnrichment}
+                                  disabled={isSavingEnrichment}
+                                >
+                                  {isSavingEnrichment ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Check className="w-3 h-3" />
+                                  )}
+                                  {isSavingEnrichment ? 'Saving...' : 'Apply'}
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1073,6 +1322,10 @@ const CATEGORY_LABELS: Record<string, string> = {
   G28: 'G-28 Attorney Representation',
   I140: 'I-140 Petition',
   I907: 'I-907 Premium Processing',
+  I20: 'I-20',
+  VISA_STAMP: 'Visa Stamps',
+  I797_APPROVAL: 'I-797 Approval',
+  I94: 'I-94',
   OTHER: 'Other',
 }
 

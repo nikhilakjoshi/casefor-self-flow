@@ -142,6 +142,10 @@ enum DocumentCategory {
   G28
   I140
   I907
+  I20
+  VISA_STAMP
+  I797_APPROVAL
+  I94
   OTHER
 }
 
