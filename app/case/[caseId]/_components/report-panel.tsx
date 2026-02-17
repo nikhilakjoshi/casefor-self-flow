@@ -102,7 +102,7 @@ function getStrengthConfig(strength: Strength) {
         headerBg: "bg-emerald-100 dark:bg-emerald-900",
         badge: "bg-emerald-600 text-white",
         icon: (
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
             <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         ),
@@ -114,7 +114,7 @@ function getStrengthConfig(strength: Strength) {
         headerBg: "bg-amber-100 dark:bg-amber-900",
         badge: "bg-amber-500 text-white",
         icon: (
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
             <path d="M5 12h14" strokeLinecap="round" />
           </svg>
         ),
@@ -126,7 +126,7 @@ function getStrengthConfig(strength: Strength) {
         headerBg: "bg-stone-100 dark:bg-stone-800",
         badge: "bg-muted-foreground/70 text-background",
         icon: (
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
             <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         ),
@@ -300,18 +300,18 @@ function TierEvidenceGuide({ criterionId, strengthEval }: { criterionId: string;
   const tierLabel = currentTier ? guide.find(t => t.tier === currentTier)?.label : null
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {/* Current tier badge */}
       {strengthEval && tierColor && (
         <div className="flex items-center">
-          <span className={cn("px-2 py-0.5 rounded text-[11px] font-bold", tierColor.badge)}>
+          <span className={cn("px-1.5 py-px rounded text-[10px] font-bold", tierColor.badge)}>
             T{currentTier} {tierLabel}
           </span>
         </div>
       )}
 
       {/* Tier ladder */}
-      <div className="space-y-0.5">
+      <div className="space-y-px">
         {guide.map((t) => {
           const isActive = currentTier === t.tier
           const color = getTierColor(t.tier)
@@ -319,18 +319,18 @@ function TierEvidenceGuide({ criterionId, strengthEval }: { criterionId: string;
             <div
               key={t.tier}
               className={cn(
-                "flex items-start gap-2 px-2 py-1 rounded text-[11px] transition-all",
+                "flex items-start gap-1.5 px-1.5 py-0.5 rounded text-[10px] transition-all",
                 isActive ? cn(color.bg, "border-l-2", color.border) : "opacity-50 pl-[10px]"
               )}
             >
               <span className={cn(
-                "shrink-0 w-5 text-center font-bold rounded",
+                "shrink-0 w-4 text-center font-bold rounded",
                 isActive ? color.text : "text-muted-foreground"
               )}>
                 T{t.tier}
               </span>
               <span className={cn(
-                "leading-relaxed",
+                "leading-snug",
                 isActive ? "text-foreground/90 font-medium" : "text-muted-foreground"
               )}>
                 {t.examples}
@@ -342,15 +342,15 @@ function TierEvidenceGuide({ criterionId, strengthEval }: { criterionId: string;
 
       {/* Rationale + improvement */}
       {strengthEval && (
-        <div className="space-y-1.5 pt-1">
+        <div className="space-y-1 pt-0.5">
           {strengthEval.scoring_rationale && (
-            <p className="text-[11px] text-foreground/70 leading-relaxed">
+            <p className="text-[10px] text-foreground/70 leading-snug">
               <span className="font-semibold text-muted-foreground">Rationale: </span>
               {strengthEval.scoring_rationale}
             </p>
           )}
           {strengthEval.improvement_notes && (
-            <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed bg-blue-500/5 rounded px-2 py-1">
+            <p className="text-[10px] text-blue-700 dark:text-blue-300 leading-snug bg-blue-500/5 rounded px-1.5 py-0.5">
               <span className="font-semibold">Improve: </span>
               {strengthEval.improvement_notes}
             </p>
@@ -613,20 +613,17 @@ function CriterionSection({
       )}
 
       {/* Header */}
-      <div className={cn("flex items-center gap-2.5 px-3 py-2.5 transition-colors sticky top-[41px] z-[5] rounded-t-[7px]", config.headerBg)}>
+      <div className={cn("flex items-center gap-2 px-2.5 py-1.5 transition-colors sticky top-[41px] z-[5] rounded-t-[7px]", config.headerBg)}>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex-1 flex items-center gap-2.5 text-left min-w-0 hover:opacity-80 transition-opacity"
+          className="flex-1 flex items-center gap-2 text-left min-w-0 hover:opacity-80 transition-opacity"
         >
-          <span className={cn("flex items-center justify-center w-6 h-6 rounded-full shrink-0", config.badge)}>
+          <span className={cn("flex items-center justify-center w-5 h-5 rounded-full shrink-0", config.badge)}>
             {config.icon}
           </span>
           <div className="flex-1 min-w-0">
-            {canonicalId && <span className="text-[11px] font-mono font-medium text-muted-foreground mr-1">{canonicalId}</span>}
-            <span className="text-sm font-semibold text-stone-800 dark:text-stone-200">{displayName}</span>
-            {meta?.description && (
-              <span className="ml-2 text-xs text-muted-foreground hidden sm:inline">{meta.description}</span>
-            )}
+            {canonicalId && <span className="text-[10px] font-mono font-medium text-muted-foreground mr-1">{canonicalId}</span>}
+            <span className="text-xs font-semibold text-stone-800 dark:text-stone-200">{displayName}</span>
           </div>
           {evidenceCount > 0 && (
             <span className="text-xs text-muted-foreground shrink-0">{evidenceCount} items</span>
@@ -673,7 +670,7 @@ function CriterionSection({
 
       {/* Expanded content */}
       {expanded && (
-        <div className="px-3 pb-3 pt-1 space-y-3">
+        <div className="px-2.5 pb-2 pt-1 space-y-2">
           {/* Guidance toggle */}
           {meta?.guidance && (
             <div>
@@ -693,9 +690,9 @@ function CriterionSection({
 
           {/* USCIS definition */}
           {meta?.uscis && (
-            <div className="flex items-start gap-2 pl-2 border-l-2 border-slate-300 dark:border-slate-600">
+            <div className="flex items-start gap-1.5 pl-2 border-l-2 border-slate-300 dark:border-slate-600">
               <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-px select-none">USCIS</span>
-              <p className="text-[11px] italic leading-relaxed text-slate-500 dark:text-slate-400">{meta.uscis}</p>
+              <p className="text-[10px] italic leading-snug text-slate-500 dark:text-slate-400">{meta.uscis}</p>
             </div>
           )}
 
@@ -704,16 +701,16 @@ function CriterionSection({
 
           {/* Summary */}
           {summary && (
-            <p className="text-xs leading-relaxed text-stone-600 dark:text-stone-400">{summary}</p>
+            <p className="text-[11px] leading-snug text-stone-600 dark:text-stone-400">{summary}</p>
           )}
 
           {/* Key evidence quotes */}
           {keyEvidence.length > 0 && (
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Key Evidence</span>
               {keyEvidence.map((ev, i) => (
-                <div key={i} className="group flex items-start gap-1.5">
-                  <p className="flex-1 text-xs text-foreground/80 pl-2.5 border-l-2 border-stone-300 dark:border-stone-600 leading-relaxed">
+                <div key={i} className="group flex items-start gap-1">
+                  <p className="flex-1 text-[11px] text-foreground/80 pl-2 border-l-2 border-stone-300 dark:border-stone-600 leading-snug">
                     {ev}
                   </p>
                   <button
@@ -766,11 +763,11 @@ function CriterionSection({
 
           {/* Legacy evidence strings (no extraction) */}
           {!criteriaSummary && criterion.evidence?.length > 0 && (
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Evidence</span>
               {criterion.evidence.map((ev, i) => (
-                <div key={i} className="group flex items-start gap-1.5">
-                  <p className="flex-1 text-xs text-foreground/80 pl-2.5 border-l-2 border-stone-300 dark:border-stone-600">
+                <div key={i} className="group flex items-start gap-1">
+                  <p className="flex-1 text-[11px] text-foreground/80 pl-2 border-l-2 border-stone-300 dark:border-stone-600 leading-snug">
                     {ev}
                   </p>
                   <button
@@ -791,23 +788,23 @@ function CriterionSection({
 
           {/* Supporting extraction items */}
           {extractionGroups.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Supporting Items</span>
               {extractionGroups.map(({ category, items }) => {
                 const catConf = CATEGORY_CONFIG[category]
                 if (!catConf) return null
                 const Icon = catConf.icon
                 return (
-                  <div key={category} className="space-y-1">
-                    <div className="flex items-center gap-1.5">
+                  <div key={category} className="space-y-0.5">
+                    <div className="flex items-center gap-1">
                       <Icon className="w-3 h-3 text-muted-foreground" />
-                      <span className="text-[11px] font-medium text-muted-foreground">{catConf.label}</span>
+                      <span className="text-[10px] font-medium text-muted-foreground">{catConf.label}</span>
                     </div>
                     {items.map((item, j) => {
                       const itemId = item.id as string | undefined
                       const itemDocCount = itemId ? (docCountsByItem?.[itemId] ?? 0) : 0
                       return (
-                      <div key={j} className="group/item flex items-center gap-1.5 text-xs text-foreground/80 pl-4 py-0.5">
+                      <div key={j} className="group/item flex items-center gap-1 text-[11px] text-foreground/80 pl-3.5 py-px">
                         <span className="flex-1"><ItemSummary item={item} category={category} /></span>
                         {itemDocCount > 0 ? (
                           <span

@@ -32,7 +32,7 @@ export function CriteriaTab({
           <span className="text-sm font-semibold">Criteria</span>
         </button>
         {criteriaOpen && (
-          <div className="p-4 pt-3 space-y-3">
+          <div className="p-2.5 pt-2 space-y-2">
             {criteriaContent}
           </div>
         )}
