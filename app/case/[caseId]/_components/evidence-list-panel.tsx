@@ -822,7 +822,12 @@ export function EvidenceListPanel({
           </button>
           {evidenceOpen && (
             <div className="p-3 space-y-3">
-              {allCriteria.map((cId) => {
+              {[...allCriteria].sort((a, b) => {
+                const order: Record<string, number> = { Strong: 0, Weak: 1, None: 2 }
+                const sa = criteria?.find((c) => c.criterionId === a)?.strength ?? "None"
+                const sb = criteria?.find((c) => c.criterionId === b)?.strength ?? "None"
+                return (order[sa] ?? 2) - (order[sb] ?? 2)
+              }).map((cId) => {
                 const criterion = criteria?.find((c) => c.criterionId === cId)
                 const cs = criteriaSummary?.find((s) => s.criterion_id === cId)
                 const routedDocs = routingData?.routings?.[cId]?.documents ?? []
