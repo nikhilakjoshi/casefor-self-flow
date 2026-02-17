@@ -203,18 +203,7 @@ export function GapAnalysisPanel({ caseId, initialData, hasStrengthEval }: GapAn
               <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             )}
           </div>
-          {exec && (
-            <div className="flex items-center gap-2">
-              <span className={cn("px-2 py-0.5 rounded text-xs font-bold", getStrengthColor(exec.overall_case_strength))}>
-                {exec.overall_case_strength}
-              </span>
-              {exec.current_approval_probability > 0 && (
-                <span className="text-xs font-mono text-muted-foreground">
-                  {exec.current_approval_probability}%
-                </span>
-              )}
-            </div>
-          )}
+          {/* Strength badge hidden */}
         </div>
         {exec && (
           <div className="flex flex-wrap items-center gap-2 mt-1.5">
@@ -314,69 +303,7 @@ export function GapAnalysisPanel({ caseId, initialData, hasStrengthEval }: GapAn
           </div>
         )}
 
-        {/* Executive Summary */}
-        {exec && (
-          <div className="space-y-2">
-            <SectionHeader>Executive Summary</SectionHeader>
-          </div>
-        )}
-
-        {/* Filing Decision */}
-        {filing && (
-          <div className="space-y-2">
-            <SectionHeader>Filing Decision</SectionHeader>
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <span className={cn("px-2 py-0.5 rounded text-xs font-bold", getRecommendationColor(filing.recommendation))}>
-                  {filing.recommendation?.replace(/_/g, " ") ?? "N/A"}
-                </span>
-                {filing.probability_gain > 0 && (
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                    +{filing.probability_gain}pp after actions
-                  </span>
-                )}
-              </div>
-              {filing.rationale && (
-                <p className="text-xs text-stone-600 dark:text-stone-400">{filing.rationale}</p>
-              )}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-muted-foreground">RFE if file now</span>
-                  <p className="font-medium">{filing.rfe_probability_if_file_now}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">RFE after strengthening</span>
-                  <p className="font-medium text-emerald-600 dark:text-emerald-400">{filing.rfe_probability_after_strengthening}</p>
-                </div>
-                {filing.estimated_investment && (
-                  <div>
-                    <span className="text-muted-foreground">Investment</span>
-                    <p className="font-medium">{filing.estimated_investment}</p>
-                  </div>
-                )}
-                {filing.risk_adjusted_value && (
-                  <div>
-                    <span className="text-muted-foreground">Risk-adjusted value</span>
-                    <p className="font-medium">{filing.risk_adjusted_value}</p>
-                  </div>
-                )}
-              </div>
-              {filing.alternative_visas && filing.alternative_visas.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Alternatives</p>
-                  <div className="space-y-1">
-                    {filing.alternative_visas.map((alt, i) => (
-                      <div key={i} className="text-xs text-stone-600 dark:text-stone-400 flex justify-between">
-                        <span className="font-medium">{alt.visa_type}</span>
-                        <span>{alt.estimated_probability}% est.</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Executive Summary and Filing Decision hidden */}
 
         {/* Critical Gaps Detail */}
         {gaps && gaps.length > 0 && (

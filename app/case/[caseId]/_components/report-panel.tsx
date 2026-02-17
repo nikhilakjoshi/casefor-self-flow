@@ -395,6 +395,7 @@ function CriterionSection({
   const [showContext, setShowContext] = useState(false)
   const [contextText, setContextText] = useState("")
   const [removing, setRemoving] = useState<string | null>(null)
+  const [guidanceOpen, setGuidanceOpen] = useState(false)
 
   const canonicalId = resolveCanonicalId(criterion.criterionId)
   const meta = canonicalId ? CRITERIA_METADATA[canonicalId] : undefined
@@ -673,6 +674,23 @@ function CriterionSection({
       {/* Expanded content */}
       {expanded && (
         <div className="px-3 pb-3 pt-1 space-y-3">
+          {/* Guidance toggle */}
+          {meta?.guidance && (
+            <div>
+              <button
+                onClick={() => setGuidanceOpen(!guidanceOpen)}
+                className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {guidanceOpen ? "Hide USCIS guidance" : "USCIS guidance"}
+              </button>
+              {guidanceOpen && (
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                  {meta.guidance}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* USCIS definition */}
           {meta?.uscis && (
             <div className="flex items-start gap-2 pl-2 border-l-2 border-slate-300 dark:border-slate-600">
