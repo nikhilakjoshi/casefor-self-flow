@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useSession, signIn } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Dropzone } from "./_components/dropzone";
-import { ResultsPanel, type Strength } from "./_components/results-panel";
+import { ResultsPanel } from "./_components/results-panel";
+import type { Strength } from "./_components/results-panel";
 import { SurveyInline } from "./_components/survey-inline";
 import { ExtractionProgressPanel } from "./_components/extraction-progress-panel";
 import type { DetailedExtraction } from "@/lib/eb1a-extraction-schema";
@@ -23,19 +24,6 @@ interface CriterionResultData {
 
 interface AnalysisResult {
   criteria: CriterionResultData[];
-  strongCount: number;
-  weakCount: number;
-}
-
-function countStrengths(criteria: CriterionResultData[]) {
-  return criteria.reduce(
-    (acc, c) => {
-      if (c.strength === "Strong") acc.strong++;
-      else if (c.strength === "Weak") acc.weak++;
-      return acc;
-    },
-    { strong: 0, weak: 0 }
-  );
 }
 
 function extractionToCriteria(data: Record<string, unknown>): CriterionResultData[] {
@@ -65,8 +53,8 @@ function extractionToCriteria(data: Record<string, unknown>): CriterionResultDat
 const STEPS = [
   { number: "01", label: "Upload your resume or CV", detail: "We accept PDF, DOCX, TXT, and more" },
   { number: "02", label: "Quick intake survey", detail: "Pre-filled from your resume, confirm details" },
-  { number: "03", label: "AI evaluates 10 criteria", detail: "Each criterion rated Strong, Weak, or None" },
-  { number: "04", label: "Review results and build case", detail: "Strengthen weak areas with guidance" },
+  { number: "03", label: "AI analyzes your profile", detail: "Evaluated against all 10 EB-1A criteria" },
+  { number: "04", label: "Review alignment and continue", detail: "See where evidence exists and what's needed" },
 ];
 
 function StepIndicators({ phase }: { phase: Phase }) {
@@ -186,12 +174,7 @@ export default function OnboardPage() {
               // Extract criteria for results panel
               const criteria = extractionToCriteria(data);
               if (criteria.length > 0) {
-                const counts = countStrengths(criteria);
-                setAnalysisResult({
-                  criteria,
-                  strongCount: counts.strong,
-                  weakCount: counts.weak,
-                });
+                setAnalysisResult({ criteria });
               }
             } catch {
               // Ignore parse errors for partial JSON
@@ -305,40 +288,11 @@ export default function OnboardPage() {
     window.location.href = `/case/${caseId}`;
   };
 
-  const handleAddMoreInfo = () => {
-    if (!caseId) return;
-    if (!session) {
-      setShowAuthCta(true);
-      return;
-    }
-    window.location.href = `/case/${caseId}`;
-  };
 
-  const handleCriterionUpdate = useCallback((criterionId: string, data: CriterionResultData) => {
-    setAnalysisResult((prev) => {
-      if (!prev || !prev.criteria || prev.criteria.length === 0) {
-        return prev;
-      }
-
-      const updatedCriteria = prev.criteria.map((c) => {
-        if (c.criterionId === criterionId) {
-          return { ...data, criterionId };
-        }
-        return { ...c };
-      });
-
-      const counts = countStrengths(updatedCriteria);
-
-      return {
-        criteria: updatedCriteria,
-        strongCount: counts.strong,
-        weakCount: counts.weak,
-      };
-    });
-  }, []);
+  const isAnalysisPhase = phase === "evaluating" || phase === "results";
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-hidden">
+    <div className={cn("bg-background text-foreground flex flex-col", isAnalysisPhase ? "h-screen overflow-hidden" : "min-h-screen")}>
       {/* Grid background */}
       <div
         className="fixed inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
@@ -350,7 +304,7 @@ export default function OnboardPage() {
       />
 
       {/* Nav */}
-      <nav className="relative z-10 flex items-center justify-between px-6 sm:px-10 lg:px-16 py-5">
+      <nav className="shrink-0 relative z-20 flex items-center justify-between px-6 sm:px-10 lg:px-16 py-5 bg-background">
         <Link href="/" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
             <svg className="w-4 h-4 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -370,8 +324,8 @@ export default function OnboardPage() {
       </nav>
 
       {/* Main content */}
-      <div className="relative z-10 px-6 sm:px-10 lg:px-16 pt-6 pb-20">
-        <div className={cn("mx-auto", phase === "evaluating" || phase === "results" ? "max-w-7xl" : "max-w-6xl")}>
+      <div className={cn("relative z-10 px-6 sm:px-10 lg:px-16 pt-6", isAnalysisPhase ? "flex-1 min-h-0 pb-6" : "pb-20")}>
+        <div className={cn("mx-auto h-full", isAnalysisPhase ? "max-w-7xl" : "max-w-6xl")}>
 
           {/* Upload phase */}
           {phase === "upload" && (
@@ -498,29 +452,23 @@ export default function OnboardPage() {
           )}
 
           {/* Evaluating / Results phase */}
-          {(phase === "evaluating" || phase === "results") && (
-            <>
-              <StepIndicators phase={phase} />
-              {caseName && (
-                <h2 className="text-lg font-semibold mb-4">{caseName}</h2>
-              )}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {/* Results: 3/4 */}
-                <div className="lg:col-span-3">
+          {isAnalysisPhase && (
+            <div className="flex flex-col h-full">
+              <div className="shrink-0">
+                <StepIndicators phase={phase} />
+                {caseName && (
+                  <h2 className="text-lg font-semibold mb-4">{caseName}</h2>
+                )}
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
+                <div className="lg:col-span-3 overflow-y-auto pr-2">
                   <ResultsPanel
                     criteria={analysisResult?.criteria ?? []}
-                    strongCount={analysisResult?.strongCount ?? 0}
-                    weakCount={analysisResult?.weakCount ?? 0}
                     isStreaming={isStreaming}
-                    caseId={caseId ?? undefined}
                     onBuildCase={handleBuildCase}
-                    onAddMoreInfo={handleAddMoreInfo}
-                    onCriterionUpdate={handleCriterionUpdate}
                   />
                 </div>
-
-                {/* Progress sidebar: 1/4 */}
-                <div className="lg:col-span-1">
+                <div className="lg:col-span-1 overflow-y-auto">
                   <ExtractionProgressPanel
                     extraction={streamingExtraction}
                     isStreaming={isStreaming}
@@ -531,7 +479,7 @@ export default function OnboardPage() {
 
               {/* Auth CTA for anonymous users */}
               {showAuthCta && !session && phase === "results" && (
-                <div className="mt-6 rounded-lg border border-primary/30 bg-primary/5 p-6 max-w-xl mx-auto">
+                <div className="shrink-0 mt-4 rounded-lg border border-primary/30 bg-primary/5 p-6 max-w-xl mx-auto">
                   <h3 className="text-base font-semibold text-foreground mb-1">
                     Sign in to continue
                   </h3>
@@ -554,7 +502,7 @@ export default function OnboardPage() {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
 
         </div>

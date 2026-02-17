@@ -126,15 +126,18 @@ function SectionRow({
   label,
   extraction,
   isStreaming,
+  isActiveFrontier,
 }: {
   sectionKey: keyof DetailedExtraction;
   label: string;
   extraction: Partial<DetailedExtraction>;
   isStreaming: boolean;
+  isActiveFrontier: boolean;
 }) {
   const count = getCount(extraction, sectionKey);
   const isPopulated = count > 0;
-  const isPending = count === -1 && isStreaming;
+  const isPending = isActiveFrontier;
+  const isQueued = count === -1 && isStreaming && !isActiveFrontier;
   const isZero = count === 0 || (count === -1 && !isStreaming);
 
   const items = getItems(extraction, sectionKey);
@@ -171,6 +174,9 @@ function SectionRow({
           {isPending && (
             <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
           )}
+          {isQueued && (
+            <span className="w-3.5 h-3.5 shrink-0" />
+          )}
           {isZero && (
             <span className="w-3.5 h-3.5 flex items-center justify-center text-muted-foreground shrink-0">
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -180,7 +186,7 @@ function SectionRow({
           )}
           <span className={cn(
             "text-xs truncate",
-            isPopulated ? "text-foreground font-medium" : "text-muted-foreground"
+            isPopulated ? "text-foreground font-medium" : isPending ? "text-foreground" : "text-muted-foreground"
           )}>
             {label}
           </span>
@@ -234,7 +240,18 @@ export function ExtractionProgressPanel({ extraction, isStreaming, streamPhase }
     ? "Connecting..."
     : streamPhase === "extracting"
       ? "Extracting..."
-      : "Extraction Progress"
+      : "Extraction complete"
+
+  // Find the active frontier: first section with count === -1 during streaming
+  let activeFrontierKey: keyof DetailedExtraction | null = null;
+  if (isStreaming) {
+    for (const { key } of SECTIONS) {
+      if (getCount(extraction, key) === -1) {
+        activeFrontierKey = key;
+        break;
+      }
+    }
+  }
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 sticky top-6">
@@ -254,6 +271,7 @@ export function ExtractionProgressPanel({ extraction, isStreaming, streamPhase }
             label={label}
             extraction={extraction}
             isStreaming={isStreaming}
+            isActiveFrontier={key === activeFrontierKey}
           />
         ))}
       </div>
