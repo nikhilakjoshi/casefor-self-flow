@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ExtractionRawPanel } from "./extraction-raw-panel"
@@ -8,6 +8,7 @@ import { CriteriaTab } from "./criteria-tab"
 import { PlanningTab } from "./planning-tab"
 import { EvidenceListPanel } from "./evidence-list-panel"
 import { CriteriaRoutingPanel } from "./criteria-routing-panel"
+import { RecommendersPanel } from "./recommenders-panel"
 import { ConsolidationTab } from "./consolidation-tab"
 import { LettersPanel } from "./letters-panel"
 import { DenialProbabilityPanel } from "./denial-probability-panel"
@@ -985,7 +986,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "planning" | "evidence" | "routing" | "consolidation" | "letters" | "denial" | "raw"
+type ReportTab = "summary" | "planning" | "evidence" | "routing" | "recommenders" | "consolidation" | "letters" | "denial" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -1007,7 +1008,7 @@ export function ReportPanel({
   const router = useRouter()
   const pathname = usePathname()
 
-  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "planning", "evidence", "routing", "consolidation", "letters", "denial", "raw"]), [])
+  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "planning", "evidence", "recommenders", "consolidation", "letters", "denial", "raw"]), [])
   const subtabParam = searchParams.get('subtab')
   const initialSubTab = subtabParam && validSubTabs.has(subtabParam as ReportTab)
     ? (subtabParam as ReportTab)
@@ -1128,6 +1129,41 @@ export function ReportPanel({
       }
     } catch {}
   }, [caseId])
+
+  // Auto-trigger strength eval + gap analysis after first analysis completion
+  const autoTriggeredRef = useRef(false)
+  useEffect(() => {
+    if (!analysis || strengthEval || initialGapAnalysis || autoTriggeredRef.current) return
+    autoTriggeredRef.current = true
+
+    async function drainStream(res: Response) {
+      const reader = res.body?.getReader()
+      if (!reader) return
+      while (true) {
+        const { done } = await reader.read()
+        if (done) break
+      }
+    }
+
+    async function autoRun() {
+      try {
+        // Strength eval first (gap analysis depends on it)
+        const seRes = await fetch(`/api/case/${caseId}/strength-evaluation`, { method: "POST" })
+        if (!seRes.ok) return
+        await drainStream(seRes)
+        await refetchStrengthEval()
+
+        // Gap analysis
+        const gaRes = await fetch(`/api/case/${caseId}/gap-analysis`, { method: "POST" })
+        if (!gaRes.ok) return
+        await drainStream(gaRes)
+      } catch (err) {
+        console.error("Auto-run planning failed:", err)
+      }
+    }
+
+    autoRun()
+  }, [analysis, strengthEval, initialGapAnalysis, caseId, refetchStrengthEval])
 
   if (!analysis) {
     return (
@@ -1268,18 +1304,18 @@ export function ReportPanel({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => handleSubTabChange("routing")}
+                      onClick={() => handleSubTabChange("recommenders")}
                       className={cn(
                         "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                        activeTab === "routing"
+                        activeTab === "recommenders"
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground hover:bg-background/60"
                       )}
                     >
-                      Routing
+                      Recommenders
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Document-to-criteria routing and scoring</TooltipContent>
+                  <TooltipContent side="bottom">Manage recommender profiles and letter assignments</TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -1386,7 +1422,7 @@ export function ReportPanel({
                   docCount={analysis.docCountsByCriterion?.[c.criterionId] ?? 0}
                   docCountsByItem={analysis.docCountsByItem}
                   strengthEval={se}
-                  onNavigateToRouting={() => handleSubTabChange("routing")}
+                  onNavigateToRouting={() => handleSubTabChange("recommenders")}
                   onCriterionUpdated={handleCriterionUpdated}
                   onFileDropped={refetchDocCounts}
                   onRefetchStrengthEval={refetchStrengthEval}
@@ -1416,8 +1452,8 @@ export function ReportPanel({
           onDocumentsRouted={onDocumentsRouted}
           onOpenDraft={onOpenDraft}
         />
-      ) : activeTab === "routing" ? (
-        <CriteriaRoutingPanel caseId={caseId} />
+      ) : activeTab === "recommenders" ? (
+        <RecommendersPanel caseId={caseId} />
       ) : activeTab === "consolidation" ? (
         <ConsolidationTab
           caseId={caseId}
