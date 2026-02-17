@@ -6,19 +6,18 @@ import { useSession, signOut } from "next-auth/react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
-  FileText,
-  FolderOpen,
   LogOut,
   Plus,
   ChevronsUpDown,
   Pencil,
   Trash2,
-  LayoutDashboard,
   ListChecks,
   FileStack,
   MessageSquare,
-  Settings,
+  Copy,
+  Download,
   Share2,
+  Archive,
 } from "lucide-react"
 
 import {
@@ -38,6 +37,7 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import {
@@ -88,7 +88,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [newName, setNewName] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Extract current caseId from path
   const currentCaseId = pathname.match(/\/case\/([^/]+)/)?.[1]
 
   const fetchCases = useCallback(async () => {
@@ -166,17 +165,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar variant="inset" {...props}>
-      <SidebarHeader>
+      {/* -- Header: brand mark -- */}
+      <SidebarHeader className="pb-0">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                <div className="bg-foreground text-background flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <FileText className="size-4" />
+                <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground ring-1 ring-sidebar-border">
+                  <span className="text-[11px] font-black tracking-tighter" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+                    1A
+                  </span>
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">EB-1A Builder</span>
-                  <span className="truncate text-xs">Case Manager</span>
+                <div className="grid flex-1 text-left leading-tight">
+                  <span className="text-sm font-semibold tracking-tight">Case for AI</span>
+                  <span className="text-[10px] uppercase tracking-widest text-sidebar-foreground/40" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+                    EB-1A
+                  </span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -185,13 +189,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
+        {/* -- Nav links -- */}
+        <SidebarGroup className="pb-0">
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>
                   <Link href="/dashboard">
-                    <LayoutDashboard className="size-4" />
                     <span>Dashboard</span>
                   </Link>
                 </SidebarMenuButton>
@@ -199,7 +203,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname.startsWith("/shared")}>
                   <Link href="/shared">
-                    <Share2 className="size-4" />
                     <span>Shared with me</span>
                   </Link>
                 </SidebarMenuButton>
@@ -208,81 +211,101 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Your Cases</SidebarGroupLabel>
-          <SidebarGroupContent>
+        {/* -- Cases: scrollable list -- */}
+        <SidebarGroup className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <SidebarGroupLabel className="shrink-0 flex items-center justify-between pr-1">
+            <span>Cases</span>
+            <Link
+              href="/onboard"
+              className="flex items-center justify-center size-5 rounded-md text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              <Plus className="size-3.5" />
+            </Link>
+          </SidebarGroupLabel>
+          <SidebarGroupContent className="flex-1 min-h-0 overflow-y-auto">
             <SidebarMenu>
-              {cases.map((c) => (
-                <ContextMenu key={c.id}>
-                  <ContextMenuTrigger asChild>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        size="lg"
-                        isActive={c.id === currentCaseId}
+              {cases.map((c) => {
+                const isActive = c.id === currentCaseId
+                return (
+                  <ContextMenu key={c.id}>
+                    <ContextMenuTrigger asChild>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          className="h-auto py-2"
+                        >
+                          <Link href={`/case/${c.id}`}>
+                            <div className="grid flex-1 text-left leading-tight min-w-0 gap-0.5">
+                              <span className="truncate text-[13px]">{getCaseName(c)}</span>
+                              <span
+                                className="truncate text-[10px] text-sidebar-foreground/35"
+                                style={{ fontFamily: "var(--font-jetbrains-mono)" }}
+                              >
+                                {formatDate(c.createdAt)}
+                              </span>
+                            </div>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="w-48">
+                      <ContextMenuItem onClick={() => handleRename(c)}>
+                        <Pencil className="size-3.5 mr-2" />
+                        Rename
+                      </ContextMenuItem>
+                      <ContextMenuItem disabled>
+                        <Copy className="size-3.5 mr-2" />
+                        Duplicate
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem disabled>
+                        <Share2 className="size-3.5 mr-2" />
+                        Share
+                      </ContextMenuItem>
+                      <ContextMenuItem disabled>
+                        <Download className="size-3.5 mr-2" />
+                        Export
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem disabled>
+                        <Archive className="size-3.5 mr-2" />
+                        Archive
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() => handleDelete(c)}
+                        className="text-destructive focus:text-destructive"
                       >
-                        <Link href={`/case/${c.id}`}>
-                          <FolderOpen className="size-4" />
-                          <div className="grid flex-1 text-left leading-tight min-w-0">
-                            <span className="truncate text-sm">{getCaseName(c)}</span>
-                            <span className="truncate text-xs text-muted-foreground">
-                              {formatDate(c.createdAt)}
-                            </span>
-                          </div>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent>
-                    <ContextMenuItem onClick={() => handleRename(c)}>
-                      <Pencil className="size-4 mr-2" />
-                      Rename
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => handleDelete(c)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="size-4 mr-2" />
-                      Delete
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
-              ))}
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/onboard">
-                    <Plus className="size-4" />
-                    <span>New Case</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+                        <Trash2 className="size-3.5 mr-2" />
+                        Delete
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
+        {/* -- Admin -- */}
+        <SidebarGroup className="shrink-0 border-t border-sidebar-border pt-2 mt-0">
           <SidebarGroupLabel>Admin</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {[
-                { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
                 { title: "Criteria", href: "/admin/criteria", icon: ListChecks },
                 { title: "Templates", href: "/admin/templates", icon: FileStack },
                 { title: "Prompts", href: "/admin/prompts", icon: MessageSquare },
-                { title: "Application Types", href: "/admin/application-types", icon: Settings },
               ].map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
-                    isActive={
-                      item.href === "/admin"
-                        ? pathname === "/admin"
-                        : pathname.startsWith(item.href)
-                    }
+                    size="sm"
+                    isActive={pathname.startsWith(item.href)}
                   >
                     <Link href={item.href}>
-                      <item.icon className="size-4" />
-                      <span>{item.title}</span>
+                      <item.icon className="size-3.5 opacity-50" />
+                      <span className="text-sidebar-foreground/70">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -292,7 +315,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
+      {/* -- Footer: user -- */}
+      <SidebarFooter className="border-t border-sidebar-border">
         {user ? (
           <SidebarMenu>
             <SidebarMenuItem>
@@ -302,19 +326,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     size="lg"
                     className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                   >
-                    <Avatar className="h-8 w-8 rounded-lg">
+                    <Avatar className="h-7 w-7 rounded-full ring-1 ring-sidebar-border">
                       <AvatarImage src={user.image ?? ''} alt={user.name ?? ''} />
-                      <AvatarFallback className="rounded-lg">
+                      <AvatarFallback className="rounded-full text-[11px] bg-sidebar-accent text-sidebar-accent-foreground">
                         {user.name?.charAt(0) ?? user.email?.charAt(0) ?? '?'}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">
+                    <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
+                      <span className="truncate text-[13px] font-medium">
                         {user.name || 'User'}
                       </span>
-                      <span className="truncate text-xs">{user.email}</span>
+                      <span className="truncate text-[11px] text-sidebar-foreground/40">{user.email}</span>
                     </div>
-                    <ChevronsUpDown className="ml-auto size-4" />
+                    <ChevronsUpDown className="ml-auto size-3.5 text-sidebar-foreground/30" />
                   </SidebarMenuButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -389,7 +413,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <DialogTitle>Delete Case</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete "{selectedCase ? getCaseName(selectedCase) : ''}"? This action cannot be undone.
+            Are you sure you want to delete &ldquo;{selectedCase ? getCaseName(selectedCase) : ''}&rdquo;? This action cannot be undone.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
