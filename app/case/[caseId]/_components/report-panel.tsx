@@ -45,6 +45,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 
 type Strength = "Strong" | "Weak" | "None"
 
@@ -160,6 +165,19 @@ const EVIDENCE_CATEGORIES = [
 
 type EvidenceCategory = (typeof EVIDENCE_CATEGORIES)[number]
 
+const CRITERION_PRIMARY_CATEGORIES: Record<string, string[]> = {
+  C1: ["awards"],
+  C2: ["memberships"],
+  C3: ["media_coverage"],
+  C4: ["judging_activities"],
+  C5: ["original_contributions", "patents", "grants"],
+  C6: ["publications"],
+  C7: ["exhibitions"],
+  C8: ["leadership_roles"],
+  C9: ["compensation"],
+  C10: ["commercial_success"],
+}
+
 const CRITERION_TO_EVAL_KEY: Record<string, string> = {
   C1: "C1_awards", C2: "C2_membership", C3: "C3_press",
   C4: "C4_judging", C5: "C5_contributions", C6: "C6_publications",
@@ -192,8 +210,9 @@ interface CriterionEvalData {
 function getEvidenceForCriterion(
   extraction: DetailedExtraction,
   criterionId: string
-): { category: EvidenceCategory; items: Record<string, unknown>[] }[] {
-  const results: { category: EvidenceCategory; items: Record<string, unknown>[] }[] = []
+): { category: EvidenceCategory; items: Record<string, unknown>[]; primary: boolean }[] {
+  const primaryCats = CRITERION_PRIMARY_CATEGORIES[criterionId] ?? []
+  const results: { category: EvidenceCategory; items: Record<string, unknown>[]; primary: boolean }[] = []
   for (const cat of EVIDENCE_CATEGORIES) {
     const arr = extraction[cat] as Record<string, unknown>[]
     if (!arr?.length) continue
@@ -202,7 +221,7 @@ function getEvidenceForCriterion(
       return mc?.includes(criterionId)
     })
     if (matching.length > 0) {
-      results.push({ category: cat, items: matching })
+      results.push({ category: cat, items: matching, primary: primaryCats.includes(cat) })
     }
   }
   return results
@@ -786,11 +805,11 @@ function CriterionSection({
             </div>
           )}
 
-          {/* Supporting extraction items */}
-          {extractionGroups.length > 0 && (
+          {/* Supporting extraction items -- primary */}
+          {extractionGroups.filter(g => g.primary).length > 0 && (
             <div className="space-y-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Supporting Items</span>
-              {extractionGroups.map(({ category, items }) => {
+              {extractionGroups.filter(g => g.primary).map(({ category, items }) => {
                 const catConf = CATEGORY_CONFIG[category]
                 if (!catConf) return null
                 const Icon = catConf.icon
@@ -841,6 +860,85 @@ function CriterionSection({
               })}
             </div>
           )}
+
+          {/* Cross-criterion items -- "Also relevant" */}
+          {(() => {
+            const crossGroups = extractionGroups.filter(g => !g.primary)
+            const crossCount = crossGroups.reduce((n, g) => n + g.items.length, 0)
+            if (crossCount === 0) return null
+            return (
+              <Collapsible>
+                <CollapsibleTrigger className="group/also flex items-center gap-1.5 w-full text-left py-1">
+                  <svg
+                    className="w-3 h-3 text-muted-foreground/50 transition-transform group-data-[state=open]/also:rotate-90"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
+                    Also relevant
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/40">{crossCount}</span>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-1 pt-0.5 pl-1 border-l border-dashed border-border ml-1">
+                    {crossGroups.map(({ category, items }) => {
+                      const catConf = CATEGORY_CONFIG[category]
+                      if (!catConf) return null
+                      const Icon = catConf.icon
+                      return (
+                        <div key={category} className="space-y-0.5">
+                          <div className="flex items-center gap-1 pl-2">
+                            <Icon className="w-2.5 h-2.5 text-muted-foreground/40" />
+                            <span className="text-[10px] font-medium text-muted-foreground/50">{catConf.label}</span>
+                          </div>
+                          {items.map((item, j) => {
+                            const itemId = item.id as string | undefined
+                            const itemDocCount = itemId ? (docCountsByItem?.[itemId] ?? 0) : 0
+                            return (
+                              <div key={j} className="group/item flex items-center gap-1 text-[11px] text-muted-foreground/60 pl-5 py-px">
+                                <span className="flex-1"><ItemSummary item={item} category={category} /></span>
+                                {itemDocCount > 0 ? (
+                                  <span
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(e) => { e.stopPropagation(); onNavigateToRouting() }}
+                                    onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onNavigateToRouting() } }}
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-emerald-100/60 text-emerald-600/70 dark:bg-emerald-900/20 dark:text-emerald-400/60 hover:bg-emerald-200/60 transition-colors shrink-0 cursor-pointer"
+                                  >
+                                    <FileText className="w-2.5 h-2.5" />
+                                    Evidence in Vault
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-orange-100/60 text-orange-600/70 dark:bg-orange-900/20 dark:text-orange-400/60 shrink-0">
+                                    Evidence Required
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => handleRemoveEvidence(j, "extraction_item", category)}
+                                  disabled={removing !== null}
+                                  className="opacity-0 group-hover/item:opacity-100 shrink-0 p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 transition-all disabled:opacity-30"
+                                >
+                                  {removing === `extraction_item-${category}-${j}` ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-3 h-3" />
+                                  )}
+                                </button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )
+          })()}
 
           {/* Nothing state */}
           {criterion.strength === "None" && !summary && keyEvidence.length === 0 && extractionGroups.length === 0 && (
