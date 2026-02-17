@@ -124,6 +124,7 @@ export default async function CasePage({ params }: Props) {
           strength: 'Strong' | 'Weak' | 'None'
           reason: string
           evidence: string[]
+          webSearches?: { query: string; answer?: string; results: { title: string; url: string; content: string; score: number }[] }[]
         }>,
         strongCount: latestAnalysis.strongCount,
         weakCount: latestAnalysis.weakCount,
