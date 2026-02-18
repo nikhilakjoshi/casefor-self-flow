@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils'
 
-type Phase = 'analysis' | 'evidence' | 'documents'
+type Phase = 'analysis' | 'evidence' | 'documents' | 'package'
 
 interface PhaseTabsProps {
   activeTab: Phase
@@ -12,6 +12,7 @@ interface PhaseTabsProps {
 const tabs: { value: Phase; label: string; subtitle?: string }[] = [
   { value: 'analysis', label: 'Analysis' },
   { value: 'documents', label: 'Case Vault' },
+  { value: 'package', label: 'Package' },
 ]
 
 export function PhaseTabs({ activeTab, onTabChange }: PhaseTabsProps) {
