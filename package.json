@@ -15,7 +15,8 @@
     "db:seed": "node --env-file=.env --import tsx prisma/seed.ts",
     "db:seed-analysis": "node --env-file=.env --import tsx prisma/seed-analysis-prompts.ts",
     "db:seed:survey-extractor": "node --env-file=.env --import tsx prisma/seed-survey-extractor.ts",
-    "db:cleanup": "node --env-file=.env --import tsx prisma/cleanup-cases.ts"
+    "db:cleanup": "node --env-file=.env --import tsx prisma/cleanup-cases.ts",
+    "db:seed-usage-groups": "node --env-file=.env --import tsx prisma/seed-usage-groups.ts"
   },
   "prisma": {
     "seed": "node --env-file=.env --import tsx prisma/seed.ts"

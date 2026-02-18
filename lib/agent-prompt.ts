@@ -36,12 +36,34 @@ export async function getPrompt(slug: string) {
       maxTokens: true,
       active: true,
       variables: true,
+      versions: {
+        orderBy: { version: "desc" },
+        take: 1,
+        select: {
+          content: true,
+          provider: true,
+          modelName: true,
+          temperature: true,
+          maxTokens: true,
+        },
+      },
     },
   });
 
   if (row) {
-    cache.set(slug, { data: row, fetchedAt: Date.now() });
-    return row.active ? row : null;
+    const latest = row.versions[0];
+    const data = {
+      slug: row.slug,
+      active: row.active,
+      variables: row.variables,
+      content: latest?.content ?? row.content,
+      provider: latest?.provider ?? row.provider,
+      modelName: latest?.modelName ?? row.modelName,
+      temperature: latest?.temperature ?? row.temperature,
+      maxTokens: latest?.maxTokens ?? row.maxTokens,
+    };
+    cache.set(slug, { data, fetchedAt: Date.now() });
+    return data.active ? data : null;
   }
   return null;
 }
