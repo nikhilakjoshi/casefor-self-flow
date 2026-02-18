@@ -20,8 +20,9 @@ model User {
   accounts       Account[]
   sessions       Session[]
   cases          Case[]
-  invitedShares  DocumentShare[] @relation("InvitedShares")
-  receivedShares DocumentShare[] @relation("ReceivedShares")
+  invitedShares      DocumentShare[] @relation("InvitedShares")
+  receivedShares     DocumentShare[] @relation("ReceivedShares")
+  signatureRequests  SignatureRequest[]
 }
 
 model Account {
@@ -209,6 +210,7 @@ model Case {
   eb1aAnalyses    EB1AAnalysis[]
   chatMessages    ChatMessage[]
   documents       Document[]
+  signatureRequests SignatureRequest[]
   recommenders           Recommender[]
   strengthEvaluations    StrengthEvaluation[]
   gapAnalyses            GapAnalysis[]
@@ -364,6 +366,7 @@ model Document {
   evidenceVerifications EvidenceVerification[]
   criterionRoutings     DocumentCriterionRouting[]
   shares                DocumentShare[]
+  signatureRequests     SignatureRequest[]
 
   @@index([caseId])
 }
@@ -588,4 +591,63 @@ model DocumentShare {
   @@index([inviteeEmail])
   @@index([inviteeId])
   @@index([token])
+}
+
+enum SignatureRequestStatus {
+  PENDING
+  COMPLETED
+  DECLINED
+  EXPIRED
+  VOIDED
+}
+
+enum SignerStatus {
+  PENDING
+  SENT
+  OPENED
+  COMPLETED
+  DECLINED
+}
+
+model SignatureRequest {
+  id                    String                 @id @default(cuid())
+  caseId                String
+  documentId            String
+  docusealSubmissionId  Int                    @unique
+  status                SignatureRequestStatus @default(PENDING)
+  sentByUserId          String
+  signedDocumentS3Key   String?
+  signedDocumentS3Url   String?
+  auditLogUrl           String?
+  expiresAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  case     Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sentBy   User     @relation(fields: [sentByUserId], references: [id])
+  signers  Signer[]
+
+  @@index([caseId])
+  @@index([documentId])
+}
+
+model Signer {
+  id                   String       @id @default(cuid())
+  signatureRequestId   String
+  docusealSubmitterId  Int          @unique
+  slug                 String
+  role                 String
+  email                String
+  name                 String
+  status               SignerStatus @default(PENDING)
+  signedAt             DateTime?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  signatureRequest SignatureRequest @relation(fields: [signatureRequestId], references: [id], onDelete: Cascade)
+
+  @@index([signatureRequestId])
+  @@index([email])
 }
