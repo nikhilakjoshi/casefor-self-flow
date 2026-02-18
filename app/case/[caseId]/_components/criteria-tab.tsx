@@ -84,7 +84,7 @@ export function CriteriaTab({
                 >
                   <AlertTriangle className="w-4 h-4" />
                   {highGapCount > 0 && sidePanel !== "gaps" && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center px-0.5">
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center px-0.5">
                       {highGapCount}
                     </span>
                   )}
