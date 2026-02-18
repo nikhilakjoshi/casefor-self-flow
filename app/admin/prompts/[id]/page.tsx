@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ArrowLeft, RotateCcw } from "lucide-react"
+import { ArrowLeft, RotateCcw, History, X } from "lucide-react"
 import Link from "next/link"
 
 interface Variable {
@@ -21,12 +21,32 @@ interface Variable {
   description: string
 }
 
+interface VersionSummary {
+  id: string
+  version: number
+  provider: string
+  modelName: string
+  createdAt: string
+}
+
+interface VersionDetail {
+  id: string
+  version: number
+  content: string
+  provider: string
+  modelName: string
+  temperature: number | null
+  maxTokens: number | null
+  createdAt: string
+}
+
 interface AgentPrompt {
   id: string
   slug: string
   name: string
   description: string | null
   category: string
+  usageGroup: string
   content: string
   defaultContent: string
   variables: Variable[]
@@ -35,6 +55,17 @@ interface AgentPrompt {
   temperature: number | null
   maxTokens: number | null
   active: boolean
+  versions: VersionSummary[]
+}
+
+const GROUP_LABELS: Record<string, string> = {
+  "data-extraction": "Onboard / Data Extraction",
+  "criterion-analysis": "Analyze / Criterion Analysis",
+  "case-analysis": "Analyze / Case Analysis",
+  "evidence-verification": "Evidence / Verification",
+  "document-generation": "Drafting / Document Agents",
+  "category-drafters": "Drafting / Category Drafters",
+  uncategorized: "Other",
 }
 
 const PROVIDERS = [
@@ -71,6 +102,10 @@ export default function AdminPromptEditPage() {
   const [maxTokens, setMaxTokens] = useState("")
   const [content, setContent] = useState("")
   const [active, setActive] = useState(true)
+
+  const [showHistory, setShowHistory] = useState(false)
+  const [viewingVersion, setViewingVersion] = useState<VersionDetail | null>(null)
+  const [loadingVersion, setLoadingVersion] = useState(false)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -160,6 +195,18 @@ export default function AdminPromptEditPage() {
     }
   }
 
+  const viewVersion = async (v: VersionSummary) => {
+    setLoadingVersion(true)
+    try {
+      const res = await fetch(`/api/admin/prompts/${params.id}/versions/${v.id}`)
+      if (res.ok) {
+        setViewingVersion(await res.json())
+      }
+    } finally {
+      setLoadingVersion(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-6">
@@ -180,6 +227,7 @@ export default function AdminPromptEditPage() {
   }
 
   const variables = (prompt.variables ?? []) as Variable[]
+  const latestVersion = prompt.versions?.[0]?.version ?? 0
 
   return (
     <div className="p-6 max-w-4xl">
@@ -192,6 +240,9 @@ export default function AdminPromptEditPage() {
         <h1 className="text-lg font-semibold">Edit Prompt</h1>
         <Badge variant="secondary" className="text-xs font-mono">
           {prompt.slug}
+        </Badge>
+        <Badge variant="outline" className="text-xs">
+          {GROUP_LABELS[prompt.usageGroup] || prompt.usageGroup}
         </Badge>
       </div>
 
@@ -300,12 +351,23 @@ export default function AdminPromptEditPage() {
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-sm font-medium">Content</label>
-            {prompt.defaultContent && content !== prompt.defaultContent && (
-              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={resetToDefault}>
-                <RotateCcw className="size-3" />
-                Reset to Default
+            <div className="flex items-center gap-2">
+              {prompt.defaultContent && content !== prompt.defaultContent && (
+                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={resetToDefault}>
+                  <RotateCcw className="size-3" />
+                  Reset to Default
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => setShowHistory(!showHistory)}
+              >
+                <History className="size-3" />
+                History
               </Button>
-            )}
+            </div>
           </div>
 
           {variables.length > 0 && (
@@ -333,10 +395,69 @@ export default function AdminPromptEditPage() {
           />
         </div>
 
+        {/* Version history panel */}
+        {showHistory && prompt.versions && prompt.versions.length > 0 && (
+          <div className="rounded-lg border border-stone-200 dark:border-stone-800 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium">Version History</h3>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setShowHistory(false); setViewingVersion(null) }}>
+                <X className="size-3.5" />
+              </Button>
+            </div>
+            <div className="space-y-1">
+              {prompt.versions.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => viewVersion(v)}
+                  className={`w-full text-left px-3 py-2 rounded text-sm flex items-center justify-between hover:bg-muted/60 transition-colors ${
+                    viewingVersion?.id === v.id ? "bg-muted" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs font-mono">
+                      v{v.version}
+                    </Badge>
+                    {v.version === latestVersion && (
+                      <span className="text-xs text-muted-foreground">current</span>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(v.createdAt).toLocaleDateString()} {new Date(v.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {loadingVersion && (
+              <p className="text-xs text-muted-foreground mt-3">Loading version...</p>
+            )}
+
+            {viewingVersion && !loadingVersion && (
+              <div className="mt-3 border-t border-stone-200 dark:border-stone-800 pt-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge variant="outline" className="text-xs font-mono">v{viewingVersion.version}</Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {viewingVersion.provider} / {viewingVersion.modelName.replace("claude-", "").replace("-20250514", "")}
+                  </span>
+                </div>
+                <pre className="text-xs font-mono bg-muted/50 rounded p-3 max-h-64 overflow-auto whitespace-pre-wrap">
+                  {viewingVersion.content}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-2 pt-2">
           <Button onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save"}
           </Button>
+          {latestVersion > 0 && (
+            <Badge variant="outline" className="text-xs font-mono">
+              v{latestVersion}
+            </Badge>
+          )}
           <Link href="/admin/prompts">
             <Button variant="outline">Cancel</Button>
           </Link>

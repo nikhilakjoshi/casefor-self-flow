@@ -10,6 +10,7 @@ export async function GET() {
       name: true,
       description: true,
       category: true,
+      usageGroup: true,
       provider: true,
       modelName: true,
       temperature: true,
@@ -17,11 +18,17 @@ export async function GET() {
       active: true,
       variables: true,
       updatedAt: true,
+      versions: { select: { id: true }, orderBy: { version: 'desc' } },
     },
-    orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    orderBy: [{ usageGroup: 'asc' }, { name: 'asc' }],
   })
 
-  return NextResponse.json(prompts)
+  const result = prompts.map(({ versions, ...rest }) => ({
+    ...rest,
+    _count: { versions: versions.length },
+  }))
+
+  return NextResponse.json(result)
 }
 
 const CreateSchema = z.object({
@@ -68,6 +75,18 @@ export async function POST(request: Request) {
     data: {
       ...parsed.data,
       defaultContent: parsed.data.content,
+    },
+  })
+
+  await db.agentPromptVersion.create({
+    data: {
+      promptId: prompt.id,
+      version: 1,
+      content: parsed.data.content,
+      provider: parsed.data.provider ?? 'anthropic',
+      modelName: parsed.data.modelName ?? 'claude-sonnet-4-20250514',
+      temperature: parsed.data.temperature ?? null,
+      maxTokens: parsed.data.maxTokens ?? null,
     },
   })
 
