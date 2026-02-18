@@ -531,8 +531,28 @@ model AgentPrompt {
   temperature    Float?
   maxTokens      Int?
   active         Boolean  @default(true)
+  usageGroup     String   @default("uncategorized")
   updatedAt      DateTime @updatedAt
   createdAt      DateTime @default(now())
+
+  versions AgentPromptVersion[]
+}
+
+model AgentPromptVersion {
+  id          String   @id @default(cuid())
+  promptId    String
+  version     Int
+  content     String
+  provider    String
+  modelName   String
+  temperature Float?
+  maxTokens   Int?
+  createdAt   DateTime @default(now())
+
+  prompt AgentPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@unique([promptId, version])
+  @@index([promptId, version])
 }
 
 enum SharePermission {

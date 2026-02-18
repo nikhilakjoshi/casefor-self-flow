@@ -232,6 +232,8 @@ function getCategoryPromptSlug(category?: string): string | null {
       return "uscis-letter-drafter";
     case "RESUME_CV":
       return "resume-drafter";
+    case "EXECUTIVE_RESUME":
+      return "executive-resume-drafter";
     default:
       return null;
   }

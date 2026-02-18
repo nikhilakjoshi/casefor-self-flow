@@ -8,7 +8,22 @@ type Params = { params: Promise<{ id: string }> }
 export async function GET(_request: Request, { params }: Params) {
   const { id } = await params
 
-  const prompt = await db.agentPrompt.findUnique({ where: { id } })
+  const prompt = await db.agentPrompt.findUnique({
+    where: { id },
+    include: {
+      versions: {
+        orderBy: { version: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          version: true,
+          provider: true,
+          modelName: true,
+          createdAt: true,
+        },
+      },
+    },
+  })
   if (!prompt) {
     return new Response('Not found', { status: 404 })
   }
@@ -54,6 +69,27 @@ export async function PATCH(request: Request, { params }: Params) {
     where: { id },
     data: parsed.data,
   })
+
+  // Create new version if content or model config changed
+  const d = parsed.data
+  if (d.content || d.provider || d.modelName || d.temperature !== undefined || d.maxTokens !== undefined) {
+    const latest = await db.agentPromptVersion.findFirst({
+      where: { promptId: id },
+      orderBy: { version: 'desc' },
+    })
+    const nextVersion = (latest?.version ?? 0) + 1
+    await db.agentPromptVersion.create({
+      data: {
+        promptId: id,
+        version: nextVersion,
+        content: updated.content,
+        provider: updated.provider,
+        modelName: updated.modelName,
+        temperature: updated.temperature,
+        maxTokens: updated.maxTokens,
+      },
+    })
+  }
 
   invalidateCache(existing.slug)
 
