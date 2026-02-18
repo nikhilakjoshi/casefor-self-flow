@@ -41,6 +41,11 @@ export async function GET(
       recommenderId: true,
       createdAt: true,
       _count: { select: { evidenceVerifications: true } },
+      signatureRequests: {
+        select: { status: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -49,7 +54,9 @@ export async function GET(
     documents.map((d) => ({
       ...d,
       evidenceVerificationCount: d._count.evidenceVerifications,
+      signatureStatus: d.signatureRequests[0]?.status ?? null,
       _count: undefined,
+      signatureRequests: undefined,
     }))
   )
 }

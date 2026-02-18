@@ -26,6 +26,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.983.0
         version: 3.983.0
+      '@docuseal/react':
+        specifier: ^1.0.71
+        version: 1.0.71
       '@pinecone-database/pinecone':
         specifier: ^7.0.0
         version: 7.0.0
@@ -513,6 +516,9 @@ packages:
 
   '@date-fns/tz@1.4.1':
     resolution: {integrity: sha512-P5LUNhtbj6YfI3iJjw5EL9eUAG6OitD0W3fWQcpQjDRc/QIsL0tRNuO1PcDvPccWL1fSTXXdE1ds+l95DV/OFA==}
+
+  '@docuseal/react@1.0.71':
+    resolution: {integrity: sha512-deF+wtcKJcbzEYJf+lofI2IQvJsGDBjcRw771wJAKqgi4ZFSZC+r/8nxYZNVY1M9UvL7Us3+C48wzeU/O/8lcQ==}
 
   '@electric-sql/pglite-socket@0.0.20':
     resolution: {integrity: sha512-J5nLGsicnD9wJHnno9r+DGxfcZWh+YJMCe0q/aCgtG6XOm9Z7fKeite8IZSNXgZeGltSigM9U/vAWZQWdgcSFg==}
@@ -5384,6 +5390,8 @@ snapshots:
   '@chevrotain/utils@10.5.0': {}
 
   '@date-fns/tz@1.4.1': {}
+
+  '@docuseal/react@1.0.71': {}
 
   '@electric-sql/pglite-socket@0.0.20(@electric-sql/pglite@0.3.15)':
     dependencies:
