@@ -216,6 +216,7 @@ model Case {
   evidenceVerifications  EvidenceVerification[]
   caseConsolidations    CaseConsolidation[]
   denialProbabilities   DenialProbability[]
+  packageVersions       PackageVersion[]
 }
 
 model CaseProfile {
@@ -495,6 +496,19 @@ model DenialProbability {
   id        String   @id @default(cuid())
   caseId    String
   version   Int      @default(1)
+  data      Json
+  createdAt DateTime @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, createdAt])
+}
+
+model PackageVersion {
+  id        String   @id @default(cuid())
+  caseId    String
+  version   Int      @default(1)
+  label     String?
   data      Json
   createdAt DateTime @default(now())
 
