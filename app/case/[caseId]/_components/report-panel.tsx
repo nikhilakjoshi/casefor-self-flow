@@ -38,6 +38,7 @@ import {
   ShieldAlert,
   Trash2,
   Loader2,
+  Check,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -1016,8 +1017,10 @@ export function ReportPanel({
 
   const [analysis, setAnalysis] = useState<Analysis | null>(initialAnalysis ?? null)
   const [strengthEval, setStrengthEval] = useState<StrengthEvaluation | null>(initialStrengthEvaluation ?? null)
+  const [gapAnalysis, setGapAnalysis] = useState<GapAnalysis | null>(initialGapAnalysis ?? null)
   const [activeTab, setActiveTab] = useState<ReportTab>(initialSubTab)
   const [isLoading, setIsLoading] = useState(!initialAnalysis)
+  const [autoRunPhase, setAutoRunPhase] = useState<"idle" | "strength-eval" | "gap-analysis" | "done">("idle")
 
   // Sync activeTab when URL subtab param changes externally
   useEffect(() => {
@@ -1130,6 +1133,16 @@ export function ReportPanel({
     } catch {}
   }, [caseId])
 
+  const refetchGapAnalysis = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/case/${caseId}/gap-analysis`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data) setGapAnalysis(data)
+      }
+    } catch {}
+  }, [caseId])
+
   // Auto-trigger strength eval + gap analysis after first analysis completion
   const autoTriggeredRef = useRef(false)
   useEffect(() => {
@@ -1147,23 +1160,30 @@ export function ReportPanel({
 
     async function autoRun() {
       try {
-        // Strength eval first (gap analysis depends on it)
+        setAutoRunPhase("strength-eval")
+
         const seRes = await fetch(`/api/case/${caseId}/strength-evaluation`, { method: "POST" })
-        if (!seRes.ok) return
+        if (!seRes.ok) { setAutoRunPhase("idle"); return }
         await drainStream(seRes)
         await refetchStrengthEval()
 
-        // Gap analysis
+        setAutoRunPhase("gap-analysis")
+
         const gaRes = await fetch(`/api/case/${caseId}/gap-analysis`, { method: "POST" })
-        if (!gaRes.ok) return
+        if (!gaRes.ok) { setAutoRunPhase("idle"); return }
         await drainStream(gaRes)
+        await refetchGapAnalysis()
+
+        setAutoRunPhase("done")
+        setTimeout(() => setAutoRunPhase("idle"), 2000)
       } catch (err) {
         console.error("Auto-run planning failed:", err)
+        setAutoRunPhase("idle")
       }
     }
 
     autoRun()
-  }, [analysis, strengthEval, initialGapAnalysis, caseId, refetchStrengthEval])
+  }, [analysis, strengthEval, initialGapAnalysis, caseId, refetchStrengthEval, refetchGapAnalysis])
 
   if (!analysis) {
     return (
@@ -1390,6 +1410,29 @@ export function ReportPanel({
         )}
       </div>
 
+      {/* Auto-run loader banner */}
+      {autoRunPhase !== "idle" && (
+        <div className="shrink-0 px-4 py-2 border-b border-border bg-muted/50">
+          <div className="flex items-center gap-2">
+            {autoRunPhase === "done" ? (
+              <>
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Analysis complete</span>
+              </>
+            ) : (
+              <>
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-muted-foreground">
+                  {autoRunPhase === "strength-eval"
+                    ? "Running strength evaluation..."
+                    : "Running gap analysis..."}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Tab content */}
       {activeTab === "summary" ? (
         <CriteriaTab
@@ -1397,7 +1440,7 @@ export function ReportPanel({
           onNavigateToEvidence={() => handleSubTabChange("evidence")}
           strengthEval={strengthEval}
           criteriaNames={analysis.criteriaNames}
-          gapAnalysis={initialGapAnalysis}
+          gapAnalysis={gapAnalysis}
           extraction={analysis.extraction}
           criteriaContent={
             [...analysis.criteria].sort((a, b) => {
@@ -1439,7 +1482,7 @@ export function ReportPanel({
       ) : activeTab === "planning" ? (
         <PlanningTab
           caseId={caseId}
-          initialGapAnalysis={initialGapAnalysis}
+          initialGapAnalysis={gapAnalysis}
           initialCaseStrategy={initialCaseStrategy}
           initialStrengthEvaluation={strengthEval}
           onStrengthEvalComplete={refetchStrengthEval}

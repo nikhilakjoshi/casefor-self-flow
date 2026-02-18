@@ -80,7 +80,7 @@ function LoginForm() {
             <label htmlFor="password" className="text-sm font-medium text-foreground">
               Password
             </label>
-            <Link href="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/forgot-password" tabIndex={-1} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Forgot password?
             </Link>
           </div>
