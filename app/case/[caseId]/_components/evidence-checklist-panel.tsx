@@ -87,7 +87,7 @@ function StrengthMeter({ tier }: { tier: number }) {
           />
         ))}
       </div>
-      <span className={cn("text-[10px] font-medium leading-none", d.textClass)}>
+      <span className={cn("text-xs font-medium leading-none", d.textClass)}>
         {d.label}
       </span>
     </div>
@@ -252,7 +252,7 @@ export function KeyEvidencePanel({
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-background sticky top-0 z-10">
-        <span className="text-xs font-semibold tracking-tight">Key Evidence</span>
+        <span className="text-[13px] font-semibold tracking-tight">Key Evidence</span>
         <button
           onClick={onClose}
           className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -263,7 +263,7 @@ export function KeyEvidencePanel({
 
       {/* Summary */}
       {totalCount > 0 && (
-        <div className="px-3 py-1 text-[10px] text-muted-foreground/70 border-b border-border/50">
+        <div className="px-3 py-1 text-xs text-muted-foreground/70 border-b border-border/50">
           {totalCount} items across {groups.length} criteria
         </div>
       )}
@@ -271,7 +271,7 @@ export function KeyEvidencePanel({
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {groups.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-12">
+          <p className="text-[13px] text-muted-foreground text-center py-12">
             No evidence items yet
           </p>
         ) : (
@@ -280,7 +280,7 @@ export function KeyEvidencePanel({
               <div key={group.key} className="px-3 py-2.5">
                 {/* Criterion header */}
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="text-[11px] font-semibold text-foreground/90 tracking-tight truncate">
+                  <span className="text-xs font-semibold text-foreground/90 tracking-tight truncate">
                     {group.name}
                   </span>
                   {group.tier && <StrengthMeter tier={group.tier} />}
@@ -290,7 +290,7 @@ export function KeyEvidencePanel({
                 {group.keyEvidence.length > 0 && group.totalItems === 0 && (
                   <div className="space-y-1 mb-1">
                     {group.keyEvidence.slice(0, 3).map((ev, i) => (
-                      <p key={i} className="text-[10px] italic text-foreground/40 leading-snug pl-2 border-l-2 border-border/60">
+                      <p key={i} className="text-xs italic text-foreground/40 leading-snug pl-2 border-l-2 border-border/60">
                         {ev}
                       </p>
                     ))}
@@ -307,7 +307,7 @@ export function KeyEvidencePanel({
                       return items.map((item, j) => (
                         <div key={`${category}-${j}`} className="flex items-start gap-1.5 py-[3px]">
                           <Icon className="w-3 h-3 text-muted-foreground/40 shrink-0 mt-[2px]" />
-                          <span className="text-[10px] text-foreground/70 leading-snug line-clamp-2">
+                          <span className="text-xs text-foreground/70 leading-snug line-clamp-2">
                             <ItemSummary item={item} category={category} />
                           </span>
                         </div>

@@ -39,22 +39,22 @@ function GapCard({
     <div className="px-3 py-3 space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-semibold text-foreground/90 tracking-tight truncate">
+        <span className="text-xs font-semibold text-foreground/90 tracking-tight truncate">
           {name}
         </span>
-        <span className={cn("flex items-center gap-1 text-[10px] font-medium shrink-0", p.textClass)}>
+        <span className={cn("flex items-center gap-1 text-xs font-medium shrink-0", p.textClass)}>
           <span className={cn("w-[6px] h-[6px] rounded-full", p.dotClass)} />
           {p.label}
         </span>
       </div>
 
       {/* Issue */}
-      <p className="text-[11px] leading-relaxed text-foreground/70">
+      <p className="text-xs leading-relaxed text-foreground/70">
         {gap.issue}
       </p>
 
       {/* Goal */}
-      <div className={cn("text-[10px] leading-relaxed rounded-md px-2 py-1.5", p.bgClass, p.textClass)}>
+      <div className={cn("text-xs leading-relaxed rounded-md px-2 py-1.5", p.bgClass, p.textClass)}>
         <span className="font-semibold">Goal: </span>
         {gap.required_state}
       </div>
@@ -62,14 +62,14 @@ function GapCard({
       {/* Your actions */}
       {clientActions.length > 0 && (
         <div className="space-y-1">
-          <span className="text-[10px] font-medium text-muted-foreground">Your actions</span>
+          <span className="text-xs font-medium text-muted-foreground">Your actions</span>
           {clientActions.map((a, j) => (
             <div key={j} className="flex items-start gap-1.5 pl-0.5">
-              <span className="text-muted-foreground/40 mt-[3px] shrink-0 text-[8px] leading-none">--</span>
+              <span className="text-muted-foreground/40 mt-[3px] shrink-0 text-[11px] leading-none">--</span>
               <div>
-                <p className="text-[10px] text-foreground/80 leading-snug">{a.action}</p>
+                <p className="text-xs text-foreground/80 leading-snug">{a.action}</p>
                 {a.detail && (
-                  <p className="text-[10px] text-muted-foreground leading-snug">{a.detail}</p>
+                  <p className="text-xs text-muted-foreground leading-snug">{a.detail}</p>
                 )}
               </div>
             </div>
@@ -80,11 +80,11 @@ function GapCard({
       {/* Attorney actions */}
       {lawyerActions.length > 0 && (
         <div className="space-y-1">
-          <span className="text-[10px] font-medium text-muted-foreground/60">Attorney actions</span>
+          <span className="text-xs font-medium text-muted-foreground/60">Attorney actions</span>
           {lawyerActions.map((a, j) => (
             <div key={j} className="flex items-start gap-1.5 pl-0.5">
-              <span className="text-muted-foreground/25 mt-[3px] shrink-0 text-[8px] leading-none">--</span>
-              <p className="text-[10px] text-muted-foreground/70 leading-snug">{a.action}</p>
+              <span className="text-muted-foreground/25 mt-[3px] shrink-0 text-[11px] leading-none">--</span>
+              <p className="text-xs text-muted-foreground/70 leading-snug">{a.action}</p>
             </div>
           ))}
         </div>
@@ -92,7 +92,7 @@ function GapCard({
 
       {/* Timeline */}
       {gap.timeline && (
-        <p className="text-[9px] text-muted-foreground/50 pt-0.5">
+        <p className="text-[11px] text-muted-foreground/50 pt-0.5">
           {gap.timeline}
         </p>
       )}
@@ -126,7 +126,7 @@ export function CriticalGapsPanel({
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-background sticky top-0 z-10">
-        <span className="text-xs font-semibold tracking-tight">Critical Gaps</span>
+        <span className="text-[13px] font-semibold tracking-tight">Critical Gaps</span>
         <button
           onClick={onClose}
           className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -137,7 +137,7 @@ export function CriticalGapsPanel({
 
       {/* Summary counts */}
       {gaps.length > 0 && (
-        <div className="px-3 py-1.5 flex items-center gap-3 text-[10px] text-muted-foreground/70 border-b border-border/50">
+        <div className="px-3 py-1.5 flex items-center gap-3 text-xs text-muted-foreground/70 border-b border-border/50">
           {highCount > 0 && (
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
@@ -162,7 +162,7 @@ export function CriticalGapsPanel({
       {/* Gaps list */}
       <div className="flex-1 overflow-y-auto">
         {sorted.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-12">
+          <p className="text-[13px] text-muted-foreground text-center py-12">
             No critical gaps identified
           </p>
         ) : (

@@ -28,6 +28,21 @@ import {
   BookOpen,
   ClipboardCheck,
   Plane,
+  CreditCard,
+  Globe,
+  Mail,
+  AlertTriangle,
+  Reply,
+  Fingerprint,
+  ArrowRightLeft,
+  CalendarCheck,
+  FilePlus,
+  Camera,
+  Heart,
+  ShieldCheck,
+  Briefcase,
+  Receipt,
+  GraduationCap,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -674,12 +689,71 @@ function EvidenceCriterionCard({
 // -- Immigration Documents --
 
 const IMMIGRATION_DOC_TYPES = [
+  // Identity & Status
   { category: 'PASSPORT_ID', label: 'Passport', description: 'Valid passport bio page', group: 'identity', icon: FileText },
   { category: 'I20', label: 'I-20', description: 'Certificate of Eligibility', group: 'identity', icon: BookOpen },
   { category: 'VISA_STAMP', label: 'Visa Stamps', description: 'US visa stamps from passport', group: 'identity', icon: Stamp },
-  { category: 'I140', label: 'I-140', description: 'Immigrant Petition for Alien Workers', group: 'petition', icon: FileText },
-  { category: 'I797_APPROVAL', label: 'I-797 Approval', description: 'USCIS approval notice', group: 'petition', icon: ClipboardCheck },
-  { category: 'I94', label: 'I-94', description: 'Arrival/Departure record', group: 'petition', icon: Plane },
+  { category: 'DS2019', label: 'DS-2019', description: 'Certificate of Eligibility (J-1)', group: 'identity', icon: BookOpen },
+  { category: 'EAD_CARD', label: 'EAD Card', description: 'Employment Authorization Document', group: 'identity', icon: CreditCard },
+  { category: 'NATIONAL_ID', label: 'National ID', description: 'Government-issued national ID card', group: 'identity', icon: Globe },
+  { category: 'I94', label: 'I-94', description: 'Arrival/Departure record', group: 'identity', icon: Plane },
+  // Core Petition Forms
+  { category: 'I140', label: 'I-140', description: 'Immigrant Petition for Alien Workers', group: 'petition_forms', icon: FileText },
+  { category: 'I907', label: 'I-907', description: 'Request for Premium Processing', group: 'petition_forms', icon: FileText },
+  { category: 'G28', label: 'G-28', description: 'Notice of Entry of Appearance as Attorney', group: 'petition_forms', icon: FileText },
+  { category: 'G1145', label: 'G-1145', description: 'E-Notification of Application Acceptance', group: 'petition_forms', icon: Mail },
+  { category: 'COVER_LETTER', label: 'Cover Letter', description: 'Petition cover letter', group: 'petition_forms', icon: FileText },
+  { category: 'G1450', label: 'G-1450', description: 'Authorization for Credit Card Payment', group: 'petition_forms', icon: CreditCard },
+  // USCIS Notices
+  { category: 'I797_APPROVAL', label: 'I-797 Approval', description: 'USCIS approval notice', group: 'uscis_notices', icon: ClipboardCheck },
+  { category: 'I797C_RECEIPT', label: 'I-797C Receipt', description: 'USCIS receipt notice', group: 'uscis_notices', icon: Receipt },
+  { category: 'I797E_RFE', label: 'I-797E RFE', description: 'Request for Evidence notice', group: 'uscis_notices', icon: AlertTriangle },
+  { category: 'RFE_RESPONSE', label: 'RFE Response', description: 'Response to Request for Evidence', group: 'uscis_notices', icon: Reply },
+  { category: 'NOID', label: 'NOID', description: 'Notice of Intent to Deny', group: 'uscis_notices', icon: AlertTriangle },
+  { category: 'TRANSFER_NOTICE', label: 'Transfer Notice', description: 'Case transfer notification', group: 'uscis_notices', icon: ArrowRightLeft },
+  { category: 'INTERVIEW_NOTICE', label: 'Interview Notice', description: 'Interview scheduling notice', group: 'uscis_notices', icon: CalendarCheck },
+  { category: 'BIOMETRICS_NOTICE', label: 'Biometrics Notice', description: 'Biometrics appointment notice', group: 'uscis_notices', icon: Fingerprint },
+  // Adjustment of Status
+  { category: 'I485', label: 'I-485', description: 'Application to Register Permanent Residence', group: 'adjustment', icon: FilePlus },
+  { category: 'I485_SUPPLEMENT_J', label: 'I-485 Supp J', description: 'Confirmation of Bona Fide Job Offer', group: 'adjustment', icon: FilePlus },
+  { category: 'I765', label: 'I-765', description: 'Application for Employment Authorization', group: 'adjustment', icon: FileText },
+  { category: 'I131', label: 'I-131', description: 'Application for Travel Document', group: 'adjustment', icon: Plane },
+  { category: 'PASSPORT_PHOTOS', label: 'Passport Photos', description: 'USCIS-compliant passport photos', group: 'adjustment', icon: Camera },
+  // Civil Documents
+  { category: 'BIRTH_CERTIFICATE', label: 'Birth Certificate', description: 'Certified birth certificate', group: 'civil', icon: FileText },
+  { category: 'MARRIAGE_CERTIFICATE', label: 'Marriage Certificate', description: 'Certified marriage certificate', group: 'civil', icon: Heart },
+  { category: 'DIVORCE_DECREE', label: 'Divorce Decree', description: 'Final divorce decree', group: 'civil', icon: FileText },
+  { category: 'NAME_CHANGE_ORDER', label: 'Name Change Order', description: 'Court-ordered name change', group: 'civil', icon: FileText },
+  // Medical
+  { category: 'I693', label: 'I-693', description: 'Report of Medical Examination', group: 'medical', icon: ShieldCheck },
+  { category: 'VACCINATION_RECORDS', label: 'Vaccination Records', description: 'Immunization history', group: 'medical', icon: ShieldCheck },
+  // Employment / Financial
+  { category: 'EMPLOYMENT_VERIFICATION', label: 'Employment Verification', description: 'Employment verification letter', group: 'employment', icon: Briefcase },
+  { category: 'EMPLOYMENT_CONTRACT', label: 'Employment Contract', description: 'Signed employment contract', group: 'employment', icon: Briefcase },
+  { category: 'OFFER_LETTER', label: 'Offer Letter', description: 'Job offer letter', group: 'employment', icon: Mail },
+  { category: 'TAX_RETURNS', label: 'Tax Returns', description: 'Federal/state tax returns', group: 'employment', icon: Receipt },
+  { category: 'W2_FORMS', label: 'W-2 Forms', description: 'W-2 wage and tax statements', group: 'employment', icon: Receipt },
+  { category: 'PAY_STUBS', label: 'Pay Stubs', description: 'Recent pay stubs', group: 'employment', icon: Receipt },
+  { category: 'SALARY_DOCUMENTATION', label: 'Salary Documentation', description: 'Other salary/compensation evidence', group: 'employment', icon: DollarSign },
+  // Petition Support
+  { category: 'RESUME_CV', label: 'Resume / CV', description: 'Resume or curriculum vitae', group: 'petition_support', icon: FileText },
+  { category: 'EXECUTIVE_RESUME', label: 'Executive Resume', description: 'Executive-format resume', group: 'petition_support', icon: FileText },
+  { category: 'PERSONAL_STATEMENT', label: 'Personal Statement', description: 'Personal statement or declaration', group: 'petition_support', icon: FileText },
+  { category: 'CREDENTIAL_EVALUATION', label: 'Credential Evaluation', description: 'Foreign credential evaluation report', group: 'petition_support', icon: GraduationCap },
+  { category: 'DEGREE_CERTIFICATE', label: 'Degree Certificate', description: 'Academic degree or diploma', group: 'petition_support', icon: GraduationCap },
+  { category: 'PROFESSIONAL_LICENSE', label: 'Professional License', description: 'Professional license or certification', group: 'petition_support', icon: ShieldCheck },
+  { category: 'USCIS_ADVISORY_LETTER', label: 'Advisory Letter', description: 'USCIS advisory or expert opinion letter', group: 'petition_support', icon: FileText },
+] as const
+
+const IMMIGRATION_GROUPS = [
+  { key: 'identity', label: 'Identity & Status' },
+  { key: 'petition_forms', label: 'Core Petition Forms' },
+  { key: 'uscis_notices', label: 'USCIS Notices' },
+  { key: 'adjustment', label: 'Adjustment of Status' },
+  { key: 'civil', label: 'Civil Documents' },
+  { key: 'medical', label: 'Medical' },
+  { key: 'employment', label: 'Employment / Financial' },
+  { key: 'petition_support', label: 'Petition Support' },
 ] as const
 
 const IMMIGRATION_CATEGORIES = IMMIGRATION_DOC_TYPES.map(d => d.category)
@@ -953,59 +1027,57 @@ export function EvidenceListPanel({
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Upload bar -- global drop zone for all C1-C10 */}
-      <div className="shrink-0 p-3 border-b border-border">
-        <div
-          onDragOver={(e) => { e.preventDefault(); setUploadDragOver(true) }}
-          onDragLeave={(e) => { e.preventDefault(); setUploadDragOver(false) }}
-          onDrop={(e) => {
-            e.preventDefault()
-            setUploadDragOver(false)
-            if (e.dataTransfer.files.length > 0) handleUpload(e.dataTransfer.files)
+      <div
+        className={cn(
+          "shrink-0 border-b transition-colors",
+          isUploading
+            ? "bg-primary/5 border-primary/30"
+            : uploadDragOver
+              ? "bg-primary/10 border-primary"
+              : "border-border hover:bg-muted/30",
+        )}
+        onDragOver={(e) => { e.preventDefault(); setUploadDragOver(true) }}
+        onDragLeave={(e) => { e.preventDefault(); setUploadDragOver(false) }}
+        onDrop={(e) => {
+          e.preventDefault()
+          setUploadDragOver(false)
+          if (e.dataTransfer.files.length > 0) handleUpload(e.dataTransfer.files)
+        }}
+        onClick={() => !isUploading && fileInputRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click() } }}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".pdf,.docx,.txt,.md,.csv,.xlsx,.xls"
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files?.length) handleUpload(e.target.files)
+            e.target.value = ""
           }}
-          onClick={() => !isUploading && fileInputRef.current?.click()}
-          className={cn(
-            "border-2 border-dashed rounded-lg p-3 text-center transition-colors",
-            isUploading
-              ? "border-primary/50 bg-primary/5 pointer-events-none"
-              : uploadDragOver
-                ? "border-primary bg-primary/10 ring-2 ring-primary/30"
-                : "border-border hover:border-muted-foreground/50 cursor-pointer",
-          )}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.docx,.txt,.md,.csv,.xlsx,.xls"
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files?.length) handleUpload(e.target.files)
-              e.target.value = ""
-            }}
-          />
+        />
+        <div className="flex items-center gap-2.5 px-4 py-2 cursor-pointer">
           {isUploading ? (
-            <div className="flex items-center justify-center gap-2">
-              <Loader2 className="w-4 h-4 text-primary animate-spin" />
+            <>
+              <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
               <span className="text-xs text-muted-foreground">
-                Uploading & verifying all criteria...
+                Verifying against C1-C10...
                 {streamingDocs.size > 0 && ` (${streamingDocs.size} doc${streamingDocs.size > 1 ? "s" : ""})`}
               </span>
-            </div>
+            </>
           ) : (
             <>
-              <svg className="w-5 h-5 mx-auto text-muted-foreground mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" strokeLinecap="round" strokeLinejoin="round" />
-                <polyline points="17 8 12 3 7 8" strokeLinecap="round" strokeLinejoin="round" />
-                <line x1="12" y1="3" x2="12" y2="15" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <p className="text-xs text-muted-foreground">
-                {uploadDragOver ? "Drop to upload & auto-classify all C1-C10" : "Drop evidence files or click to upload"}
-              </p>
-              <p className="text-[10px] text-muted-foreground/70 mt-0.5">PDF, DOCX, TXT, MD, CSV, XLSX -- auto-verified against C1-C10</p>
+              <Upload className={cn("w-4 h-4 shrink-0", uploadDragOver ? "text-primary" : "text-muted-foreground")} />
+              <span className="text-xs text-muted-foreground">
+                {uploadDragOver ? "Drop to upload & auto-classify" : "Drop evidence files or click to upload"}
+              </span>
+              <span className="text-[11px] text-muted-foreground/50 hidden sm:inline">PDF, DOCX, TXT, MD, CSV, XLSX</span>
             </>
           )}
         </div>
-
       </div>
 
       {/* Scrollable content */}
@@ -1066,35 +1138,40 @@ export function EvidenceListPanel({
             )}
           </button>
           {immigrationDocsOpen && (
-            <div className="p-3 space-y-3">
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Identity</span>
-                <div className="space-y-1.5">
-                  {IMMIGRATION_DOC_TYPES.filter(d => d.group === 'identity').map((docType) => (
-                    <ImmigrationDocCard
-                      key={docType.category}
-                      docType={docType}
-                      docs={immigrationDocs.filter(d => d.category === docType.category)}
-                      caseId={caseId}
-                      onUploaded={fetchRecommenderData}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Petition</span>
-                <div className="space-y-1.5">
-                  {IMMIGRATION_DOC_TYPES.filter(d => d.group === 'petition').map((docType) => (
-                    <ImmigrationDocCard
-                      key={docType.category}
-                      docType={docType}
-                      docs={immigrationDocs.filter(d => d.category === docType.category)}
-                      caseId={caseId}
-                      onUploaded={fetchRecommenderData}
-                    />
-                  ))}
-                </div>
-              </div>
+            <div className="p-3 space-y-1">
+              {IMMIGRATION_GROUPS.map((group) => {
+                const groupDocs = IMMIGRATION_DOC_TYPES.filter(d => d.group === group.key)
+                const groupUploadedCount = groupDocs.reduce(
+                  (n, dt) => n + immigrationDocs.filter(d => d.category === dt.category).length,
+                  0
+                )
+                return (
+                  <Collapsible key={group.key} defaultOpen={group.key === 'identity' || group.key === 'petition_forms'}>
+                    <CollapsibleTrigger className="group/imm flex items-center gap-2 w-full text-left px-1 py-1.5 rounded hover:bg-muted/30 transition-colors">
+                      <ChevronDown className="w-3 h-3 text-muted-foreground transition-transform group-data-[state=closed]/imm:-rotate-90" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{group.label}</span>
+                      {groupUploadedCount > 0 && (
+                        <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-1.5 py-0">
+                          {groupUploadedCount}
+                        </span>
+                      )}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="space-y-1.5 pb-2 pt-1">
+                        {groupDocs.map((docType) => (
+                          <ImmigrationDocCard
+                            key={docType.category}
+                            docType={docType}
+                            docs={immigrationDocs.filter(d => d.category === docType.category)}
+                            caseId={caseId}
+                            onUploaded={fetchRecommenderData}
+                          />
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )
+              })}
             </div>
           )}
         </div>
