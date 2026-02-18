@@ -325,7 +325,7 @@ function TierEvidenceGuide({ criterionId, strengthEval }: { criterionId: string;
       {/* Current tier badge */}
       {strengthEval && tierColor && (
         <div className="flex items-center">
-          <span className={cn("px-1.5 py-px rounded text-[10px] font-bold", tierColor.badge)}>
+          <span className={cn("px-1.5 py-px rounded text-xs font-bold", tierColor.badge)}>
             T{currentTier} {tierLabel}
           </span>
         </div>
@@ -340,7 +340,7 @@ function TierEvidenceGuide({ criterionId, strengthEval }: { criterionId: string;
             <div
               key={t.tier}
               className={cn(
-                "flex items-start gap-1.5 px-1.5 py-0.5 rounded text-[10px] transition-all",
+                "flex items-start gap-1.5 px-1.5 py-0.5 rounded text-xs transition-all",
                 isActive ? cn(color.bg, "border-l-2", color.border) : "opacity-50 pl-[10px]"
               )}
             >
@@ -365,13 +365,13 @@ function TierEvidenceGuide({ criterionId, strengthEval }: { criterionId: string;
       {strengthEval && (
         <div className="space-y-1 pt-0.5">
           {strengthEval.scoring_rationale && (
-            <p className="text-[10px] text-foreground/70 leading-snug">
+            <p className="text-xs text-foreground/70 leading-snug">
               <span className="font-semibold text-muted-foreground">Rationale: </span>
               {strengthEval.scoring_rationale}
             </p>
           )}
           {strengthEval.improvement_notes && (
-            <p className="text-[10px] text-blue-700 dark:text-blue-300 leading-snug bg-blue-500/5 rounded px-1.5 py-0.5">
+            <p className="text-xs text-blue-700 dark:text-blue-300 leading-snug bg-blue-500/5 rounded px-1.5 py-0.5">
               <span className="font-semibold">Improve: </span>
               {strengthEval.improvement_notes}
             </p>
@@ -643,11 +643,11 @@ function CriterionSection({
             {config.icon}
           </span>
           <div className="flex-1 min-w-0">
-            {canonicalId && <span className="text-[10px] font-mono font-medium text-muted-foreground mr-1">{canonicalId}</span>}
-            <span className="text-xs font-semibold text-stone-800 dark:text-stone-200">{displayName}</span>
+            {canonicalId && <span className="text-xs font-mono font-medium text-muted-foreground mr-1">{canonicalId}</span>}
+            <span className="text-[13px] font-semibold text-stone-800 dark:text-stone-200">{displayName}</span>
           </div>
           {evidenceCount > 0 && (
-            <span className="text-xs text-muted-foreground shrink-0">{evidenceCount} items</span>
+            <span className="text-[13px] text-muted-foreground shrink-0">{evidenceCount} items</span>
           )}
           {docCount > 0 ? (
             <span
@@ -655,13 +655,13 @@ function CriterionSection({
               tabIndex={0}
               onClick={(e) => { e.stopPropagation(); onNavigateToRouting() }}
               onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onNavigateToRouting() } }}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 hover:bg-teal-200 dark:hover:bg-teal-900/60 transition-colors shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 hover:bg-teal-200 dark:hover:bg-teal-900/60 transition-colors shrink-0 cursor-pointer"
             >
               <FileText className="w-3 h-3" />
               {docCount} {docCount === 1 ? "doc" : "docs"}
             </span>
           ) : criterion.strength !== "None" ? (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
               Mentioned
             </span>
           ) : null}
@@ -679,7 +679,7 @@ function CriterionSection({
           onClick={(e) => { e.stopPropagation(); handleEvaluate() }}
           disabled={evaluating}
           className={cn(
-            "shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all disabled:opacity-40",
+            "shrink-0 px-2.5 py-1 rounded-md text-xs font-medium transition-all disabled:opacity-40",
             criterion.strength === "None"
               ? "bg-stone-800 text-white hover:bg-stone-700 dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-stone-300"
               : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 border border-border"
@@ -697,12 +697,12 @@ function CriterionSection({
             <div>
               <button
                 onClick={() => setGuidanceOpen(!guidanceOpen)}
-                className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
               >
                 {guidanceOpen ? "Hide USCIS guidance" : "USCIS guidance"}
               </button>
               {guidanceOpen && (
-                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   {meta.guidance}
                 </p>
               )}
@@ -712,8 +712,8 @@ function CriterionSection({
           {/* USCIS definition */}
           {meta?.uscis && (
             <div className="flex items-start gap-1.5 pl-2 border-l-2 border-slate-300 dark:border-slate-600">
-              <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-px select-none">USCIS</span>
-              <p className="text-[10px] italic leading-snug text-slate-500 dark:text-slate-400">{meta.uscis}</p>
+              <span className="shrink-0 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-px select-none">USCIS</span>
+              <p className="text-xs italic leading-snug text-slate-500 dark:text-slate-400">{meta.uscis}</p>
             </div>
           )}
 
@@ -722,16 +722,16 @@ function CriterionSection({
 
           {/* Summary */}
           {summary && (
-            <p className="text-[11px] leading-snug text-stone-600 dark:text-stone-400">{summary}</p>
+            <p className="text-xs leading-snug text-stone-600 dark:text-stone-400">{summary}</p>
           )}
 
           {/* Key evidence quotes */}
           {keyEvidence.length > 0 && (
             <div className="space-y-1">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Key Evidence</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Key Evidence</span>
               {keyEvidence.map((ev, i) => (
                 <div key={i} className="group flex items-start gap-1">
-                  <p className="flex-1 text-[11px] text-foreground/80 pl-2 border-l-2 border-stone-300 dark:border-stone-600 leading-snug">
+                  <p className="flex-1 text-xs text-foreground/80 pl-2 border-l-2 border-stone-300 dark:border-stone-600 leading-snug">
                     {ev}
                   </p>
                   <button
@@ -753,7 +753,7 @@ function CriterionSection({
           {/* Web verification searches (C6) */}
           {criterion.webSearches?.length ? (
             <details className="group">
-              <summary className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors cursor-pointer list-none">
+              <summary className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors cursor-pointer list-none">
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" strokeLinecap="round" />
                 </svg>
@@ -765,7 +765,7 @@ function CriterionSection({
               <div className="mt-2 space-y-3">
                 {criterion.webSearches.map((search, si) => (
                   <div key={si} className="space-y-1">
-                    <p className="text-[10px] text-muted-foreground">&ldquo;{search.query}&rdquo;</p>
+                    <p className="text-xs text-muted-foreground">&ldquo;{search.query}&rdquo;</p>
                     {search.answer && (
                       <p className="text-xs text-foreground/70 italic pl-2.5 border-l-2 border-blue-300">{search.answer}</p>
                     )}
@@ -773,7 +773,7 @@ function CriterionSection({
                       <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer"
                          className="block pl-2.5 border-l-2 border-stone-200 hover:border-stone-400 transition-colors">
                         <span className="text-xs font-medium text-blue-600 hover:underline">{r.title}</span>
-                        <p className="text-[10px] text-muted-foreground line-clamp-2">{r.content}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{r.content}</p>
                       </a>
                     ))}
                   </div>
@@ -785,10 +785,10 @@ function CriterionSection({
           {/* Legacy evidence strings (no extraction) */}
           {!criteriaSummary && criterion.evidence?.length > 0 && (
             <div className="space-y-1">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Evidence</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Evidence</span>
               {criterion.evidence.map((ev, i) => (
                 <div key={i} className="group flex items-start gap-1">
-                  <p className="flex-1 text-[11px] text-foreground/80 pl-2 border-l-2 border-stone-300 dark:border-stone-600 leading-snug">
+                  <p className="flex-1 text-xs text-foreground/80 pl-2 border-l-2 border-stone-300 dark:border-stone-600 leading-snug">
                     {ev}
                   </p>
                   <button
@@ -810,7 +810,7 @@ function CriterionSection({
           {/* Supporting extraction items -- primary */}
           {extractionGroups.filter(g => g.primary).length > 0 && (
             <div className="space-y-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Supporting Items</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Supporting Items</span>
               {extractionGroups.filter(g => g.primary).map(({ category, items }) => {
                 const catConf = CATEGORY_CONFIG[category]
                 if (!catConf) return null
@@ -819,13 +819,13 @@ function CriterionSection({
                   <div key={category} className="space-y-0.5">
                     <div className="flex items-center gap-1">
                       <Icon className="w-3 h-3 text-muted-foreground" />
-                      <span className="text-[10px] font-medium text-muted-foreground">{catConf.label}</span>
+                      <span className="text-xs font-medium text-muted-foreground">{catConf.label}</span>
                     </div>
                     {items.map((item, j) => {
                       const itemId = item.id as string | undefined
                       const itemDocCount = itemId ? (docCountsByItem?.[itemId] ?? 0) : 0
                       return (
-                      <div key={j} className="group/item flex items-center gap-1 text-[11px] text-foreground/80 pl-3.5 py-px">
+                      <div key={j} className="group/item flex items-center gap-1 text-xs text-foreground/80 pl-3.5 py-px">
                         <span className="flex-1"><ItemSummary item={item} category={category} /></span>
                         {itemDocCount > 0 ? (
                           <span
@@ -833,13 +833,13 @@ function CriterionSection({
                             tabIndex={0}
                             onClick={(e) => { e.stopPropagation(); onNavigateToRouting() }}
                             onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onNavigateToRouting() } }}
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 transition-colors shrink-0 cursor-pointer"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 transition-colors shrink-0 cursor-pointer"
                           >
                             <FileText className="w-2.5 h-2.5" />
                             Evidence in Vault
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[11px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
                             Evidence Required
                           </span>
                         )}
@@ -880,10 +880,10 @@ function CriterionSection({
                   >
                     <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
+                  <span className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wider">
                     Also relevant
                   </span>
-                  <span className="text-[10px] text-muted-foreground/40">{crossCount}</span>
+                  <span className="text-xs text-muted-foreground/40">{crossCount}</span>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="space-y-1 pt-0.5 pl-1 border-l border-dashed border-border ml-1">
@@ -895,13 +895,13 @@ function CriterionSection({
                         <div key={category} className="space-y-0.5">
                           <div className="flex items-center gap-1 pl-2">
                             <Icon className="w-2.5 h-2.5 text-muted-foreground/40" />
-                            <span className="text-[10px] font-medium text-muted-foreground/50">{catConf.label}</span>
+                            <span className="text-xs font-medium text-muted-foreground/50">{catConf.label}</span>
                           </div>
                           {items.map((item, j) => {
                             const itemId = item.id as string | undefined
                             const itemDocCount = itemId ? (docCountsByItem?.[itemId] ?? 0) : 0
                             return (
-                              <div key={j} className="group/item flex items-center gap-1 text-[11px] text-muted-foreground/60 pl-5 py-px">
+                              <div key={j} className="group/item flex items-center gap-1 text-xs text-muted-foreground/60 pl-5 py-px">
                                 <span className="flex-1"><ItemSummary item={item} category={category} /></span>
                                 {itemDocCount > 0 ? (
                                   <span
@@ -909,13 +909,13 @@ function CriterionSection({
                                     tabIndex={0}
                                     onClick={(e) => { e.stopPropagation(); onNavigateToRouting() }}
                                     onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onNavigateToRouting() } }}
-                                    className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-emerald-100/60 text-emerald-600/70 dark:bg-emerald-900/20 dark:text-emerald-400/60 hover:bg-emerald-200/60 transition-colors shrink-0 cursor-pointer"
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[11px] font-medium bg-emerald-100/60 text-emerald-600/70 dark:bg-emerald-900/20 dark:text-emerald-400/60 hover:bg-emerald-200/60 transition-colors shrink-0 cursor-pointer"
                                   >
                                     <FileText className="w-2.5 h-2.5" />
                                     Evidence in Vault
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-orange-100/60 text-orange-600/70 dark:bg-orange-900/20 dark:text-orange-400/60 shrink-0">
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[11px] font-medium bg-orange-100/60 text-orange-600/70 dark:bg-orange-900/20 dark:text-orange-400/60 shrink-0">
                                     Evidence Required
                                   </span>
                                 )}
@@ -944,14 +944,14 @@ function CriterionSection({
 
           {/* Nothing state */}
           {criterion.strength === "None" && !summary && keyEvidence.length === 0 && extractionGroups.length === 0 && (
-            <p className="text-xs text-muted-foreground italic">Not yet evaluated</p>
+            <p className="text-[13px] text-muted-foreground italic">Not yet evaluated</p>
           )}
 
           {/* Context input */}
           {!showContext ? (
             <button
               onClick={() => setShowContext(true)}
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               + Add or update context
             </button>
@@ -968,13 +968,13 @@ function CriterionSection({
                 <button
                   onClick={handleContextSubmit}
                   disabled={!contextText.trim() || evaluating}
-                  className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  className="px-2.5 py-1 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                 >
                   Evaluate
                 </button>
                 <button
                   onClick={() => { setShowContext(false); setContextText("") }}
-                  className="px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Cancel
                 </button>
@@ -1234,7 +1234,7 @@ export function ReportPanel({
           <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
             EB-1A Analysis{analysis.version ? ` v${analysis.version}` : ""}
             {analysis.mergedWithSurvey && (
-              <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+              <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                 Updated
               </span>
             )}
@@ -1257,7 +1257,7 @@ export function ReportPanel({
           <div className="flex items-end gap-3 mt-3">
             {/* Phase 1 group */}
             <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
                 Phase 1: Data Analysis
               </span>
               <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
@@ -1301,7 +1301,7 @@ export function ReportPanel({
 
             {/* Phase 2 group */}
             <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
                 Phase 2: Evidence Capture
               </span>
               <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
@@ -1345,7 +1345,7 @@ export function ReportPanel({
 
             {/* Phase 3 group */}
             <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
                 Phase 3: Case Building
               </span>
               <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">

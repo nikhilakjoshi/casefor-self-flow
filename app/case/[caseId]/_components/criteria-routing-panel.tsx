@@ -59,7 +59,7 @@ function ScoreBar({ score }: { score: number }) {
       <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
         <div className={cn("h-full rounded-full", color)} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-[10px] font-mono text-muted-foreground w-6 text-right">{score.toFixed(1)}</span>
+      <span className="text-xs font-mono text-muted-foreground w-6 text-right">{score.toFixed(1)}</span>
     </div>
   )
 }
@@ -94,7 +94,7 @@ function AssignDropdown({
       <button
         onClick={() => setOpen(!open)}
         disabled={available.length === 0}
-        className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground rounded border border-dashed border-border hover:border-muted-foreground/50 transition-colors disabled:opacity-30 disabled:cursor-default"
+        className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded border border-dashed border-border hover:border-muted-foreground/50 transition-colors disabled:opacity-30 disabled:cursor-default"
       >
         <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <line x1="12" y1="5" x2="12" y2="19" strokeLinecap="round" />
@@ -154,12 +154,12 @@ function CriterionSection({
             "flex items-center gap-2 px-3 py-2",
             isEmpty ? "opacity-50" : ""
           )}>
-            <span className="text-[10px] font-bold text-muted-foreground w-7 shrink-0">{criterion}</span>
-            <span className="text-xs font-medium text-stone-800 dark:text-stone-200 flex-1 truncate">
+            <span className="text-xs font-bold text-muted-foreground w-7 shrink-0">{criterion}</span>
+            <span className="text-[13px] font-medium text-stone-800 dark:text-stone-200 flex-1 truncate">
               {CRITERIA_LABELS[criterion] ?? criterion}
             </span>
             <span className={cn(
-              "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+              "text-xs font-medium px-1.5 py-0.5 rounded-full",
               docs.length > 0
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground"
@@ -185,11 +185,11 @@ function CriterionSection({
                       {doc.name}
                     </span>
                     <ScoreBar score={doc.score} />
-                    <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 uppercase tracking-wide", getRecommendationStyle(doc.recommendation))}>
+                    <span className={cn("px-1.5 py-0.5 rounded text-[11px] font-bold shrink-0 uppercase tracking-wide", getRecommendationStyle(doc.recommendation))}>
                       {doc.recommendation.replace(/_/g, " ")}
                     </span>
                     <span className={cn(
-                      "px-1.5 py-0.5 rounded text-[9px] shrink-0",
+                      "px-1.5 py-0.5 rounded text-[11px] shrink-0",
                       doc.autoRouted
                         ? "bg-muted text-muted-foreground"
                         : "border border-purple-400/60 text-purple-600 dark:text-purple-400"
@@ -213,7 +213,7 @@ function CriterionSection({
               </div>
             ) : (
               <div className="px-3 py-3">
-                <p className="text-[11px] text-muted-foreground/60 italic">No documents routed</p>
+                <p className="text-xs text-muted-foreground/60 italic">No documents routed</p>
               </div>
             )}
             <div className="px-3 py-2 border-t border-border/30 bg-muted/20">
@@ -347,7 +347,7 @@ export function CriteriaRoutingPanel({ caseId }: { caseId: string }) {
               Criteria Routing
             </p>
             {hasLoaded && data && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {totalRouted} assignment{totalRouted !== 1 ? "s" : ""} across {Object.values(data.routings).filter((r) => r.documents.length > 0).length} criteria
               </p>
             )}
@@ -356,7 +356,7 @@ export function CriteriaRoutingPanel({ caseId }: { caseId: string }) {
         <button
           onClick={handleReRoute}
           disabled={isReRouting}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
         >
           {isReRouting ? (
             <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
