@@ -1252,37 +1252,36 @@ export function ReportPanel({
               </span>
             )}
           </h3>
-        </div>
-        <div className="flex gap-3 mt-2 text-xs text-stone-500">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            {analysis.strongCount} strong
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            {analysis.weakCount} weak
-          </span>
+          <div className="flex gap-3 text-xs text-stone-500">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              {analysis.strongCount} strong
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              {analysis.weakCount} weak
+            </span>
+          </div>
         </div>
 
         {/* Tabs */}
-        {(
-          <TooltipProvider delayDuration={300}>
-          <div className="flex items-end gap-3 mt-3">
+        <TooltipProvider delayDuration={300}>
+          <div className="flex items-end gap-4 mt-3">
             {/* Phase 1 group */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
-                Phase 1: Data Analysis
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 pl-0.5">
+                Phase 1
               </span>
-              <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
+              <div className="flex">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => handleSubTabChange("summary")}
                       className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        "px-3 py-1.5 text-xs font-medium transition-colors border-b-2",
                         activeTab === "summary"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                          ? "border-foreground text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
                       )}
                     >
                       Criteria
@@ -1295,10 +1294,10 @@ export function ReportPanel({
                     <button
                       onClick={() => handleSubTabChange("planning")}
                       className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        "px-3 py-1.5 text-xs font-medium transition-colors border-b-2",
                         activeTab === "planning"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                          ? "border-foreground text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
                       )}
                     >
                       Gap Analysis
@@ -1310,23 +1309,23 @@ export function ReportPanel({
             </div>
 
             {/* Separator */}
-            <div className="h-8 w-px bg-border/50 shrink-0 mb-1" />
+            <div className="h-7 w-px bg-border/40 shrink-0 mb-0.5" />
 
             {/* Phase 2 group */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
-                Phase 2: Evidence Capture
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 pl-0.5">
+                Phase 2
               </span>
-              <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
+              <div className="flex">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => handleSubTabChange("evidence")}
                       className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        "px-3 py-1.5 text-xs font-medium transition-colors border-b-2",
                         activeTab === "evidence"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                          ? "border-foreground text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
                       )}
                     >
                       Evidence List
@@ -1338,23 +1337,23 @@ export function ReportPanel({
             </div>
 
             {/* Separator */}
-            <div className="h-8 w-px bg-border/50 shrink-0 mb-1" />
+            <div className="h-7 w-px bg-border/40 shrink-0 mb-0.5" />
 
             {/* Phase 3 group */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 pl-0.5">
-                Phase 3: Case Building
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 pl-0.5">
+                Phase 3
               </span>
-              <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border/50">
+              <div className="flex">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => handleSubTabChange("letters")}
                       className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        "px-3 py-1.5 text-xs font-medium transition-colors border-b-2",
                         activeTab === "letters"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                          ? "border-foreground text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
                       )}
                     >
                       Document Drafting
@@ -1383,10 +1382,10 @@ export function ReportPanel({
                     <button
                       onClick={() => handleSubTabChange("denial")}
                       className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1",
+                        "px-3 py-1.5 text-xs font-medium transition-colors border-b-2 flex items-center gap-1",
                         activeTab === "denial"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                          ? "border-foreground text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
                       )}
                     >
                       <ShieldAlert className="w-3 h-3" />
@@ -1399,18 +1398,18 @@ export function ReportPanel({
             </div>
 
             {/* Separator */}
-            <div className="h-8 w-px bg-border/50 shrink-0 mb-1" />
+            <div className="h-7 w-px bg-border/40 shrink-0 mb-0.5" />
 
-            {/* Raw Data - outside phase group */}
+            {/* Raw Data */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   onClick={() => handleSubTabChange("raw")}
                   className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors mb-1",
+                    "px-3 py-1.5 text-xs font-medium transition-colors border-b-2 mb-0",
                     activeTab === "raw"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
+                      ? "border-foreground text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
                   )}
                 >
                   Raw Data
@@ -1419,8 +1418,7 @@ export function ReportPanel({
               <TooltipContent side="bottom">Raw extraction JSON from resume parsing</TooltipContent>
             </Tooltip>
           </div>
-          </TooltipProvider>
-        )}
+        </TooltipProvider>
       </div>
 
       {/* Auto-run loader banner */}
