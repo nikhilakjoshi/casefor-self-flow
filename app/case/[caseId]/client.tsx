@@ -1,22 +1,12 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { ChatPanel } from './_components/chat-panel'
 import { ReportPanel } from './_components/report-panel'
-import { PhaseTabs } from './_components/phase-tabs'
-import { EvidenceChatPanel } from './_components/evidence-chat-panel'
-import { DocumentChatPanel } from './_components/document-chat-panel'
-import { DocumentsPanel } from './_components/documents-panel'
 import { DraftingPanel } from './_components/drafting-panel'
 import { IntakeSheet } from './_components/intake-sheet'
-import { Upload, MessageSquare, X, ShieldAlert } from 'lucide-react'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { MessageSquare, X } from 'lucide-react'
 import type { IntakeData } from './_lib/intake-schema'
 import type { DetailedExtraction } from '@/lib/eb1a-extraction-schema'
 import type { StrengthEvaluation } from '@/lib/strength-evaluation-schema'
@@ -25,26 +15,6 @@ import type { CaseStrategy } from '@/lib/case-strategy-schema'
 import type { CaseConsolidation } from '@/lib/case-consolidation-schema'
 import type { DenialProbability } from '@/lib/denial-probability-schema'
 import type { SurveyIntent } from '@/app/onboard/_lib/survey-schema'
-
-function getRiskBadgeStyle(level: string) {
-  switch (level) {
-    case 'LOW': return 'bg-emerald-600 text-white'
-    case 'MEDIUM': return 'bg-amber-500 text-white'
-    case 'HIGH': return 'bg-orange-500 text-white'
-    case 'VERY_HIGH': return 'bg-red-600 text-white'
-    default: return 'bg-muted text-muted-foreground'
-  }
-}
-
-function getRiskLabel(level: string) {
-  switch (level) {
-    case 'LOW': return 'Low Risk'
-    case 'MEDIUM': return 'Medium Risk'
-    case 'HIGH': return 'High Risk'
-    case 'VERY_HIGH': return 'Very High Risk'
-    default: return level
-  }
-}
 
 interface Message {
   id: string
@@ -70,8 +40,6 @@ interface CasePageClientProps {
   hasExistingMessages: boolean
   initialAnalysisVersion: number
   initialThreshold?: number
-  initialEvidenceMessages?: Message[]
-  initialDocumentMessages?: Message[]
   initialIntakeStatus?: 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'SKIPPED'
   initialProfileData?: Record<string, unknown>
   initialStrengthEvaluation?: StrengthEvaluation | null
@@ -88,8 +56,6 @@ export function CasePageClient({
   hasExistingMessages,
   initialAnalysisVersion,
   initialThreshold = 3,
-  initialEvidenceMessages = [],
-  initialDocumentMessages = [],
   initialIntakeStatus = 'PENDING',
   initialProfileData = {},
   initialStrengthEvaluation,
@@ -103,40 +69,29 @@ export function CasePageClient({
   const router = useRouter()
   const pathname = usePathname()
 
-  const validTabs = useMemo(() => new Set(['analysis', 'evidence', 'documents'] as const), [])
-  const tabParam = searchParams.get('tab')
-  const initialTab = tabParam && validTabs.has(tabParam as 'analysis' | 'evidence' | 'documents')
-    ? (tabParam as 'analysis' | 'evidence' | 'documents')
-    : 'analysis'
-
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [analysisVersion, setAnalysisVersion] = useState(initialAnalysisVersion)
   const [threshold, setThreshold] = useState(initialThreshold)
-  const [activeTab, setActiveTab] = useState<'analysis' | 'evidence' | 'documents'>(initialTab)
 
-  // Redirect old ?tab=package URLs to ?tab=analysis&subtab=package
+  // Redirect old ?tab= URLs
   useEffect(() => {
-    if (tabParam === 'package') {
-      const params = new URLSearchParams(searchParams.toString())
-      params.set('tab', 'analysis')
-      params.set('subtab', 'package')
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-    }
-  }, [tabParam, searchParams, router, pathname])
-
-  const handleTabChange = useCallback((tab: 'analysis' | 'evidence' | 'documents') => {
-    setActiveTab(tab)
+    const tabParam = searchParams.get('tab')
+    if (!tabParam) return
     const params = new URLSearchParams(searchParams.toString())
-    params.set('tab', tab)
-    if (tab !== 'analysis') params.delete('subtab')
+    params.delete('tab')
+    if (tabParam === 'documents') {
+      params.set('subtab', 'vault')
+    } else if (tabParam === 'package') {
+      params.set('subtab', 'package')
+    } else if (tabParam === 'evidence') {
+      params.set('subtab', 'evidence')
+    }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }, [searchParams, router, pathname])
+
   const [strongCount, setStrongCount] = useState(initialAnalysis?.strongCount ?? 0)
   const [badgeDismissed, setBadgeDismissed] = useState(false)
-  const [isEvidenceLoading, setIsEvidenceLoading] = useState(false)
-  const [isDocumentLoading, setIsDocumentLoading] = useState(false)
   const [draftingDoc, setDraftingDoc] = useState<{
     id?: string
     name?: string
@@ -186,16 +141,14 @@ export function CasePageClient({
     setDraftingDoc(doc || {})
   }, [])
 
-  const showEvidenceBadge = activeTab === 'analysis' && strongCount >= threshold && !badgeDismissed
+  const showEvidenceBadge = strongCount >= threshold && !badgeDismissed
 
   const handleStartEvidence = useCallback(() => {
-    handleTabChange('analysis')
     const params = new URLSearchParams(searchParams.toString())
-    params.set('tab', 'analysis')
     params.set('subtab', 'evidence')
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
     setBadgeDismissed(true)
-  }, [handleTabChange, searchParams, router, pathname])
+  }, [searchParams, router, pathname])
 
   // AI-initiated conversation on first load
   useEffect(() => {
@@ -418,15 +371,6 @@ export function CasePageClient({
     }
   }, [caseId, isLoading])
 
-  const handleFileInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (file) onDrop([file])
-      e.target.value = ''
-    },
-    [onDrop]
-  )
-
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* Intake Sheet */}
@@ -438,38 +382,6 @@ export function CasePageClient({
         onComplete={() => setIntakeOpen(false)}
       />
 
-      {/* Phase tabs */}
-      <div className="shrink-0 px-4 py-2 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <PhaseTabs activeTab={activeTab} onTabChange={handleTabChange} />
-          {initialDenialProbability?.overall_assessment && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold cursor-default ${getRiskBadgeStyle(initialDenialProbability.overall_assessment.risk_level)}`}>
-                    <ShieldAlert className="w-3 h-3" />
-                    {getRiskLabel(initialDenialProbability.overall_assessment.risk_level)}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Denial probability: {initialDenialProbability.overall_assessment.denial_probability_pct}%</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
-        {activeTab === 'analysis' && (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            Upload
-          </button>
-        )}
-      </div>
-
       {/* Drafting panel overlay */}
       {draftingDoc !== null ? (
         <DraftingPanel
@@ -478,16 +390,8 @@ export function CasePageClient({
           onClose={() => setDraftingDoc(null)}
           onSave={() => setDraftingDoc(null)}
         />
-      ) : /* Tab content */
-      activeTab === 'analysis' ? (
+      ) : (
         <div className="flex flex-1 overflow-hidden">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx,.txt"
-            className="hidden"
-            onChange={handleFileInputChange}
-          />
           <div className="flex-1 bg-muted/50 overflow-hidden">
             <ReportPanel
               caseId={caseId}
@@ -509,27 +413,13 @@ export function CasePageClient({
             />
           </div>
         </div>
-      ) : activeTab === 'evidence' ? (
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} onEvidenceChanged={triggerReAnalysis} />
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} onEvidenceChanged={triggerReAnalysis} />
-          </div>
-        </div>
       )}
 
       {/* Floating chat popup */}
       {chatOpen ? (
         <div className="fixed bottom-5 right-5 z-50 w-[420px] h-[70vh] max-h-[700px] rounded-xl border border-border bg-background shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-200">
           <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-border">
-            <span className="text-sm font-medium">
-              {activeTab === 'analysis' ? 'Chat' : activeTab === 'evidence' ? 'Evidence Chat' : 'Document Review'}
-            </span>
+            <span className="text-sm font-medium">Chat</span>
             <button
               onClick={() => setChatOpen(false)}
               className="p-1 rounded hover:bg-muted transition-colors"
@@ -538,30 +428,16 @@ export function CasePageClient({
             </button>
           </div>
           <div className="flex-1 overflow-hidden flex flex-col">
-            {activeTab === 'analysis' ? (
-              <ChatPanel
-                messages={messages}
-                isLoading={isLoading}
-                onSend={sendMessage}
-                onFileSelect={onFileSelect}
-                onClear={clearHistory}
-                showEvidenceAction={showEvidenceBadge}
-                onStartEvidence={handleStartEvidence}
-                caseId={caseId}
-              />
-            ) : activeTab === 'evidence' ? (
-              <EvidenceChatPanel
-                caseId={caseId}
-                initialMessages={initialEvidenceMessages}
-                onLoadingChange={setIsEvidenceLoading}
-              />
-            ) : (
-              <DocumentChatPanel
-                caseId={caseId}
-                initialMessages={initialDocumentMessages}
-                onLoadingChange={setIsDocumentLoading}
-              />
-            )}
+            <ChatPanel
+              messages={messages}
+              isLoading={isLoading}
+              onSend={sendMessage}
+              onFileSelect={onFileSelect}
+              onClear={clearHistory}
+              showEvidenceAction={showEvidenceBadge}
+              onStartEvidence={handleStartEvidence}
+              caseId={caseId}
+            />
           </div>
         </div>
       ) : (
@@ -570,7 +446,7 @@ export function CasePageClient({
           className="fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-border bg-background shadow-lg hover:shadow-xl text-sm font-medium text-foreground transition-all hover:bg-muted/50"
         >
           <MessageSquare className="w-4 h-4" />
-          {activeTab === 'analysis' ? 'Chat' : activeTab === 'evidence' ? 'Evidence Chat' : 'Document Review'}
+          Chat
         </button>
       )}
     </div>
