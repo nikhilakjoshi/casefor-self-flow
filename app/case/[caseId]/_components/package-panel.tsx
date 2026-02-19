@@ -30,6 +30,7 @@ import {
   ChevronDown,
   ChevronRight,
   Check,
+  CircleCheck,
   AlertCircle,
   Package,
   Eye,
@@ -40,7 +41,10 @@ import {
   Lock,
   FileDown,
   FlaskConical,
+  PenTool,
 } from 'lucide-react'
+import { SignRequestDialog } from './sign-request-dialog'
+import { SigningView } from './signing-view'
 import type {
   PackageStructure,
   PackageExhibit,
@@ -106,6 +110,10 @@ export function PackagePanel({ caseId }: { caseId: string }) {
 
   // Load sample
   const [isLoadingSample, setIsLoadingSample] = useState(false)
+
+  // Signing
+  const [signDialogOpen, setSignDialogOpen] = useState(false)
+  const [signingViewOpen, setSigningViewOpen] = useState(false)
 
   // Autosave
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
@@ -524,6 +532,50 @@ export function PackagePanel({ caseId }: { caseId: string }) {
                 </span>
                 <h3 className="text-sm font-medium truncate flex-1">{docDetail.name}</h3>
                 <div className="flex items-center gap-2 shrink-0">
+                  {!isViewingVersion && (
+                    <Button
+                      variant={docDetail.status === 'FINAL' ? 'outline' : 'ghost'}
+                      size="sm"
+                      className={cn(
+                        'h-7 text-[11px] gap-1',
+                        docDetail.status === 'FINAL'
+                          ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                          : 'text-muted-foreground'
+                      )}
+                      onClick={async () => {
+                        const newStatus = docDetail.status === 'DRAFT' ? 'FINAL' : 'DRAFT'
+                        try {
+                          const res = await fetch(`/api/case/${caseId}/documents/${docDetail.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: newStatus }),
+                          })
+                          if (res.ok) {
+                            setDocDetail({ ...docDetail, status: newStatus })
+                          }
+                        } catch (err) {
+                          console.error('Failed to update status:', err)
+                        }
+                      }}
+                    >
+                      {docDetail.status === 'DRAFT' ? (
+                        <><CircleCheck className="w-3.5 h-3.5" /> Mark Final</>
+                      ) : (
+                        <><Check className="w-3.5 h-3.5" /> Final</>
+                      )}
+                    </Button>
+                  )}
+                  {docDetail.status === 'FINAL' && !isViewingVersion && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] gap-1"
+                      onClick={() => setSignDialogOpen(true)}
+                    >
+                      <PenTool className="w-3.5 h-3.5" />
+                      E-Sign
+                    </Button>
+                  )}
                   {docDetail.source === 'SYSTEM_GENERATED' ? (
                     <span className="flex items-center gap-1 text-[10px] font-medium text-violet-600 dark:text-violet-400">
                       <PenLine className="w-3 h-3" />
@@ -641,6 +693,35 @@ export function PackagePanel({ caseId }: { caseId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* E-Sign dialog */}
+      {docDetail && (
+        <SignRequestDialog
+          open={signDialogOpen}
+          onOpenChange={setSignDialogOpen}
+          caseId={caseId}
+          docId={docDetail.id}
+          docName={docDetail.name}
+          onSuccess={() => {
+            setSignDialogOpen(false)
+            setSigningViewOpen(true)
+          }}
+        />
+      )}
+
+      {/* Signing status view */}
+      {signingViewOpen && docDetail && (
+        <Dialog open={signingViewOpen} onOpenChange={setSigningViewOpen}>
+          <DialogContent className="sm:max-w-lg max-h-[80vh] p-0 overflow-hidden">
+            <SigningView
+              caseId={caseId}
+              docId={docDetail.id}
+              docName={docDetail.name}
+              onClose={() => setSigningViewOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

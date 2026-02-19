@@ -6,6 +6,7 @@ import {
   isDocuSealConfigured,
   createSubmissionFromPdf,
 } from '@/lib/docuseal'
+import { markdownToPdf } from '@/lib/pdf-utils'
 
 type Params = { params: Promise<{ caseId: string; docId: string }> }
 
@@ -47,13 +48,6 @@ export async function POST(request: Request, { params }: Params) {
     )
   }
 
-  if (!doc.s3Key) {
-    return NextResponse.json(
-      { error: 'Document has no S3 file' },
-      { status: 400 }
-    )
-  }
-
   // Check for existing pending request
   const existing = await db.signatureRequest.findFirst({
     where: { documentId: docId, status: 'PENDING' },
@@ -77,35 +71,57 @@ export async function POST(request: Request, { params }: Params) {
     )
   }
 
-  // Download PDF from S3 and convert to base64
-  const fileBytes = await downloadFromS3(doc.s3Key)
-  const fileBase64 = Buffer.from(fileBytes).toString('base64')
+  // Get PDF bytes -- either from S3 or by converting markdown to PDF
+  let pdfBytes: Uint8Array
 
-  // Create DocuSeal submission
+  if (doc.type === 'MARKDOWN') {
+    if (!doc.content) {
+      return NextResponse.json(
+        { error: 'Markdown document has no content' },
+        { status: 400 }
+      )
+    }
+    pdfBytes = await markdownToPdf(doc.content, doc.name)
+  } else if (doc.s3Key) {
+    pdfBytes = await downloadFromS3(doc.s3Key)
+  } else {
+    return NextResponse.json(
+      { error: 'Document has no file content' },
+      { status: 400 }
+    )
+  }
+
+  const fileBase64 = Buffer.from(pdfBytes).toString('base64')
+
+  // Create DocuSeal template + submission
   const submission = await createSubmissionFromPdf(
     doc.name,
     fileBase64,
     signers.map((s) => ({
       email: s.email,
       name: s.name,
-      role: s.role || 'Signer',
+      role: s.role || 'First Party',
     }))
   )
+
+  // DocuSeal /submissions returns an array of submitter objects directly
+  const submitters = Array.isArray(submission) ? submission : submission.submitters ?? [submission]
+  const submissionId = submitters[0]?.submission_id ?? submitters[0]?.id
 
   // Store SignatureRequest + Signers
   const signatureRequest = await db.signatureRequest.create({
     data: {
       caseId,
       documentId: docId,
-      docusealSubmissionId: submission.id,
+      docusealSubmissionId: submissionId,
       sentByUserId: session.user.id,
       signers: {
-        create: submission.submitters.map((sub) => ({
-          docusealSubmitterId: sub.id,
-          slug: sub.slug,
-          role: sub.role || 'Signer',
-          email: sub.email,
-          name: sub.name || '',
+        create: submitters.map((sub: Record<string, unknown>) => ({
+          docusealSubmitterId: sub.id as number,
+          slug: (sub.slug as string) || '',
+          role: (sub.role as string) || 'First Party',
+          email: (sub.email as string) || '',
+          name: (sub.name as string) || '',
           status: 'PENDING',
         })),
       },

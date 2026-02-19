@@ -37,6 +37,11 @@ interface Submitter {
   values?: Record<string, string>
 }
 
+interface TemplateResponse {
+  id: number
+  name: string
+}
+
 interface SubmissionSubmitter {
   id: number
   slug: string
@@ -56,35 +61,68 @@ interface SubmissionResponse {
   audit_log_url?: string
 }
 
+// Step 1: Create a template from a base64-encoded PDF
+async function createTemplateFromPdf(
+  name: string,
+  fileBase64: string,
+  roles: string[]
+): Promise<TemplateResponse> {
+  const res = await docusealFetch('/templates/pdf', {
+    method: 'POST',
+    body: JSON.stringify({
+      name,
+      documents: [
+        {
+          name: `${name}.pdf`,
+          file: fileBase64,
+          fields: roles.map((role) => ({
+            name: 'Signature',
+            type: 'signature',
+            role,
+            required: true,
+            areas: [{ x: 0.05, y: 0.9, w: 0.3, h: 0.05, page: -1 }],
+          })),
+        },
+      ],
+    }),
+  })
+  return res.json()
+}
+
+// Step 2: Create a submission from a template
+// Returns array of submitter objects (not a submission wrapper)
+async function createSubmission(
+  templateId: number,
+  submitters: Submitter[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any> {
+  const res = await docusealFetch('/submissions', {
+    method: 'POST',
+    body: JSON.stringify({
+      template_id: templateId,
+      send_email: true,
+      submitters: submitters.map((s) => ({
+        email: s.email,
+        name: s.name,
+        role: s.role || 'First Party',
+        values: s.values,
+      })),
+    }),
+  })
+  return res.json()
+}
+
+// Combined: create template from PDF then create submission
+// Note: /submissions returns an array of submitter objects, not a wrapper
 export async function createSubmissionFromPdf(
   name: string,
   fileBase64: string,
-  submitters: Submitter[],
-  fields?: Array<{ name: string; type?: string; role?: string }>
-): Promise<SubmissionResponse> {
-  const body: Record<string, unknown> = {
-    template: {
-      name,
-      document_urls: [`data:application/pdf;base64,${fileBase64}`],
-    },
-    submitters: submitters.map((s) => ({
-      email: s.email,
-      name: s.name,
-      role: s.role || 'Signer',
-      values: s.values,
-    })),
-    send_email: true,
-  }
-
-  if (fields && fields.length > 0) {
-    body.fields = fields
-  }
-
-  const res = await docusealFetch('/submissions', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
-  return res.json()
+  submitters: Submitter[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any> {
+  const roles = submitters.map((s) => s.role || 'First Party')
+  const template = await createTemplateFromPdf(name, fileBase64, roles)
+  return createSubmission(template.id, submitters)
 }
 
 export async function getSubmission(
