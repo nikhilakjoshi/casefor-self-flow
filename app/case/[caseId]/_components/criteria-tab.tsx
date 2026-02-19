@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, Layers, AlertTriangle } from "lucide-react"
+import { Layers, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { KeyEvidencePanel } from "./evidence-checklist-panel"
 import { CriticalGapsPanel } from "./critical-gaps-panel"
@@ -30,7 +30,6 @@ export function CriteriaTab({
   gapAnalysis,
   extraction,
 }: CriteriaTabProps) {
-  const [criteriaOpen, setCriteriaOpen] = useState(true)
   const [sidePanel, setSidePanel] = useState<SidePanel>(null)
 
   const togglePanel = (panel: "evidence" | "gaps") => {
@@ -43,59 +42,43 @@ export function CriteriaTab({
     <div className="flex flex-row flex-1 overflow-hidden">
       {/* Left: criteria cards */}
       <div className="flex-1 overflow-y-auto min-w-0">
-        <div className="border-b border-border">
-          <div className="sticky top-0 z-10 bg-background w-full flex items-center gap-2 px-4 py-2.5 border-b border-border">
+        <div className="sticky top-0 z-10 bg-background w-full flex items-center gap-2 px-4 py-2.5 border-b border-border">
+          <div className="flex-1" />
+          <div className="flex items-center gap-0.5">
             <button
-              onClick={() => setCriteriaOpen(!criteriaOpen)}
-              className="flex items-center gap-2 text-left hover:bg-muted/50 transition-colors rounded px-1 -mx-1"
+              onClick={() => togglePanel("evidence")}
+              className={cn(
+                "p-1.5 rounded transition-colors",
+                sidePanel === "evidence"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              title="Key evidence"
             >
-              <ChevronDown
-                className={cn(
-                  "w-4 h-4 text-muted-foreground transition-transform",
-                  !criteriaOpen && "-rotate-90"
-                )}
-              />
-              <span className="text-sm font-semibold">Criteria</span>
+              <Layers className="w-4 h-4" />
             </button>
-            <div className="flex-1" />
-            <div className="flex items-center gap-0.5">
+            {gapAnalysis && (
               <button
-                onClick={() => togglePanel("evidence")}
+                onClick={() => togglePanel("gaps")}
                 className={cn(
-                  "p-1.5 rounded transition-colors",
-                  sidePanel === "evidence"
+                  "relative p-1.5 rounded transition-colors",
+                  sidePanel === "gaps"
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 )}
-                title="Key evidence"
+                title="Critical gaps"
               >
-                <Layers className="w-4 h-4" />
+                <AlertTriangle className="w-4 h-4" />
+                {highGapCount > 0 && sidePanel !== "gaps" && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center px-0.5">
+                    {highGapCount}
+                  </span>
+                )}
               </button>
-              {gapAnalysis && (
-                <button
-                  onClick={() => togglePanel("gaps")}
-                  className={cn(
-                    "relative p-1.5 rounded transition-colors",
-                    sidePanel === "gaps"
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  )}
-                  title="Critical gaps"
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                  {highGapCount > 0 && sidePanel !== "gaps" && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center px-0.5">
-                      {highGapCount}
-                    </span>
-                  )}
-                </button>
-              )}
-            </div>
+            )}
           </div>
-          {criteriaOpen && (
-            <div className="p-2.5 pt-2 space-y-2">{criteriaContent}</div>
-          )}
         </div>
+        <div className="p-2.5 pt-2 space-y-2">{criteriaContent}</div>
       </div>
 
       {/* Right: side panel */}
