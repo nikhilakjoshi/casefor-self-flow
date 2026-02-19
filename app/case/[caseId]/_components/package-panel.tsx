@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useSession } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -82,6 +83,7 @@ interface SelectedDoc {
 // --- Component ---
 
 export function PackagePanel({ caseId }: { caseId: string }) {
+  const { data: session } = useSession()
   const [structure, setStructure] = useState<PackageStructure | null>(null)
   const [versions, setVersions] = useState<VersionSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -717,6 +719,7 @@ export function PackagePanel({ caseId }: { caseId: string }) {
               caseId={caseId}
               docId={docDetail.id}
               docName={docDetail.name}
+              currentUserEmail={session?.user?.email ?? undefined}
               onClose={() => setSigningViewOpen(false)}
             />
           </DialogContent>

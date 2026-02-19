@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useSession } from 'next-auth/react'
 import { useDropzone } from 'react-dropzone'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -858,6 +859,7 @@ function PanelTabs({
 }
 
 export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDraft, onDocumentsRouted }: DocumentsPanelProps) {
+  const { data: session } = useSession()
   const [activeTab, setActiveTab] = useState<PanelTab>('documents')
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [selectedDoc, setSelectedDoc] = useState<DocumentDetail | null>(null)
@@ -1309,6 +1311,7 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
         caseId={caseId}
         docId={signingViewDoc.id}
         docName={signingViewDoc.name}
+        currentUserEmail={session?.user?.email ?? undefined}
         onClose={() => {
           setSigningViewDoc(null)
           fetchDocuments()
@@ -1701,7 +1704,9 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
         docId={signTarget?.id || ''}
         docName={signTarget?.name || ''}
         onSuccess={() => {
+          const doc = signTarget
           setSignTarget(null)
+          if (doc) setSigningViewDoc(doc)
           fetchDocuments()
         }}
       />
