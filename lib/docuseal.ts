@@ -93,14 +93,15 @@ async function createTemplateFromPdf(
 // Returns array of submitter objects (not a submission wrapper)
 async function createSubmission(
   templateId: number,
-  submitters: Submitter[]
+  submitters: Submitter[],
+  sendEmail = true
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   const res = await docusealFetch('/submissions', {
     method: 'POST',
     body: JSON.stringify({
       template_id: templateId,
-      send_email: true,
+      send_email: sendEmail,
       submitters: submitters.map((s) => ({
         email: s.email,
         name: s.name,
@@ -117,12 +118,13 @@ async function createSubmission(
 export async function createSubmissionFromPdf(
   name: string,
   fileBase64: string,
-  submitters: Submitter[]
+  submitters: Submitter[],
+  sendEmail = true
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   const roles = submitters.map((s) => s.role || 'First Party')
   const template = await createTemplateFromPdf(name, fileBase64, roles)
-  return createSubmission(template.id, submitters)
+  return createSubmission(template.id, submitters, sendEmail)
 }
 
 export async function getSubmission(

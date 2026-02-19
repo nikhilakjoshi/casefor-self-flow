@@ -60,15 +60,40 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const body = await request.json()
-  const { signers } = body as {
-    signers: Array<{ email: string; name: string; role?: string }>
+  const { signers, selfSign } = body as {
+    signers?: Array<{ email: string; name: string; role?: string }>
+    selfSign?: boolean
   }
 
-  if (!signers || signers.length === 0) {
-    return NextResponse.json(
-      { error: 'At least one signer required' },
-      { status: 400 }
-    )
+  // Build signer list: self-sign uses session user, otherwise use provided signers
+  let resolvedSigners: Array<{ email: string; name: string; role: string }>
+  let sendEmail = true
+
+  if (selfSign) {
+    if (!session.user.email) {
+      return NextResponse.json(
+        { error: 'No email on session for self-sign' },
+        { status: 400 }
+      )
+    }
+    resolvedSigners = [{
+      email: session.user.email,
+      name: session.user.name || session.user.email,
+      role: 'First Party',
+    }]
+    sendEmail = false
+  } else {
+    if (!signers || signers.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one signer required' },
+        { status: 400 }
+      )
+    }
+    resolvedSigners = signers.map((s) => ({
+      email: s.email,
+      name: s.name,
+      role: s.role || 'First Party',
+    }))
   }
 
   // Get PDF bytes -- either from S3 or by converting markdown to PDF
@@ -97,11 +122,8 @@ export async function POST(request: Request, { params }: Params) {
   const submission = await createSubmissionFromPdf(
     doc.name,
     fileBase64,
-    signers.map((s) => ({
-      email: s.email,
-      name: s.name,
-      role: s.role || 'First Party',
-    }))
+    resolvedSigners,
+    sendEmail
   )
 
   // DocuSeal /submissions returns an array of submitter objects directly

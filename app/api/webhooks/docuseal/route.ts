@@ -108,6 +108,21 @@ export async function POST(request: Request) {
               where: { id: sigReq.id },
               data: { signedDocumentS3Key: s3Key, signedDocumentS3Url: url },
             })
+
+            // Copy criterion routings from original doc to signed doc
+            const routings = await db.documentCriterionRouting.findMany({
+              where: { documentId: sigReq.documentId },
+            })
+            if (routings.length > 0) {
+              await db.documentCriterionRouting.createMany({
+                data: routings.map((r) => ({
+                  documentId: signedDoc.id,
+                  criterion: r.criterion,
+                  score: r.score,
+                  recommendation: r.recommendation,
+                })),
+              })
+            }
           }
         }
         break

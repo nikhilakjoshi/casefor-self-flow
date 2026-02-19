@@ -12,6 +12,7 @@ import { RecommendersPanel } from "./recommenders-panel"
 import { ConsolidationTab } from "./consolidation-tab"
 import { LettersPanel } from "./letters-panel"
 import { DenialProbabilityPanel } from "./denial-probability-panel"
+import { PackagePanel } from "./package-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
 import { CRITERIA_METADATA, resolveCanonicalId } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
@@ -987,7 +988,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "planning" | "evidence" | "routing" | "recommenders" | "consolidation" | "letters" | "denial" | "raw"
+type ReportTab = "summary" | "planning" | "evidence" | "routing" | "recommenders" | "consolidation" | "letters" | "package" | "denial" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -1009,7 +1010,7 @@ export function ReportPanel({
   const router = useRouter()
   const pathname = usePathname()
 
-  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "planning", "evidence", "recommenders", "consolidation", "letters", "denial", "raw"]), [])
+  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "planning", "evidence", "recommenders", "consolidation", "letters", "package", "denial", "raw"]), [])
   const subtabParam = searchParams.get('subtab')
   const initialSubTab = subtabParam && validSubTabs.has(subtabParam as ReportTab)
     ? (subtabParam as ReportTab)
@@ -1321,22 +1322,6 @@ export function ReportPanel({
                   </TooltipTrigger>
                   <TooltipContent side="bottom">Uploaded documents and evidence items</TooltipContent>
                 </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleSubTabChange("recommenders")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                        activeTab === "recommenders"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                      )}
-                    >
-                      Recommenders
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Manage recommender profiles and letter assignments</TooltipContent>
-                </Tooltip>
               </div>
             </div>
 
@@ -1364,6 +1349,22 @@ export function ReportPanel({
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">Draft recommendation letters and supporting documents</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSubTabChange("package")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        activeTab === "package"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      )}
+                    >
+                      Package
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Assemble and manage petition package</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1511,6 +1512,10 @@ export function ReportPanel({
       ) : activeTab === "letters" ? (
         <div className="flex-1 overflow-y-auto">
           <LettersPanel caseId={caseId} onOpenDraft={onOpenDraft ?? (() => {})} denialProbability={initialDenialProbability} initialIntentData={initialIntentData} />
+        </div>
+      ) : activeTab === "package" ? (
+        <div className="flex-1 overflow-hidden">
+          <PackagePanel caseId={caseId} />
         </div>
       ) : activeTab === "denial" ? (
         <DenialProbabilityPanel

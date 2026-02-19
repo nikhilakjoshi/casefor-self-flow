@@ -43,6 +43,7 @@ interface SigningViewProps {
   docName: string
   currentUserEmail?: string
   onClose: () => void
+  onSignComplete?: () => void
 }
 
 const SIGNER_STATUS_CONFIG: Record<
@@ -93,6 +94,7 @@ export function SigningView({
   docName,
   currentUserEmail,
   onClose,
+  onSignComplete,
 }: SigningViewProps) {
   const [requests, setRequests] = useState<SignatureRequestData[]>([])
   const [loading, setLoading] = useState(true)
@@ -196,6 +198,7 @@ export function SigningView({
             onComplete={() => {
               toast.success('Document signed')
               fetchRequests()
+              onSignComplete?.()
             }}
             onDecline={() => {
               toast.info('Signing declined')
