@@ -509,7 +509,7 @@ export function DraftingPanel({
 
       {signingViewOpen && docId && (
         <Dialog open={signingViewOpen} onOpenChange={setSigningViewOpen}>
-          <DialogContent className="sm:max-w-lg max-h-[80vh] p-0 overflow-hidden">
+          <DialogContent className="sm:max-w-2xl h-[90vh] p-0 overflow-hidden flex flex-col">
             <SigningView
               caseId={caseId}
               docId={docId}

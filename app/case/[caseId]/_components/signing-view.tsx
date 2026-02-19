@@ -15,6 +15,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +33,7 @@ interface SignatureRequestData {
   id: string
   status: 'PENDING' | 'COMPLETED' | 'DECLINED' | 'EXPIRED' | 'VOIDED'
   signedDocumentS3Url: string | null
+  signedDocumentId: string | null
   completedAt: string | null
   createdAt: string
   signers: SignerData[]
@@ -44,6 +46,7 @@ interface SigningViewProps {
   currentUserEmail?: string
   onClose: () => void
   onSignComplete?: () => void
+  onEvidencePushed?: () => void
 }
 
 const SIGNER_STATUS_CONFIG: Record<
@@ -95,11 +98,13 @@ export function SigningView({
   currentUserEmail,
   onClose,
   onSignComplete,
+  onEvidencePushed,
 }: SigningViewProps) {
   const [requests, setRequests] = useState<SignatureRequestData[]>([])
   const [loading, setLoading] = useState(true)
   const [voidingId, setVoidingId] = useState<string | null>(null)
   const [resendingId, setResendingId] = useState<string | null>(null)
+  const [pushingEvidenceId, setPushingEvidenceId] = useState<string | null>(null)
 
   const fetchRequests = useCallback(async () => {
     try {
@@ -158,6 +163,34 @@ export function SigningView({
     }
   }
 
+  const handlePushToEvidence = async (signedDocumentId: string) => {
+    setPushingEvidenceId(signedDocumentId)
+    try {
+      const res = await fetch(
+        `/api/case/${caseId}/evidence-verify/${signedDocumentId}`,
+        { method: 'POST' }
+      )
+      if (res.ok) {
+        // Drain SSE stream
+        const reader = res.body?.getReader()
+        if (reader) {
+          while (true) {
+            const { done } = await reader.read()
+            if (done) break
+          }
+        }
+        toast.success('Pushed to Evidence List')
+        onEvidencePushed?.()
+      } else {
+        toast.error('Failed to push to evidence')
+      }
+    } catch {
+      toast.error('Failed to push to evidence')
+    } finally {
+      setPushingEvidenceId(null)
+    }
+  }
+
   // Find if current user is a pending signer
   const currentSigner = currentUserEmail
     ? requests
@@ -188,7 +221,7 @@ export function SigningView({
             <X className="w-4 h-4" />
           </Button>
         </div>
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-auto">
           <DocusealForm
             src={`https://docuseal.com/s/${currentSigner.slug}`}
             email={currentSigner.email}
@@ -205,6 +238,7 @@ export function SigningView({
               fetchRequests()
             }}
             className="w-full h-full"
+            style={{ minHeight: '100%' }}
           />
         </div>
       </div>
@@ -345,6 +379,22 @@ export function SigningView({
                     >
                       <FileDown className="w-3 h-3" />
                       Download Signed
+                    </Button>
+                  )}
+                  {req.signedDocumentId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] gap-1 text-teal-600 hover:text-teal-700 border-teal-500/30"
+                      onClick={() => handlePushToEvidence(req.signedDocumentId!)}
+                      disabled={pushingEvidenceId === req.signedDocumentId}
+                    >
+                      {pushingEvidenceId === req.signedDocumentId ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <ShieldCheck className="w-3 h-3" />
+                      )}
+                      Push to Evidence
                     </Button>
                   )}
                 </div>

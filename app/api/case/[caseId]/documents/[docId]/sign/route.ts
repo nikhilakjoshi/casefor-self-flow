@@ -173,5 +173,19 @@ export async function GET(_request: Request, { params }: Params) {
     orderBy: { createdAt: 'desc' },
   })
 
-  return NextResponse.json(requests)
+  // For completed requests with a signed document S3 key, look up the Document id
+  const enriched = await Promise.all(
+    requests.map(async (req) => {
+      if (req.status === 'COMPLETED' && req.signedDocumentS3Key) {
+        const signedDoc = await db.document.findFirst({
+          where: { s3Key: req.signedDocumentS3Key, caseId },
+          select: { id: true },
+        })
+        return { ...req, signedDocumentId: signedDoc?.id ?? null }
+      }
+      return { ...req, signedDocumentId: null }
+    })
+  )
+
+  return NextResponse.json(enriched)
 }

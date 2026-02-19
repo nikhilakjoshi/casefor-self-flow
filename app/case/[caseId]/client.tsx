@@ -148,6 +148,40 @@ export function CasePageClient({
   const [chatOpen, setChatOpen] = useState(false)
   const initiatedRef = useRef(false)
 
+  const [reAnalysisPhase, setReAnalysisPhase] = useState<'idle' | 'strength-eval' | 'gap-analysis' | 'done'>('idle')
+
+  const triggerReAnalysis = useCallback(async () => {
+    if (reAnalysisPhase !== 'idle') return
+    try {
+      setReAnalysisPhase('strength-eval')
+      const seRes = await fetch(`/api/case/${caseId}/strength-evaluation`, { method: 'POST' })
+      if (seRes.ok && seRes.body) {
+        const reader = seRes.body.getReader()
+        while (true) {
+          const { done } = await reader.read()
+          if (done) break
+        }
+      }
+
+      setReAnalysisPhase('gap-analysis')
+      const gaRes = await fetch(`/api/case/${caseId}/gap-analysis`, { method: 'POST' })
+      if (gaRes.ok && gaRes.body) {
+        const reader = gaRes.body.getReader()
+        while (true) {
+          const { done } = await reader.read()
+          if (done) break
+        }
+      }
+
+      setAnalysisVersion((v) => v + 1)
+      setReAnalysisPhase('done')
+      setTimeout(() => setReAnalysisPhase('idle'), 2000)
+    } catch (err) {
+      console.error('Re-analysis failed:', err)
+      setReAnalysisPhase('idle')
+    }
+  }, [caseId, reAnalysisPhase])
+
   const onOpenDraft = useCallback((doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => {
     setDraftingDoc(doc || {})
   }, [])
@@ -470,19 +504,21 @@ export function CasePageClient({
               initialDenialProbability={initialDenialProbability}
               initialIntentData={initialIntentData}
               onOpenDraft={onOpenDraft}
+              onEvidenceChanged={triggerReAnalysis}
+              reAnalysisPhase={reAnalysisPhase}
             />
           </div>
         </div>
       ) : activeTab === 'evidence' ? (
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} />
+            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} onEvidenceChanged={triggerReAnalysis} />
           </div>
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} />
+            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} onEvidenceChanged={triggerReAnalysis} />
           </div>
         </div>
       )}

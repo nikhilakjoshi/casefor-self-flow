@@ -1993,7 +1993,7 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability, initialIn
 
     {signingViewTarget && (
       <Dialog open={!!signingViewTarget} onOpenChange={(open) => { if (!open) { setSigningViewTarget(null); fetchData() } }}>
-        <DialogContent className="sm:max-w-lg max-h-[80vh] p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-2xl h-[90vh] p-0 overflow-hidden flex flex-col">
           <DialogTitle className="sr-only">Sign Document</DialogTitle>
           <SigningView
             caseId={caseId}

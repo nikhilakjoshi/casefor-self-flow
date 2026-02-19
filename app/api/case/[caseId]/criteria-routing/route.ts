@@ -27,7 +27,7 @@ export async function GET(
     where: { document: { caseId } },
     include: {
       document: {
-        select: { id: true, name: true, category: true },
+        select: { id: true, name: true, category: true, type: true },
       },
     },
     orderBy: { criterion: "asc" },
@@ -41,6 +41,7 @@ export async function GET(
       documentId: string
       name: string
       category: string | null
+      type: string
       score: number
       recommendation: string
       autoRouted: boolean
@@ -56,6 +57,7 @@ export async function GET(
       documentId: r.document.id,
       name: r.document.name,
       category: r.document.category,
+      type: r.document.type,
       score: r.score,
       recommendation: r.recommendation,
       autoRouted: r.autoRouted,

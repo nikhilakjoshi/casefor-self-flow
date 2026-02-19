@@ -46,6 +46,9 @@ import {
   ChevronRight,
   CheckCircle2,
   AlertCircle,
+  Eye,
+  X,
+  FileDown,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -53,6 +56,13 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import { TiptapEditor } from "@/components/ui/tiptap-editor"
 import {
   Collapsible,
   CollapsibleContent,
@@ -84,6 +94,7 @@ interface RoutedDocument {
   documentId: string
   name: string
   category: string | null
+  type: string
   score: number
   recommendation: string
   autoRouted: boolean
@@ -109,6 +120,7 @@ interface EvidenceListPanelProps {
   onFileDropped?: () => void
   onDocumentsRouted?: () => void
   onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
+  onEvidenceChanged?: () => void
 }
 
 // -- Shared utilities --
@@ -364,6 +376,7 @@ function EvidenceCriterionCard({
   routedDocs,
   caseId,
   onFileDropped,
+  onPreviewDoc,
 }: {
   criterionId: string
   criterion?: CriterionResult
@@ -374,6 +387,7 @@ function EvidenceCriterionCard({
   routedDocs: RoutedDocument[]
   caseId: string
   onFileDropped?: () => void
+  onPreviewDoc?: (doc: RoutedDocument) => void
 }) {
   const strength = criterion?.strength ?? "None"
   const config = getStrengthConfig(strength)
@@ -653,24 +667,35 @@ function EvidenceCriterionCard({
                   const isExpanded = expandedDocs.has(doc.id)
                   return (
                     <div key={doc.id} className="rounded-md border border-border bg-card overflow-hidden shadow-xs">
-                      <button
-                        onClick={() => toggleDocExpanded(doc.id)}
-                        className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-muted/50 transition-colors"
-                      >
-                        <FileText className="w-3.5 h-3.5 text-foreground/40 shrink-0" />
-                        <span className="text-xs font-medium text-foreground truncate flex-1 min-w-0">
-                          {doc.name}
-                        </span>
-                        <div className="w-16 shrink-0">
-                          <ScoreBar score={doc.score} />
-                        </div>
-                        <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 uppercase tracking-wide", getRecommendationColor(doc.recommendation))}>
-                          {doc.recommendation.replace(/_/g, " ")}
-                        </span>
-                        <ChevronDown
-                          className={cn("w-3.5 h-3.5 text-foreground/40 shrink-0 transition-transform", isExpanded && "rotate-180")}
-                        />
-                      </button>
+                      <div className="flex items-center gap-2 px-2.5 py-2">
+                        <button
+                          onClick={() => toggleDocExpanded(doc.id)}
+                          className="flex items-center gap-2 flex-1 min-w-0 text-left hover:bg-muted/50 transition-colors rounded-sm"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-foreground/40 shrink-0" />
+                          <span className="text-xs font-medium text-foreground truncate flex-1 min-w-0">
+                            {doc.name}
+                          </span>
+                          <div className="w-16 shrink-0">
+                            <ScoreBar score={doc.score} />
+                          </div>
+                          <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 uppercase tracking-wide", getRecommendationColor(doc.recommendation))}>
+                            {doc.recommendation.replace(/_/g, " ")}
+                          </span>
+                          <ChevronDown
+                            className={cn("w-3.5 h-3.5 text-foreground/40 shrink-0 transition-transform", isExpanded && "rotate-180")}
+                          />
+                        </button>
+                        {onPreviewDoc && (
+                          <button
+                            onClick={() => onPreviewDoc(doc)}
+                            className="shrink-0 p-1 rounded-md hover:bg-muted text-foreground/40 hover:text-foreground/70 transition-colors"
+                            title="Preview"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                       {isExpanded && (
                         <div className="px-2.5 pb-2 pt-1 border-t border-border text-xs space-y-1.5 bg-muted/30">
                           <p className="text-[11px] text-foreground/60">
@@ -927,6 +952,14 @@ function ImmigrationDocCard({
 
 // -- Main panel --
 
+interface PreviewDoc {
+  id: string
+  name: string
+  type: string
+  content?: string | null
+  signedUrl?: string | null
+}
+
 export function EvidenceListPanel({
   caseId,
   extraction,
@@ -938,8 +971,11 @@ export function EvidenceListPanel({
   onFileDropped,
   onDocumentsRouted,
   onOpenDraft,
+  onEvidenceChanged,
 }: EvidenceListPanelProps) {
   const [isUploading, setIsUploading] = useState(false)
+  const [previewDoc, setPreviewDoc] = useState<PreviewDoc | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const [uploadDragOver, setUploadDragOver] = useState(false)
   const [routingData, setRoutingData] = useState<RoutingData | null>(null)
   const [streamingDocs, setStreamingDocs] = useState<Set<string>>(new Set())
@@ -984,6 +1020,22 @@ export function EvidenceListPanel({
       }
     } catch (err) {
       console.error("Failed to load recommender data:", err)
+    }
+  }, [caseId])
+
+  const openPreview = useCallback(async (doc: RoutedDocument) => {
+    setPreviewLoading(true)
+    setPreviewDoc({ id: doc.documentId, name: doc.name, type: doc.type })
+    try {
+      const res = await fetch(`/api/case/${caseId}/documents/${doc.documentId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setPreviewDoc({ id: data.id, name: data.name, type: data.type, content: data.content, signedUrl: data.signedUrl })
+      }
+    } catch (err) {
+      console.error("Failed to load preview:", err)
+    } finally {
+      setPreviewLoading(false)
     }
   }, [caseId])
 
@@ -1040,19 +1092,21 @@ export function EvidenceListPanel({
       await fetchRouting()
       onFileDropped?.()
       onDocumentsRouted?.()
+      onEvidenceChanged?.()
     } catch (err) {
       console.error("Evidence upload error:", err)
       toast.error("Upload failed")
     } finally {
       setIsUploading(false)
     }
-  }, [caseId, isUploading, processSSE, fetchRouting, onFileDropped, onDocumentsRouted])
+  }, [caseId, isUploading, processSSE, fetchRouting, onFileDropped, onDocumentsRouted, onEvidenceChanged])
 
   // Per-criterion file dropped: refetch routing + doc counts
   const handleCriterionFileDropped = useCallback(async () => {
     await fetchRouting()
     onFileDropped?.()
-  }, [fetchRouting, onFileDropped])
+    onEvidenceChanged?.()
+  }, [fetchRouting, onFileDropped, onEvidenceChanged])
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -1267,6 +1321,7 @@ export function EvidenceListPanel({
                     routedDocs={routedDocs}
                     caseId={caseId}
                     onFileDropped={handleCriterionFileDropped}
+                    onPreviewDoc={openPreview}
                   />
                 )
               })}
@@ -1292,6 +1347,56 @@ export function EvidenceListPanel({
         onOpenChange={setShowCsvImport}
         onImported={fetchRecommenderData}
       />
+
+      {/* Document preview Sheet */}
+      <Sheet open={!!previewDoc} onOpenChange={(open) => { if (!open) setPreviewDoc(null) }}>
+        <SheetContent side="right" className="w-[600px] sm:max-w-[600px] p-0 flex flex-col">
+          <SheetHeader className="shrink-0 px-4 py-3 border-b border-border">
+            <div className="flex items-center justify-between">
+              <SheetTitle className="text-sm font-medium truncate pr-2">
+                {previewDoc?.name}
+              </SheetTitle>
+              {previewDoc?.signedUrl && (
+                <a
+                  href={previewDoc.signedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border border-border hover:bg-muted transition-colors text-foreground/70"
+                >
+                  <FileDown className="w-3 h-3" />
+                  Download
+                </a>
+              )}
+            </div>
+          </SheetHeader>
+          <div className="flex-1 min-h-0 overflow-auto">
+            {previewLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : previewDoc?.content != null ? (
+              <TiptapEditor content={previewDoc.content} editable={false} />
+            ) : previewDoc?.signedUrl ? (
+              <iframe src={previewDoc.signedUrl} className="w-full h-full border-0" title={previewDoc.name} />
+            ) : (
+              <div className="text-center py-12 space-y-2">
+                <FileText className="w-8 h-8 mx-auto text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">No preview available</p>
+                {previewDoc?.signedUrl && (
+                  <a
+                    href={previewDoc.signedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Download file
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

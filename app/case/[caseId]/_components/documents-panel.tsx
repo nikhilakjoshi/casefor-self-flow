@@ -82,6 +82,7 @@ interface DocumentsPanelProps {
   hideChecklists?: boolean
   onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
   onDocumentsRouted?: () => void
+  onEvidenceChanged?: () => void
 }
 
 // Verification progress per-document
@@ -374,7 +375,8 @@ function DocumentGroupCard({
   const docId = group.latestDoc.id
   const isVerified = (group.latestDoc.evidenceVerificationCount ?? 0) > 0
   const verifyProgress = verifyingDocs.get(docId)
-  const canVerify = group.latestDoc.source === 'USER_UPLOADED' && !isVerified && !verifyProgress
+  const isSignedDoc = group.latestDoc.source === 'SYSTEM_GENERATED' && group.latestDoc.status === 'FINAL' && group.latestDoc.name.endsWith(' - Signed')
+  const canVerify = (group.latestDoc.source === 'USER_UPLOADED' || isSignedDoc) && !isVerified && !verifyProgress
 
   return (
     <div className="group rounded-xl border border-border/50 bg-card/50 hover:bg-card hover:border-border transition-all duration-200">
@@ -444,10 +446,10 @@ function DocumentGroupCard({
               e.stopPropagation()
               handleVerifyAsEvidence(docId)
             }}
-            title="Verify as evidence"
+            title={isSignedDoc ? "Push to Evidence" : "Verify as evidence"}
           >
             <ScanSearch className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Verify</span>
+            <span className="hidden sm:inline">{isSignedDoc ? "Push to Evidence" : "Verify"}</span>
           </Button>
         )}
 
@@ -877,7 +879,7 @@ function PanelTabs({
   )
 }
 
-export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDraft, onDocumentsRouted }: DocumentsPanelProps) {
+export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDraft, onDocumentsRouted, onEvidenceChanged }: DocumentsPanelProps) {
   const { data: session } = useSession()
   const [activeTab, setActiveTab] = useState<PanelTab>('documents')
   const [documents, setDocuments] = useState<DocumentItem[]>([])
@@ -1000,6 +1002,7 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
                 prev.map((d) => d.id === docId ? { ...d, evidenceVerificationCount: 10 } : d)
               )
               onDocumentsRouted?.()
+              onEvidenceChanged?.()
               // Clear progress after a brief delay
               setTimeout(() => {
                 setVerifyingDocs((prev) => {
@@ -1022,7 +1025,7 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
         return next
       })
     }
-  }, [caseId, verifyingDocs, onDocumentsRouted])
+  }, [caseId, verifyingDocs, onDocumentsRouted, onEvidenceChanged])
 
   // Upload modal + dropzone state
   const [pendingFile, setPendingFile] = useState<File | null>(null)
@@ -1358,6 +1361,10 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
           fetchDocuments()
         }}
         onSignComplete={fetchDocuments}
+        onEvidencePushed={() => {
+          onDocumentsRouted?.()
+          onEvidenceChanged?.()
+        }}
       />
     )
   }

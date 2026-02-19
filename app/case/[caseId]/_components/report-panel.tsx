@@ -99,6 +99,8 @@ interface ReportPanelProps {
   initialDenialProbability?: DenialProbability | null
   initialIntentData?: SurveyIntent
   onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
+  onEvidenceChanged?: () => void
+  reAnalysisPhase?: 'idle' | 'strength-eval' | 'gap-analysis' | 'done'
 }
 
 function getStrengthConfig(strength: Strength) {
@@ -1005,6 +1007,8 @@ export function ReportPanel({
   initialDenialProbability,
   initialIntentData,
   onOpenDraft,
+  onEvidenceChanged,
+  reAnalysisPhase = 'idle',
 }: ReportPanelProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -1185,6 +1189,14 @@ export function ReportPanel({
 
     autoRun()
   }, [analysis, strengthEval, initialGapAnalysis, caseId, refetchStrengthEval, refetchGapAnalysis])
+
+  // Refetch after re-analysis triggered by evidence changes
+  useEffect(() => {
+    if (reAnalysisPhase === 'done') {
+      refetchStrengthEval()
+      refetchGapAnalysis()
+    }
+  }, [reAnalysisPhase, refetchStrengthEval, refetchGapAnalysis])
 
   if (!analysis) {
     return (
@@ -1434,6 +1446,29 @@ export function ReportPanel({
         </div>
       )}
 
+      {/* Re-analysis banner (triggered by evidence changes) */}
+      {reAnalysisPhase !== "idle" && autoRunPhase === "idle" && (
+        <div className="shrink-0 px-4 py-2 border-b border-border bg-blue-50 dark:bg-blue-950/30">
+          <div className="flex items-center gap-2">
+            {reAnalysisPhase === "done" ? (
+              <>
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Re-analysis complete</span>
+              </>
+            ) : (
+              <>
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-blue-700 dark:text-blue-300">
+                  {reAnalysisPhase === "strength-eval"
+                    ? "Re-running strength evaluation..."
+                    : "Re-running gap analysis..."}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Tab content */}
       {activeTab === "summary" ? (
         <CriteriaTab
@@ -1500,6 +1535,7 @@ export function ReportPanel({
           onFileDropped={refetchDocCounts}
           onDocumentsRouted={onDocumentsRouted}
           onOpenDraft={onOpenDraft}
+          onEvidenceChanged={onEvidenceChanged}
         />
       ) : activeTab === "recommenders" ? (
         <RecommendersPanel caseId={caseId} />
