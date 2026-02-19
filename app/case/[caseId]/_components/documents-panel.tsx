@@ -49,6 +49,7 @@ import {
   ScanSearch,
   ShieldCheck,
   PenTool,
+  CircleCheck,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { RecommendersPanel } from './recommenders-panel'
@@ -348,6 +349,7 @@ function DocumentGroupCard({
   setDeleteTarget,
   onRequestSign,
   onViewSigning,
+  onToggleStatus,
 }: {
   group: DocumentGroup
   caseId: string
@@ -359,6 +361,7 @@ function DocumentGroupCard({
   setDeleteTarget: (doc: DocumentItem | null) => void
   onRequestSign?: (doc: DocumentItem) => void
   onViewSigning?: (doc: DocumentItem) => void
+  onToggleStatus?: (doc: DocumentItem) => void
 }) {
   const strength = getDocumentStrength(group.latestDoc.name)
   const docId = group.latestDoc.id
@@ -400,6 +403,30 @@ function DocumentGroupCard({
             </span>
           </div>
         </div>
+
+        {onToggleStatus && (
+          <Button
+            variant={group.latestDoc.status === 'FINAL' ? 'outline' : 'ghost'}
+            size="sm"
+            className={cn(
+              'h-8 px-2 text-xs gap-1 transition-all',
+              group.latestDoc.status === 'FINAL'
+                ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                : 'text-muted-foreground opacity-0 group-hover:opacity-100'
+            )}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleStatus(group.latestDoc)
+            }}
+            title={group.latestDoc.status === 'DRAFT' ? 'Mark as Final' : 'Revert to Draft'}
+          >
+            {group.latestDoc.status === 'DRAFT' ? (
+              <><CircleCheck className="w-3.5 h-3.5" /><span className="hidden sm:inline">Mark Final</span></>
+            ) : (
+              <><CheckCircle2 className="w-3.5 h-3.5" /> Final</>
+            )}
+          </Button>
+        )}
 
         {canVerify && (
           <Button
@@ -478,6 +505,30 @@ function DocumentGroupCard({
                 <StatusDot status={doc.status} />
               </DropdownMenuItem>
             ))}
+            {onToggleStatus && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.preventDefault()
+                    onToggleStatus(group.latestDoc)
+                  }}
+                  className="gap-2"
+                >
+                  {group.latestDoc.status === 'DRAFT' ? (
+                    <>
+                      <CircleCheck className="w-3.5 h-3.5" />
+                      Mark as Final
+                    </>
+                  ) : (
+                    <>
+                      <Circle className="w-3.5 h-3.5" />
+                      Revert to Draft
+                    </>
+                  )}
+                </DropdownMenuItem>
+              </>
+            )}
             {group.latestDoc.status === 'FINAL' &&
               !group.latestDoc.signatureStatus &&
               onRequestSign && (
@@ -822,6 +873,24 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
   // Signing state
   const [signTarget, setSignTarget] = useState<DocumentItem | null>(null)
   const [signingViewDoc, setSigningViewDoc] = useState<DocumentItem | null>(null)
+
+  const handleToggleStatus = useCallback(async (doc: DocumentItem) => {
+    const newStatus = doc.status === 'DRAFT' ? 'FINAL' : 'DRAFT'
+    try {
+      const res = await fetch(`/api/case/${caseId}/documents/${doc.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (res.ok) {
+        setDocuments((prev) =>
+          prev.map((d) => (d.id === doc.id ? { ...d, status: newStatus } : d))
+        )
+      }
+    } catch (err) {
+      console.error('Failed to update status:', err)
+    }
+  }, [caseId])
 
   // Evidence verification state
   const [verifyingDocs, setVerifyingDocs] = useState<Map<string, VerifyProgress>>(new Map())
@@ -1279,6 +1348,40 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
             )}
           </div>
           <div className="flex items-center gap-1">
+            <Button
+              variant={selectedDoc.status === 'FINAL' ? 'outline' : 'ghost'}
+              size="sm"
+              className={cn(
+                'h-7 text-[11px] gap-1',
+                selectedDoc.status === 'FINAL'
+                  ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                  : 'text-muted-foreground'
+              )}
+              onClick={async () => {
+                const newStatus = selectedDoc.status === 'DRAFT' ? 'FINAL' : 'DRAFT'
+                try {
+                  const res = await fetch(`/api/case/${caseId}/documents/${selectedDoc.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus }),
+                  })
+                  if (res.ok) {
+                    setSelectedDoc({ ...selectedDoc, status: newStatus })
+                    setDocuments((prev) =>
+                      prev.map((d) => (d.id === selectedDoc.id ? { ...d, status: newStatus } : d))
+                    )
+                  }
+                } catch (err) {
+                  console.error('Failed to update status:', err)
+                }
+              }}
+            >
+              {selectedDoc.status === 'DRAFT' ? (
+                <><CircleCheck className="w-3.5 h-3.5" /> Mark Final</>
+              ) : (
+                <><CheckCircle2 className="w-3.5 h-3.5" /> Final</>
+              )}
+            </Button>
             {selectedDoc.signedUrl && (
               <Button
                 variant="ghost"
@@ -1496,6 +1599,7 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
                         setDeleteTarget={setDeleteTarget}
                         onRequestSign={(doc) => setSignTarget(doc)}
                         onViewSigning={(doc) => setSigningViewDoc(doc)}
+                        onToggleStatus={handleToggleStatus}
                       />
                     ))}
                   </div>
@@ -1523,6 +1627,7 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
                         setDeleteTarget={setDeleteTarget}
                         onRequestSign={(doc) => setSignTarget(doc)}
                         onViewSigning={(doc) => setSigningViewDoc(doc)}
+                        onToggleStatus={handleToggleStatus}
                       />
                     ))}
                   </div>

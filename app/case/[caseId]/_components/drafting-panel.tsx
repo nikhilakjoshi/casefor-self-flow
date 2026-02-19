@@ -6,7 +6,8 @@ import { TiptapEditor } from '@/components/ui/tiptap-editor'
 import { ChatInput } from '@/components/ui/chat-input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Save, Loader2, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, ChevronDown, CircleCheck, CheckCircle2, PenTool } from 'lucide-react'
+import { SignRequestDialog } from './sign-request-dialog'
 import { cn } from '@/lib/utils'
 
 interface DraftingDoc {
@@ -50,6 +51,9 @@ export function DraftingPanel({
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [docStatus, setDocStatus] = useState<'DRAFT' | 'FINAL'>('DRAFT')
+  const [docType, setDocType] = useState<string>('MARKDOWN')
+  const [signDialogOpen, setSignDialogOpen] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const editorContentRef = useRef(editorContent)
@@ -89,6 +93,15 @@ export function DraftingPanel({
   useEffect(() => {
     editorContentRef.current = editorContent
   }, [editorContent])
+
+  // Fetch doc status for existing documents
+  useEffect(() => {
+    if (!document?.id) return
+    fetch(`/api/case/${caseId}/documents/${document.id}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => { if (data?.status) { setDocStatus(data.status); setDocType(data.type || 'MARKDOWN') } })
+      .catch(console.error)
+  }, [caseId, document?.id])
 
   // Load chat history for existing documents
   useEffect(() => {
@@ -258,6 +271,48 @@ export function DraftingPanel({
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {docId && docStatus === 'FINAL' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={() => setSignDialogOpen(true)}
+            >
+              <PenTool className="w-3.5 h-3.5" />
+              E-Sign
+            </Button>
+          )}
+          {docId && (
+            <Button
+              variant={docStatus === 'FINAL' ? 'outline' : 'ghost'}
+              size="sm"
+              className={cn(
+                'h-7 text-xs gap-1',
+                docStatus === 'FINAL'
+                  ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                  : 'text-muted-foreground'
+              )}
+              onClick={async () => {
+                const newStatus = docStatus === 'DRAFT' ? 'FINAL' : 'DRAFT'
+                try {
+                  const res = await fetch(`/api/case/${caseId}/documents/${docId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus }),
+                  })
+                  if (res.ok) setDocStatus(newStatus)
+                } catch (err) {
+                  console.error('Failed to update status:', err)
+                }
+              }}
+            >
+              {docStatus === 'DRAFT' ? (
+                <><CircleCheck className="w-3.5 h-3.5" /> Mark Final</>
+              ) : (
+                <><CheckCircle2 className="w-3.5 h-3.5" /> Final</>
+              )}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -402,6 +457,16 @@ export function DraftingPanel({
           />
         </div>
       </div>
+
+      {docId && (
+        <SignRequestDialog
+          open={signDialogOpen}
+          onOpenChange={setSignDialogOpen}
+          caseId={caseId}
+          docId={docId}
+          docName={docName}
+        />
+      )}
     </div>
   )
 }
