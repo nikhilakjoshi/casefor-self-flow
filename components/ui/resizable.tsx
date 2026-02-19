@@ -21,27 +21,28 @@ ResizablePanelGroup.displayName = "ResizablePanelGroup"
 
 const ResizablePanel = ResizablePrimitive.Panel
 
-const ResizableHandle = React.forwardRef<
-  React.ElementRef<typeof ResizablePrimitive.PanelResizeHandle>,
-  React.ComponentPropsWithoutRef<typeof ResizablePrimitive.PanelResizeHandle> & {
-    withHandle?: boolean
-  }
->(({ className, withHandle, ...props }, ref) => (
-  <ResizablePrimitive.PanelResizeHandle
-    ref={ref}
-    className={cn(
-      "relative flex w-px items-center justify-center bg-border after:absolute after:inset-y-0 after:left-1/2 after:w-1 after:-translate-x-1/2 data-[panel-group-direction=vertical]:h-px data-[panel-group-direction=vertical]:w-full",
-      className,
-    )}
-    {...props}
-  >
-    {withHandle && (
-      <div className="z-10 flex h-4 w-3 items-center justify-center rounded-xs border bg-border">
-        <GripVertical className="h-2.5 w-2.5" />
-      </div>
-    )}
-  </ResizablePrimitive.PanelResizeHandle>
-))
-ResizableHandle.displayName = "ResizableHandle"
+function ResizableHandle({
+  className,
+  withHandle,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof ResizablePrimitive.PanelResizeHandle> & {
+  withHandle?: boolean
+}) {
+  return (
+    <ResizablePrimitive.PanelResizeHandle
+      className={cn(
+        "relative flex w-px items-center justify-center bg-border after:absolute after:inset-y-0 after:left-1/2 after:w-1 after:-translate-x-1/2 data-[panel-group-direction=vertical]:h-px data-[panel-group-direction=vertical]:w-full",
+        className,
+      )}
+      {...props}
+    >
+      {withHandle && (
+        <div className="z-10 flex h-4 w-3 items-center justify-center rounded-xs border bg-border">
+          <GripVertical className="h-2.5 w-2.5" />
+        </div>
+      )}
+    </ResizablePrimitive.PanelResizeHandle>
+  )
+}
 
 export { ResizablePanelGroup, ResizablePanel, ResizableHandle }
