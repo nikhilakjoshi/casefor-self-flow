@@ -43,6 +43,9 @@ import {
   Briefcase,
   Receipt,
   GraduationCap,
+  ChevronRight,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -251,27 +254,33 @@ function getStrengthConfig(strength: Strength) {
   switch (strength) {
     case "Strong":
       return {
-        bg: "bg-emerald-500/5",
+        bg: "bg-emerald-50 dark:bg-emerald-950/40",
         border: "border-l-emerald-500",
-        headerBg: "bg-emerald-500/10",
+        headerBg: "bg-emerald-100/80 dark:bg-emerald-900/50",
         badge: "bg-emerald-600 text-white",
+        badgeRing: "ring-1 ring-emerald-700/20",
         label: "Strong",
+        idColor: "text-emerald-700 dark:text-emerald-400",
       }
     case "Weak":
       return {
-        bg: "bg-amber-500/5",
+        bg: "bg-amber-50 dark:bg-amber-950/30",
         border: "border-l-amber-500",
-        headerBg: "bg-amber-500/10",
+        headerBg: "bg-amber-100/70 dark:bg-amber-900/40",
         badge: "bg-amber-500 text-white",
+        badgeRing: "ring-1 ring-amber-600/20",
         label: "Weak",
+        idColor: "text-amber-700 dark:text-amber-400",
       }
     default:
       return {
-        bg: "bg-muted/30",
-        border: "border-l-muted-foreground/30",
-        headerBg: "bg-muted/50",
-        badge: "bg-muted-foreground/70 text-background",
+        bg: "bg-muted/50",
+        border: "border-l-stone-300 dark:border-l-stone-600",
+        headerBg: "bg-stone-100 dark:bg-stone-800/60",
+        badge: "bg-stone-400 dark:bg-stone-600 text-white",
+        badgeRing: "ring-1 ring-stone-500/20",
         label: "None",
+        idColor: "text-stone-500 dark:text-stone-400",
       }
   }
 }
@@ -291,10 +300,10 @@ function ScoreBar({ score }: { score: number }) {
   const color = score >= 7 ? "bg-emerald-500" : score >= 5 ? "bg-amber-500" : "bg-red-500"
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
         <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-[10px] font-mono text-muted-foreground w-7 text-right">{score.toFixed(1)}</span>
+      <span className="text-[10px] font-mono text-foreground/70 w-7 text-right">{score.toFixed(1)}</span>
     </div>
   )
 }
@@ -471,24 +480,27 @@ function EvidenceCriterionCard({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={cn(
-        "rounded-lg border border-l-4 overflow-hidden transition-all relative",
+        "rounded-lg border-l-[3px] border border-border overflow-hidden transition-all relative shadow-xs",
         config.border, config.bg,
-        dragOver ? "border-primary ring-2 ring-primary/30" : "border-border",
+        dragOver && "ring-2 ring-primary/40 border-primary",
       )}
     >
       {/* Drag overlay */}
       {dragOver && (
-        <div className="absolute inset-0 z-10 bg-primary/10 flex items-center justify-center pointer-events-none">
-          <span className="text-xs font-medium text-primary">Drop to evaluate for {criterionId}</span>
+        <div className="absolute inset-0 z-10 bg-primary/10 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
+          <div className="flex items-center gap-2 bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-md shadow-sm">
+            <Upload className="w-3.5 h-3.5" />
+            <span className="text-xs font-medium">Drop to evaluate for {criterionId}</span>
+          </div>
         </div>
       )}
 
       {/* Evaluating overlay */}
       {evaluating && (
-        <div className="absolute inset-0 z-10 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-muted-foreground">Evaluating...</span>
+        <div className="absolute inset-0 z-10 bg-background/70 backdrop-blur-[2px] flex items-center justify-center">
+          <div className="flex items-center gap-2 bg-card px-3 py-1.5 rounded-md shadow-sm border">
+            <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+            <span className="text-xs font-medium text-foreground">Evaluating...</span>
           </div>
         </div>
       )}
@@ -496,39 +508,46 @@ function EvidenceCriterionCard({
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className={cn("w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5", config.headerBg)}
+        className={cn(
+          "w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors",
+          "hover:brightness-95 dark:hover:brightness-110",
+          config.headerBg,
+        )}
       >
-        <span className="text-xs font-bold text-muted-foreground shrink-0">{criterionId}</span>
-        <span className="text-sm font-semibold text-stone-800 dark:text-stone-200 truncate flex-1 min-w-0">
+        <span className={cn("text-[11px] font-extrabold tracking-tight shrink-0 font-mono", config.idColor)}>
+          {criterionId}
+        </span>
+        <span className="text-[13px] font-semibold text-foreground truncate flex-1 min-w-0">
           {fullName}
         </span>
-        <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0", config.badge)}>
+        <span className={cn("px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 tracking-wide", config.badge, config.badgeRing)}>
           {config.label}
         </span>
         {routedDocs.length > 0 && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 shrink-0">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 shrink-0 ring-1 ring-teal-200 dark:ring-teal-800">
             <FileText className="w-3 h-3" />
-            {routedDocs.length} {routedDocs.length === 1 ? "doc" : "docs"}
+            {routedDocs.length}
           </span>
         )}
         {totalItems > 0 && (
-          <span className="text-[11px] text-muted-foreground shrink-0">{totalItems} items</span>
+          <span className="text-[11px] font-medium text-foreground/60 shrink-0">{totalItems} items</span>
         )}
-        <svg
-          className={cn("w-4 h-4 text-muted-foreground shrink-0 transition-transform", expanded && "rotate-180")}
-          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-        >
-          <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <ChevronDown
+          className={cn("w-4 h-4 text-foreground/40 shrink-0 transition-transform", expanded && "rotate-180")}
+        />
       </button>
 
       {/* Expanded content */}
       {expanded && (
-        <div className="px-3 pb-3 pt-1 space-y-3">
+        <div className="px-3 pb-3 pt-2 space-y-3">
           {/* Supporting extraction items -- primary */}
           {extractionGroups.filter(g => g.primary).length > 0 && (
-            <div className="space-y-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Supporting Items</span>
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">Supporting Items</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
               {extractionGroups.filter(g => g.primary).map(({ category, items }) => {
                 const catConf = CATEGORY_CONFIG[category]
                 if (!catConf) return null
@@ -536,23 +555,24 @@ function EvidenceCriterionCard({
                 return (
                   <div key={category} className="space-y-1">
                     <div className="flex items-center gap-1.5">
-                      <Icon className="w-3 h-3 text-muted-foreground" />
-                      <span className="text-[11px] font-medium text-muted-foreground">{catConf.label}</span>
+                      <Icon className="w-3.5 h-3.5 text-foreground/50" />
+                      <span className="text-[11px] font-semibold text-foreground/70">{catConf.label}</span>
                     </div>
                     {items.map((item, j) => {
                       const itemId = item.id as string | undefined
                       const itemDocCount = itemId ? (docCountsByItem?.[itemId] ?? 0) : 0
                       return (
-                        <div key={j} className="flex items-center gap-1.5 text-xs text-foreground/80 pl-4 py-0.5">
-                          <span className="flex-1"><ItemSummary item={item} category={category} /></span>
+                        <div key={j} className="flex items-start gap-2 text-xs text-foreground/80 pl-5 py-1 rounded-md hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
+                          <span className="flex-1 leading-relaxed"><ItemSummary item={item} category={category} /></span>
                           {itemDocCount > 0 ? (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 shrink-0">
-                              <FileText className="w-2.5 h-2.5" />
-                              Evidence in Vault
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 shrink-0 ring-1 ring-emerald-200 dark:ring-emerald-800">
+                              <CheckCircle2 className="w-2.5 h-2.5" />
+                              In Vault
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
-                              Evidence Required
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200 shrink-0 ring-1 ring-orange-200 dark:ring-orange-800">
+                              <AlertCircle className="w-2.5 h-2.5" />
+                              Required
                             </span>
                           )}
                         </div>
@@ -571,47 +591,41 @@ function EvidenceCriterionCard({
             if (crossCount === 0) return null
             return (
               <Collapsible>
-                <CollapsibleTrigger className="group/also flex items-center gap-1.5 w-full text-left py-1">
-                  <svg
-                    className="w-3 h-3 text-muted-foreground/50 transition-transform group-data-[state=open]/also:rotate-90"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
+                <CollapsibleTrigger className="group/also flex items-center gap-1.5 w-full text-left py-1.5 rounded-md px-1 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors">
+                  <ChevronRight
+                    className="w-3 h-3 text-foreground/40 transition-transform group-data-[state=open]/also:rotate-90"
+                  />
+                  <span className="text-[10px] font-semibold text-foreground/45 uppercase tracking-wider">
                     Also relevant
                   </span>
-                  <span className="text-[10px] text-muted-foreground/40">{crossCount}</span>
+                  <span className="text-[10px] font-medium text-foreground/35 bg-muted rounded-full px-1.5">{crossCount}</span>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="space-y-1 pt-0.5 pl-1 border-l border-dashed border-border ml-1">
+                  <div className="space-y-1 pt-1 pl-2 border-l-2 border-border ml-1.5">
                     {crossGroups.map(({ category, items }) => {
                       const catConf = CATEGORY_CONFIG[category]
                       if (!catConf) return null
                       const Icon = catConf.icon
                       return (
                         <div key={category} className="space-y-0.5">
-                          <div className="flex items-center gap-1 pl-2">
-                            <Icon className="w-2.5 h-2.5 text-muted-foreground/40" />
-                            <span className="text-[10px] font-medium text-muted-foreground/50">{catConf.label}</span>
+                          <div className="flex items-center gap-1.5 pl-2">
+                            <Icon className="w-3 h-3 text-foreground/35" />
+                            <span className="text-[10px] font-medium text-foreground/45">{catConf.label}</span>
                           </div>
                           {items.map((item, j) => {
                             const itemId = item.id as string | undefined
                             const itemDocCount = itemId ? (docCountsByItem?.[itemId] ?? 0) : 0
                             return (
-                              <div key={j} className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60 pl-5 py-px">
+                              <div key={j} className="flex items-center gap-1.5 text-[11px] text-foreground/50 pl-5 py-0.5">
                                 <span className="flex-1"><ItemSummary item={item} category={category} /></span>
                                 {itemDocCount > 0 ? (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-emerald-100/60 text-emerald-600/70 dark:bg-emerald-900/20 dark:text-emerald-400/60 shrink-0">
-                                    <FileText className="w-2.5 h-2.5" />
-                                    Evidence in Vault
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-md text-[9px] font-semibold bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 shrink-0">
+                                    <CheckCircle2 className="w-2 h-2" />
+                                    In Vault
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-orange-100/60 text-orange-600/70 dark:bg-orange-900/20 dark:text-orange-400/60 shrink-0">
-                                    Evidence Required
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-md text-[9px] font-semibold bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 shrink-0">
+                                    Required
                                   </span>
                                 )}
                               </div>
@@ -628,22 +642,23 @@ function EvidenceCriterionCard({
 
           {/* Routed documents */}
           {routedDocs.length > 0 && (
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Routed Documents</span>
-              <div className="space-y-1">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">Routed Documents</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+              <div className="space-y-1.5">
                 {routedDocs.map((doc) => {
                   const isExpanded = expandedDocs.has(doc.id)
                   return (
-                    <div key={doc.id} className="rounded border border-border/50 overflow-hidden">
+                    <div key={doc.id} className="rounded-md border border-border bg-card overflow-hidden shadow-xs">
                       <button
                         onClick={() => toggleDocExpanded(doc.id)}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-muted/30 transition-colors"
+                        className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-muted/50 transition-colors"
                       >
-                        <svg className="w-3 h-3 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round" />
-                          <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        <span className="text-xs text-stone-700 dark:text-stone-300 truncate flex-1 min-w-0">
+                        <FileText className="w-3.5 h-3.5 text-foreground/40 shrink-0" />
+                        <span className="text-xs font-medium text-foreground truncate flex-1 min-w-0">
                           {doc.name}
                         </span>
                         <div className="w-16 shrink-0">
@@ -652,16 +667,13 @@ function EvidenceCriterionCard({
                         <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 uppercase tracking-wide", getRecommendationColor(doc.recommendation))}>
                           {doc.recommendation.replace(/_/g, " ")}
                         </span>
-                        <svg
-                          className={cn("w-3 h-3 text-muted-foreground shrink-0 transition-transform", isExpanded && "rotate-180")}
-                          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                        >
-                          <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                        <ChevronDown
+                          className={cn("w-3.5 h-3.5 text-foreground/40 shrink-0 transition-transform", isExpanded && "rotate-180")}
+                        />
                       </button>
                       {isExpanded && (
-                        <div className="px-2 pb-2 pt-1 border-t border-border/30 text-xs space-y-1.5">
-                          <p className="text-[10px] text-muted-foreground italic">
+                        <div className="px-2.5 pb-2 pt-1 border-t border-border text-xs space-y-1.5 bg-muted/30">
+                          <p className="text-[11px] text-foreground/60">
                             {doc.autoRouted ? "Auto-routed" : "Manually routed"} -- Score: {doc.score.toFixed(1)}/10
                           </p>
                         </div>
@@ -675,9 +687,9 @@ function EvidenceCriterionCard({
 
           {/* Empty state */}
           {extractionGroups.length === 0 && routedDocs.length === 0 && (
-            <div className="text-center py-3">
-              <p className="text-xs text-muted-foreground italic">No supporting items or documents yet</p>
-              <p className="text-[10px] text-muted-foreground/60 mt-0.5">Drop a file here to evaluate for {criterionId}</p>
+            <div className="text-center py-4 border border-dashed border-border rounded-lg bg-muted/30">
+              <p className="text-xs font-medium text-foreground/50">No supporting items or documents yet</p>
+              <p className="text-[11px] text-foreground/35 mt-1">Drop a file here to evaluate for {criterionId}</p>
             </div>
           )}
         </div>
@@ -816,11 +828,16 @@ function ImmigrationDocCard({
     }
   }
 
+  const hasUploads = docs.length > 0
+
   return (
     <div
       className={cn(
-        'rounded-lg border border-border/50 bg-card/50 overflow-hidden transition-colors',
-        dragOver && 'border-primary/50 bg-primary/5'
+        'rounded-md border overflow-hidden transition-all',
+        hasUploads
+          ? 'border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-950/20'
+          : 'border-border bg-card',
+        dragOver && 'border-primary ring-1 ring-primary/30 bg-primary/5'
       )}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
       onDragLeave={() => setDragOver(false)}
@@ -831,22 +848,35 @@ function ImmigrationDocCard({
         if (file) handleUpload(file)
       }}
     >
-      <div className="flex items-center gap-3 px-3 py-2.5">
-        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-muted/80">
-          <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+      <div className="flex items-center gap-2.5 px-3 py-2">
+        <div className={cn(
+          "w-7 h-7 rounded-md flex items-center justify-center shrink-0",
+          hasUploads
+            ? "bg-emerald-100 dark:bg-emerald-900/50"
+            : "bg-stone-100 dark:bg-stone-800"
+        )}>
+          <Icon className={cn(
+            "w-3.5 h-3.5",
+            hasUploads
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-foreground/50"
+          )} />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="text-xs font-semibold">{docType.label}</h4>
-          <p className="text-[10px] text-muted-foreground truncate">{docType.description}</p>
+          <h4 className="text-xs font-semibold text-foreground">{docType.label}</h4>
+          <p className="text-[10px] text-foreground/50 truncate">{docType.description}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {docs.length > 0 && (
-            <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+            <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 rounded-full px-2 py-0.5">
               {docs.length}
             </span>
           )}
           <button
-            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium border border-border hover:bg-muted transition-colors disabled:opacity-50"
+            className={cn(
+              "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-colors disabled:opacity-50",
+              "border border-border hover:bg-muted hover:border-foreground/20 text-foreground/70 hover:text-foreground"
+            )}
             disabled={uploading}
             onClick={() => fileInputRef.current?.click()}
           >
@@ -871,13 +901,13 @@ function ImmigrationDocCard({
         </div>
       </div>
       {docs.length > 0 && (
-        <div className="px-3 pb-2.5 space-y-1">
+        <div className="px-3 pb-2 space-y-1">
           {docs.map((doc) => (
-            <div key={doc.id} className="flex items-center gap-2 px-2 py-1 rounded bg-muted/40 group">
-              <FileText className="w-3 h-3 text-muted-foreground shrink-0" />
-              <span className="text-[11px] text-foreground/80 truncate flex-1 min-w-0">{doc.name}</span>
+            <div key={doc.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/60 dark:bg-white/5 border border-border/50 group">
+              <FileText className="w-3 h-3 text-foreground/40 shrink-0" />
+              <span className="text-[11px] font-medium text-foreground/80 truncate flex-1 min-w-0">{doc.name}</span>
               <button
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-50"
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-destructive/10 text-foreground/40 hover:text-destructive disabled:opacity-50"
                 disabled={deleting === doc.id}
                 onClick={() => handleDelete(doc.id)}
               >
@@ -1029,12 +1059,12 @@ export function EvidenceListPanel({
       {/* Upload bar -- global drop zone for all C1-C10 */}
       <div
         className={cn(
-          "shrink-0 border-b transition-colors",
+          "shrink-0 transition-all",
           isUploading
-            ? "bg-primary/5 border-primary/30"
+            ? "bg-primary/5 border-b-2 border-primary/40"
             : uploadDragOver
-              ? "bg-primary/10 border-primary"
-              : "border-border hover:bg-muted/30",
+              ? "bg-primary/8 border-b-2 border-primary"
+              : "border-b border-border hover:bg-muted/40",
         )}
         onDragOver={(e) => { e.preventDefault(); setUploadDragOver(true) }}
         onDragLeave={(e) => { e.preventDefault(); setUploadDragOver(false) }}
@@ -1059,22 +1089,40 @@ export function EvidenceListPanel({
             e.target.value = ""
           }}
         />
-        <div className="flex items-center gap-2.5 px-4 py-2 cursor-pointer">
+        <div className="flex items-center gap-3 px-4 py-3 cursor-pointer">
           {isUploading ? (
             <>
               <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
-              <span className="text-xs text-muted-foreground">
-                Verifying against C1-C10...
-                {streamingDocs.size > 0 && ` (${streamingDocs.size} doc${streamingDocs.size > 1 ? "s" : ""})`}
-              </span>
+              <div className="flex-1">
+                <span className="text-xs font-medium text-foreground">
+                  Verifying against C1-C10...
+                </span>
+                {streamingDocs.size > 0 && (
+                  <span className="text-[11px] text-foreground/60 ml-2">
+                    ({streamingDocs.size} doc{streamingDocs.size > 1 ? "s" : ""} processing)
+                  </span>
+                )}
+              </div>
             </>
           ) : (
             <>
-              <Upload className={cn("w-4 h-4 shrink-0", uploadDragOver ? "text-primary" : "text-muted-foreground")} />
-              <span className="text-xs text-muted-foreground">
-                {uploadDragOver ? "Drop to upload & auto-classify" : "Drop evidence files or click to upload"}
-              </span>
-              <span className="text-[11px] text-muted-foreground/50 hidden sm:inline">PDF, DOCX, TXT, MD, CSV, XLSX</span>
+              <div className={cn(
+                "w-8 h-8 rounded-lg border-2 border-dashed flex items-center justify-center transition-colors",
+                uploadDragOver
+                  ? "border-primary bg-primary/10"
+                  : "border-foreground/20 bg-muted/50"
+              )}>
+                <Upload className={cn("w-4 h-4", uploadDragOver ? "text-primary" : "text-foreground/40")} />
+              </div>
+              <div className="flex-1">
+                <span className={cn(
+                  "text-xs font-medium",
+                  uploadDragOver ? "text-primary" : "text-foreground/70"
+                )}>
+                  {uploadDragOver ? "Drop to upload & auto-classify" : "Drop evidence files or click to upload"}
+                </span>
+                <span className="text-[10px] text-foreground/40 hidden sm:inline ml-2">PDF, DOCX, TXT, MD, CSV, XLSX</span>
+              </div>
             </>
           )}
         </div>
@@ -1086,15 +1134,20 @@ export function EvidenceListPanel({
         <div className="border-b border-border">
           <button
             onClick={() => setRecommendersOpen(!recommendersOpen)}
-            className="sticky top-0 z-10 bg-background w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors border-b border-border"
+            className="sticky top-0 z-10 bg-stone-50 dark:bg-stone-900/50 w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-stone-100 dark:hover:bg-stone-800/50 transition-colors border-b border-border"
           >
             <ChevronDown
               className={cn(
-                "w-4 h-4 text-muted-foreground transition-transform",
+                "w-4 h-4 text-foreground/50 transition-transform",
                 !recommendersOpen && "-rotate-90"
               )}
             />
-            <span className="text-sm font-semibold">Recommendation Letters</span>
+            <span className="text-[13px] font-bold text-foreground tracking-tight">Recommendation Letters</span>
+            {recommenders.length > 0 && (
+              <span className="text-[10px] font-bold text-foreground/60 bg-muted rounded-full px-2 py-0.5 ring-1 ring-border">
+                {recommenders.length}
+              </span>
+            )}
           </button>
           {recommendersOpen && (
             <div className="p-3">
@@ -1122,23 +1175,23 @@ export function EvidenceListPanel({
         <div className="border-b border-border">
           <button
             onClick={() => setImmigrationDocsOpen(!immigrationDocsOpen)}
-            className="sticky top-0 z-10 bg-background w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors border-b border-border"
+            className="sticky top-0 z-10 bg-stone-50 dark:bg-stone-900/50 w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-stone-100 dark:hover:bg-stone-800/50 transition-colors border-b border-border"
           >
             <ChevronDown
               className={cn(
-                "w-4 h-4 text-muted-foreground transition-transform",
+                "w-4 h-4 text-foreground/50 transition-transform",
                 !immigrationDocsOpen && "-rotate-90"
               )}
             />
-            <span className="text-sm font-semibold">Immigration Documents</span>
+            <span className="text-[13px] font-bold text-foreground tracking-tight">Immigration Documents</span>
             {immigrationDocs.length > 0 && (
-              <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+              <span className="text-[10px] font-bold text-foreground/60 bg-muted rounded-full px-2 py-0.5 ring-1 ring-border">
                 {immigrationDocs.length}
               </span>
             )}
           </button>
           {immigrationDocsOpen && (
-            <div className="p-3 space-y-1">
+            <div className="p-3 space-y-1.5">
               {IMMIGRATION_GROUPS.map((group) => {
                 const groupDocs = IMMIGRATION_DOC_TYPES.filter(d => d.group === group.key)
                 const groupUploadedCount = groupDocs.reduce(
@@ -1147,17 +1200,17 @@ export function EvidenceListPanel({
                 )
                 return (
                   <Collapsible key={group.key} defaultOpen={group.key === 'identity' || group.key === 'petition_forms'}>
-                    <CollapsibleTrigger className="group/imm flex items-center gap-2 w-full text-left px-1 py-1.5 rounded hover:bg-muted/30 transition-colors">
-                      <ChevronDown className="w-3 h-3 text-muted-foreground transition-transform group-data-[state=closed]/imm:-rotate-90" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{group.label}</span>
+                    <CollapsibleTrigger className="group/imm flex items-center gap-2 w-full text-left px-2 py-2 rounded-md hover:bg-muted/60 transition-colors">
+                      <ChevronDown className="w-3.5 h-3.5 text-foreground/40 transition-transform group-data-[state=closed]/imm:-rotate-90" />
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-foreground/60">{group.label}</span>
                       {groupUploadedCount > 0 && (
-                        <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-1.5 py-0">
+                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 rounded-full px-2 py-0 ring-1 ring-emerald-200 dark:ring-emerald-800">
                           {groupUploadedCount}
                         </span>
                       )}
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <div className="space-y-1.5 pb-2 pt-1">
+                      <div className="space-y-1.5 pb-2 pt-1 pl-1">
                         {groupDocs.map((docType) => (
                           <ImmigrationDocCard
                             key={docType.category}
@@ -1180,18 +1233,18 @@ export function EvidenceListPanel({
         <div className="border-b border-border">
           <button
             onClick={() => setEvidenceOpen(!evidenceOpen)}
-            className="sticky top-0 z-10 bg-background w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors border-b border-border"
+            className="sticky top-0 z-10 bg-stone-50 dark:bg-stone-900/50 w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-stone-100 dark:hover:bg-stone-800/50 transition-colors border-b border-border"
           >
             <ChevronDown
               className={cn(
-                "w-4 h-4 text-muted-foreground transition-transform",
+                "w-4 h-4 text-foreground/50 transition-transform",
                 !evidenceOpen && "-rotate-90"
               )}
             />
-            <span className="text-sm font-semibold">Evidence by Criterion</span>
+            <span className="text-[13px] font-bold text-foreground tracking-tight">Evidence by Criterion</span>
           </button>
           {evidenceOpen && (
-            <div className="p-3 space-y-3">
+            <div className="p-3 space-y-2.5">
               {[...allCriteria].sort((a, b) => {
                 const order: Record<string, number> = { Strong: 0, Weak: 1, None: 2 }
                 const sa = criteria?.find((c) => c.criterionId === a)?.strength ?? "None"
