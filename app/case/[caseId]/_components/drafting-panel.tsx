@@ -6,7 +6,7 @@ import { TiptapEditor } from '@/components/ui/tiptap-editor'
 import { ChatInput } from '@/components/ui/chat-input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Save, Loader2, ChevronDown, CircleCheck, CheckCircle2, PenTool } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, ChevronDown, CircleCheck, CheckCircle2, PenTool, FileSignature } from 'lucide-react'
 import { SignRequestDialog } from './sign-request-dialog'
 import { SigningView } from './signing-view'
 import {
@@ -60,6 +60,7 @@ export function DraftingPanel({
   const [docType, setDocType] = useState<string>('MARKDOWN')
   const [signDialogOpen, setSignDialogOpen] = useState(false)
   const [signingViewOpen, setSigningViewOpen] = useState(false)
+  const [selfSigning, setSelfSigning] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const editorContentRef = useRef(editorContent)
@@ -278,15 +279,41 @@ export function DraftingPanel({
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {docId && docStatus === 'FINAL' && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs gap-1"
-              onClick={() => setSignDialogOpen(true)}
-            >
-              <PenTool className="w-3.5 h-3.5" />
-              E-Sign
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                disabled={selfSigning}
+                onClick={async () => {
+                  if (!docId) return
+                  setSelfSigning(true)
+                  try {
+                    const res = await fetch(`/api/case/${caseId}/documents/${docId}/sign`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ selfSign: true }),
+                    })
+                    if (res.ok) {
+                      setSigningViewOpen(true)
+                    }
+                  } catch { /* ignore */ }
+                  finally { setSelfSigning(false) }
+                }}
+              >
+                {selfSigning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSignature className="w-3.5 h-3.5" />}
+                Sign Now
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => setSignDialogOpen(true)}
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                E-Sign
+              </Button>
+            </>
           )}
           {docId && (
             <Button
@@ -471,6 +498,8 @@ export function DraftingPanel({
           caseId={caseId}
           docId={docId}
           docName={docName}
+          currentUserEmail={session?.user?.email ?? undefined}
+          currentUserName={session?.user?.name ?? undefined}
           onSuccess={() => {
             setSignDialogOpen(false)
             setSigningViewOpen(true)
@@ -480,7 +509,7 @@ export function DraftingPanel({
 
       {signingViewOpen && docId && (
         <Dialog open={signingViewOpen} onOpenChange={setSigningViewOpen}>
-          <DialogContent className="sm:max-w-lg max-h-[80vh] p-0 overflow-hidden">
+          <DialogContent className="sm:max-w-2xl h-[90vh] p-0 overflow-hidden flex flex-col">
             <SigningView
               caseId={caseId}
               docId={docId}

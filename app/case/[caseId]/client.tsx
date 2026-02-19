@@ -9,7 +9,6 @@ import { EvidenceChatPanel } from './_components/evidence-chat-panel'
 import { DocumentChatPanel } from './_components/document-chat-panel'
 import { DocumentsPanel } from './_components/documents-panel'
 import { DraftingPanel } from './_components/drafting-panel'
-import { PackagePanel } from './_components/package-panel'
 import { IntakeSheet } from './_components/intake-sheet'
 import { Upload, MessageSquare, X, ShieldAlert } from 'lucide-react'
 import {
@@ -104,10 +103,10 @@ export function CasePageClient({
   const router = useRouter()
   const pathname = usePathname()
 
-  const validTabs = useMemo(() => new Set(['analysis', 'evidence', 'documents', 'package'] as const), [])
+  const validTabs = useMemo(() => new Set(['analysis', 'evidence', 'documents'] as const), [])
   const tabParam = searchParams.get('tab')
-  const initialTab = tabParam && validTabs.has(tabParam as 'analysis' | 'evidence' | 'documents' | 'package')
-    ? (tabParam as 'analysis' | 'evidence' | 'documents' | 'package')
+  const initialTab = tabParam && validTabs.has(tabParam as 'analysis' | 'evidence' | 'documents')
+    ? (tabParam as 'analysis' | 'evidence' | 'documents')
     : 'analysis'
 
   const [messages, setMessages] = useState<Message[]>(initialMessages)
@@ -115,9 +114,19 @@ export function CasePageClient({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [analysisVersion, setAnalysisVersion] = useState(initialAnalysisVersion)
   const [threshold, setThreshold] = useState(initialThreshold)
-  const [activeTab, setActiveTab] = useState<'analysis' | 'evidence' | 'documents' | 'package'>(initialTab)
+  const [activeTab, setActiveTab] = useState<'analysis' | 'evidence' | 'documents'>(initialTab)
 
-  const handleTabChange = useCallback((tab: 'analysis' | 'evidence' | 'documents' | 'package') => {
+  // Redirect old ?tab=package URLs to ?tab=analysis&subtab=package
+  useEffect(() => {
+    if (tabParam === 'package') {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('tab', 'analysis')
+      params.set('subtab', 'package')
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    }
+  }, [tabParam, searchParams, router, pathname])
+
+  const handleTabChange = useCallback((tab: 'analysis' | 'evidence' | 'documents') => {
     setActiveTab(tab)
     const params = new URLSearchParams(searchParams.toString())
     params.set('tab', tab)
@@ -138,6 +147,40 @@ export function CasePageClient({
   const [intakeOpen, setIntakeOpen] = useState(initialIntakeStatus === 'PENDING')
   const [chatOpen, setChatOpen] = useState(false)
   const initiatedRef = useRef(false)
+
+  const [reAnalysisPhase, setReAnalysisPhase] = useState<'idle' | 'strength-eval' | 'gap-analysis' | 'done'>('idle')
+
+  const triggerReAnalysis = useCallback(async () => {
+    if (reAnalysisPhase !== 'idle') return
+    try {
+      setReAnalysisPhase('strength-eval')
+      const seRes = await fetch(`/api/case/${caseId}/strength-evaluation`, { method: 'POST' })
+      if (seRes.ok && seRes.body) {
+        const reader = seRes.body.getReader()
+        while (true) {
+          const { done } = await reader.read()
+          if (done) break
+        }
+      }
+
+      setReAnalysisPhase('gap-analysis')
+      const gaRes = await fetch(`/api/case/${caseId}/gap-analysis`, { method: 'POST' })
+      if (gaRes.ok && gaRes.body) {
+        const reader = gaRes.body.getReader()
+        while (true) {
+          const { done } = await reader.read()
+          if (done) break
+        }
+      }
+
+      setAnalysisVersion((v) => v + 1)
+      setReAnalysisPhase('done')
+      setTimeout(() => setReAnalysisPhase('idle'), 2000)
+    } catch (err) {
+      console.error('Re-analysis failed:', err)
+      setReAnalysisPhase('idle')
+    }
+  }, [caseId, reAnalysisPhase])
 
   const onOpenDraft = useCallback((doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => {
     setDraftingDoc(doc || {})
@@ -461,25 +504,21 @@ export function CasePageClient({
               initialDenialProbability={initialDenialProbability}
               initialIntentData={initialIntentData}
               onOpenDraft={onOpenDraft}
+              onEvidenceChanged={triggerReAnalysis}
+              reAnalysisPhase={reAnalysisPhase}
             />
           </div>
         </div>
       ) : activeTab === 'evidence' ? (
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} />
-          </div>
-        </div>
-      ) : activeTab === 'package' ? (
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 overflow-hidden">
-            <PackagePanel caseId={caseId} />
+            <DocumentsPanel caseId={caseId} isChatActive={isEvidenceLoading} onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} onEvidenceChanged={triggerReAnalysis} />
           </div>
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1 bg-muted/50 overflow-hidden">
-            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} />
+            <DocumentsPanel caseId={caseId} isChatActive={isDocumentLoading} hideChecklists onOpenDraft={onOpenDraft} onDocumentsRouted={() => setAnalysisVersion((v) => v + 1)} onEvidenceChanged={triggerReAnalysis} />
           </div>
         </div>
       )}

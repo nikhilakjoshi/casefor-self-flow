@@ -47,7 +47,10 @@ import type { SurveyIntent } from '@/app/onboard/_lib/survey-schema'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
+import { useSession } from 'next-auth/react'
 import { RecommenderForm } from './recommender-form'
+import { SignRequestDialog } from './sign-request-dialog'
+import { SigningView } from './signing-view'
 import type { RecommenderData } from './recommender-form'
 import { CsvImportModal } from './csv-import-modal'
 import type { DenialProbability } from '@/lib/denial-probability-schema'
@@ -398,11 +401,15 @@ function UploadOnlyCard({
   docs,
   caseId,
   onUploaded,
+  onSignNow,
+  onRequestSign,
 }: {
   letterType: LetterType
   docs: DocumentItem[]
   caseId: string
   onUploaded: () => void
+  onSignNow?: (docId: string, docName: string) => void
+  onRequestSign?: (docId: string, docName: string) => void
 }) {
   const Icon = letterType.icon
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -518,22 +525,36 @@ function UploadOnlyCard({
               e.target.value = ''
             }}
           />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span tabIndex={0} onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-[11px] gap-1 cursor-not-allowed opacity-50"
-                  disabled
-                >
-                  <PenTool className="w-3 h-3" />
-                  E-Sign
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>Coming soon</TooltipContent>
-          </Tooltip>
+          {(() => {
+            const finalDocs = docs.filter((d) => d.status === 'FINAL')
+            if (finalDocs.length === 0) return null
+            return (
+              <>
+                {onSignNow && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[11px] gap-1"
+                    onClick={(e) => { e.stopPropagation(); onSignNow(finalDocs[0].id, finalDocs[0].name) }}
+                  >
+                    <PenTool className="w-3 h-3" />
+                    Sign Now
+                  </Button>
+                )}
+                {onRequestSign && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[11px] gap-1"
+                    onClick={(e) => { e.stopPropagation(); onRequestSign(finalDocs[0].id, finalDocs[0].name) }}
+                  >
+                    <PenTool className="w-3 h-3" />
+                    E-Sign
+                  </Button>
+                )}
+              </>
+            )
+          })()}
           {docs.length > 0 && (
             <ChevronDown
               className={cn(
@@ -583,6 +604,8 @@ export function RecommenderCard({
   onImportCsv,
   onUploaded,
   onShare,
+  onSignNow,
+  onRequestSign,
 }: {
   letterType: LetterType
   recommenders: Recommender[]
@@ -594,6 +617,8 @@ export function RecommenderCard({
   onImportCsv: () => void
   onUploaded: () => void
   onShare?: (docId: string, docName: string) => void
+  onSignNow?: (docId: string, docName: string) => void
+  onRequestSign?: (docId: string, docName: string) => void
 }) {
   const Icon = letterType.icon
   const hasContent = recommenders.length > 0 || allRecDocs.length > 0
@@ -817,22 +842,36 @@ export function RecommenderCard({
               e.target.value = ''
             }}
           />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span tabIndex={0} onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-[11px] gap-1 cursor-not-allowed opacity-50"
-                  disabled
-                >
-                  <PenTool className="w-3 h-3" />
-                  E-Sign
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>Coming soon</TooltipContent>
-          </Tooltip>
+          {(() => {
+            const finalRecDocs = allRecDocs.filter((d) => d.status === 'FINAL')
+            if (finalRecDocs.length === 0) return null
+            return (
+              <>
+                {onSignNow && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[11px] gap-1"
+                    onClick={(e) => { e.stopPropagation(); onSignNow(finalRecDocs[0].id, finalRecDocs[0].name) }}
+                  >
+                    <PenTool className="w-3 h-3" />
+                    Sign Now
+                  </Button>
+                )}
+                {onRequestSign && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[11px] gap-1"
+                    onClick={(e) => { e.stopPropagation(); onRequestSign(finalRecDocs[0].id, finalRecDocs[0].name) }}
+                  >
+                    <PenTool className="w-3 h-3" />
+                    E-Sign
+                  </Button>
+                )}
+              </>
+            )
+          })()}
           {hasContent && (
             <ChevronDown
               className={cn(
@@ -1128,6 +1167,8 @@ function DraftableCard({
   onOpenDraft,
   onUploaded,
   onShare,
+  onSignNow,
+  onRequestSign,
 }: {
   letterType: LetterType
   docs: DocumentItem[]
@@ -1135,6 +1176,8 @@ function DraftableCard({
   onOpenDraft: LettersPanelProps['onOpenDraft']
   onUploaded: () => void
   onShare?: (docId: string, docName: string) => void
+  onSignNow?: (docId: string, docName: string) => void
+  onRequestSign?: (docId: string, docName: string) => void
 }) {
   const Icon = letterType.icon
   const [expanded, setExpanded] = useState(false)
@@ -1253,22 +1296,36 @@ function DraftableCard({
               e.target.value = ''
             }}
           />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span tabIndex={0} onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-[11px] gap-1 cursor-not-allowed opacity-50"
-                  disabled
-                >
-                  <PenTool className="w-3 h-3" />
-                  E-Sign
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>Coming soon</TooltipContent>
-          </Tooltip>
+          {(() => {
+            const finalDocs = docs.filter((d) => d.status === 'FINAL')
+            if (finalDocs.length === 0) return null
+            return (
+              <>
+                {onSignNow && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[11px] gap-1"
+                    onClick={(e) => { e.stopPropagation(); onSignNow(finalDocs[0].id, finalDocs[0].name) }}
+                  >
+                    <PenTool className="w-3 h-3" />
+                    Sign Now
+                  </Button>
+                )}
+                {onRequestSign && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[11px] gap-1"
+                    onClick={(e) => { e.stopPropagation(); onRequestSign(finalDocs[0].id, finalDocs[0].name) }}
+                  >
+                    <PenTool className="w-3 h-3" />
+                    E-Sign
+                  </Button>
+                )}
+              </>
+            )
+          })()}
           {docs.length > 0 && (
             <ChevronDown
               className={cn(
@@ -1566,12 +1623,16 @@ function UsIntentCard({ caseId, initialData }: { caseId: string; initialData?: S
 }
 
 export function LettersPanel({ caseId, onOpenDraft, denialProbability, initialIntentData }: LettersPanelProps) {
+  const { data: session } = useSession()
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [recommenders, setRecommenders] = useState<Recommender[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAddRecommender, setShowAddRecommender] = useState(false)
   const [showCsvImport, setShowCsvImport] = useState(false)
   const [assembling, setAssembling] = useState(false)
+  // Signing state
+  const [signTarget, setSignTarget] = useState<{ docId: string; docName: string } | null>(null)
+  const [signingViewTarget, setSigningViewTarget] = useState<{ docId: string; docName: string } | null>(null)
   const [globalDragOver, setGlobalDragOver] = useState(false)
   const [globalUploading, setGlobalUploading] = useState(false)
   const [categoryPicker, setCategoryPicker] = useState<{
@@ -1613,6 +1674,24 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability, initialIn
     setShowAddRecommender(false)
     fetchData()
   }, [fetchData])
+
+  const handleSignNow = useCallback(async (docId: string, docName: string) => {
+    try {
+      const res = await fetch(`/api/case/${caseId}/documents/${docId}/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selfSign: true }),
+      })
+      if (res.ok) {
+        setSigningViewTarget({ docId, docName })
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Failed to create self-sign request')
+      }
+    } catch {
+      toast.error('Failed to create self-sign request')
+    }
+  }, [caseId])
 
   const handleAssemblePackage = useCallback(async () => {
     setAssembling(true)
@@ -1810,6 +1889,8 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability, initialIn
                 docs={docs}
                 caseId={caseId}
                 onUploaded={fetchData}
+                onSignNow={handleSignNow}
+                onRequestSign={(docId, docName) => setSignTarget({ docId, docName })}
               />
             )
           }
@@ -1824,6 +1905,8 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability, initialIn
               onOpenDraft={onOpenDraft}
               onUploaded={fetchData}
               onShare={(docId, docName) => setShareTarget({ docId, docName })}
+              onSignNow={handleSignNow}
+              onRequestSign={(docId, docName) => setSignTarget({ docId, docName })}
             />
           )
         })}
@@ -1888,6 +1971,40 @@ export function LettersPanel({ caseId, onOpenDraft, denialProbability, initialIn
         docId={shareTarget.docId}
         docName={shareTarget.docName}
       />
+    )}
+
+    {signTarget && (
+      <SignRequestDialog
+        open={!!signTarget}
+        onOpenChange={(open) => { if (!open) setSignTarget(null) }}
+        caseId={caseId}
+        docId={signTarget.docId}
+        docName={signTarget.docName}
+        currentUserEmail={session?.user?.email ?? undefined}
+        currentUserName={session?.user?.name ?? undefined}
+        onSuccess={() => {
+          const target = signTarget
+          setSignTarget(null)
+          if (target) setSigningViewTarget(target)
+          fetchData()
+        }}
+      />
+    )}
+
+    {signingViewTarget && (
+      <Dialog open={!!signingViewTarget} onOpenChange={(open) => { if (!open) { setSigningViewTarget(null); fetchData() } }}>
+        <DialogContent className="sm:max-w-2xl h-[90vh] p-0 overflow-hidden flex flex-col">
+          <DialogTitle className="sr-only">Sign Document</DialogTitle>
+          <SigningView
+            caseId={caseId}
+            docId={signingViewTarget.docId}
+            docName={signingViewTarget.docName}
+            currentUserEmail={session?.user?.email ?? undefined}
+            onClose={() => { setSigningViewTarget(null); fetchData() }}
+            onSignComplete={fetchData}
+          />
+        </DialogContent>
+      </Dialog>
     )}
     </>
     </TooltipProvider>

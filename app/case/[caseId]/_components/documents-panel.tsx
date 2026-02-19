@@ -52,6 +52,7 @@ import {
   PenTool,
   CircleCheck,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Textarea } from '@/components/ui/textarea'
 import { RecommendersPanel } from './recommenders-panel'
 import { SignRequestDialog } from './sign-request-dialog'
@@ -81,6 +82,7 @@ interface DocumentsPanelProps {
   hideChecklists?: boolean
   onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
   onDocumentsRouted?: () => void
+  onEvidenceChanged?: () => void
 }
 
 // Verification progress per-document
@@ -308,18 +310,21 @@ function StatusDot({ status }: { status: string }) {
 }
 
 function SignatureBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; className: string }> = {
+  const config: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
     PENDING: {
       label: 'Signing',
       className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+      icon: <PenTool className="w-3 h-3" />,
     },
     COMPLETED: {
       label: 'Signed',
-      className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+      className: 'bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-bold',
+      icon: <ShieldCheck className="w-3 h-3" />,
     },
     DECLINED: {
       label: 'Declined',
       className: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+      icon: <PenTool className="w-3 h-3" />,
     },
   }
   const c = config[status]
@@ -331,7 +336,7 @@ function SignatureBadge({ status }: { status: string }) {
         c.className
       )}
     >
-      <PenTool className="w-3 h-3" />
+      {c.icon}
       {c.label}
     </span>
   )
@@ -349,6 +354,7 @@ function DocumentGroupCard({
   onOpenDraft,
   setDeleteTarget,
   onRequestSign,
+  onSignNow,
   onViewSigning,
   onToggleStatus,
 }: {
@@ -361,6 +367,7 @@ function DocumentGroupCard({
   onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
   setDeleteTarget: (doc: DocumentItem | null) => void
   onRequestSign?: (doc: DocumentItem) => void
+  onSignNow?: (doc: DocumentItem) => void
   onViewSigning?: (doc: DocumentItem) => void
   onToggleStatus?: (doc: DocumentItem) => void
 }) {
@@ -368,7 +375,8 @@ function DocumentGroupCard({
   const docId = group.latestDoc.id
   const isVerified = (group.latestDoc.evidenceVerificationCount ?? 0) > 0
   const verifyProgress = verifyingDocs.get(docId)
-  const canVerify = group.latestDoc.source === 'USER_UPLOADED' && !isVerified && !verifyProgress
+  const isSignedDoc = group.latestDoc.source === 'SYSTEM_GENERATED' && group.latestDoc.status === 'FINAL' && group.latestDoc.name.endsWith(' - Signed')
+  const canVerify = (group.latestDoc.source === 'USER_UPLOADED' || isSignedDoc) && !isVerified && !verifyProgress
 
   return (
     <div className="group rounded-xl border border-border/50 bg-card/50 hover:bg-card hover:border-border transition-all duration-200">
@@ -438,10 +446,10 @@ function DocumentGroupCard({
               e.stopPropagation()
               handleVerifyAsEvidence(docId)
             }}
-            title="Verify as evidence"
+            title={isSignedDoc ? "Push to Evidence" : "Verify as evidence"}
           >
             <ScanSearch className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Verify</span>
+            <span className="hidden sm:inline">{isSignedDoc ? "Push to Evidence" : "Verify"}</span>
           </Button>
         )}
 
@@ -531,20 +539,33 @@ function DocumentGroupCard({
               </>
             )}
             {group.latestDoc.status === 'FINAL' &&
-              !group.latestDoc.signatureStatus &&
-              onRequestSign && (
+              !group.latestDoc.signatureStatus && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.preventDefault()
-                      onRequestSign(group.latestDoc)
-                    }}
-                    className="gap-2"
-                  >
-                    <PenTool className="w-3.5 h-3.5" />
-                    Request Signature
-                  </DropdownMenuItem>
+                  {onSignNow && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.preventDefault()
+                        onSignNow(group.latestDoc)
+                      }}
+                      className="gap-2"
+                    >
+                      <PenTool className="w-3.5 h-3.5" />
+                      Sign Now
+                    </DropdownMenuItem>
+                  )}
+                  {onRequestSign && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.preventDefault()
+                        onRequestSign(group.latestDoc)
+                      }}
+                      className="gap-2"
+                    >
+                      <PenTool className="w-3.5 h-3.5" />
+                      Request Signature
+                    </DropdownMenuItem>
+                  )}
                 </>
               )}
             {group.latestDoc.signatureStatus && onViewSigning && (
@@ -858,7 +879,7 @@ function PanelTabs({
   )
 }
 
-export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDraft, onDocumentsRouted }: DocumentsPanelProps) {
+export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDraft, onDocumentsRouted, onEvidenceChanged }: DocumentsPanelProps) {
   const { data: session } = useSession()
   const [activeTab, setActiveTab] = useState<PanelTab>('documents')
   const [documents, setDocuments] = useState<DocumentItem[]>([])
@@ -875,6 +896,28 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
   // Signing state
   const [signTarget, setSignTarget] = useState<DocumentItem | null>(null)
   const [signingViewDoc, setSigningViewDoc] = useState<DocumentItem | null>(null)
+  const [selfSigning, setSelfSigning] = useState(false)
+
+  const handleSignNow = useCallback(async (doc: DocumentItem) => {
+    setSelfSigning(true)
+    try {
+      const res = await fetch(`/api/case/${caseId}/documents/${doc.id}/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selfSign: true }),
+      })
+      if (res.ok) {
+        setSigningViewDoc(doc)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Failed to create self-sign request')
+      }
+    } catch {
+      toast.error('Failed to create self-sign request')
+    } finally {
+      setSelfSigning(false)
+    }
+  }, [caseId])
 
   const handleToggleStatus = useCallback(async (doc: DocumentItem) => {
     const newStatus = doc.status === 'DRAFT' ? 'FINAL' : 'DRAFT'
@@ -959,6 +1002,7 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
                 prev.map((d) => d.id === docId ? { ...d, evidenceVerificationCount: 10 } : d)
               )
               onDocumentsRouted?.()
+              onEvidenceChanged?.()
               // Clear progress after a brief delay
               setTimeout(() => {
                 setVerifyingDocs((prev) => {
@@ -981,7 +1025,7 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
         return next
       })
     }
-  }, [caseId, verifyingDocs, onDocumentsRouted])
+  }, [caseId, verifyingDocs, onDocumentsRouted, onEvidenceChanged])
 
   // Upload modal + dropzone state
   const [pendingFile, setPendingFile] = useState<File | null>(null)
@@ -1316,6 +1360,11 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
           setSigningViewDoc(null)
           fetchDocuments()
         }}
+        onSignComplete={fetchDocuments}
+        onEvidencePushed={() => {
+          onDocumentsRouted?.()
+          onEvidenceChanged?.()
+        }}
       />
     )
   }
@@ -1601,6 +1650,7 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
                         onOpenDraft={onOpenDraft}
                         setDeleteTarget={setDeleteTarget}
                         onRequestSign={(doc) => setSignTarget(doc)}
+                        onSignNow={handleSignNow}
                         onViewSigning={(doc) => setSigningViewDoc(doc)}
                         onToggleStatus={handleToggleStatus}
                       />
@@ -1629,6 +1679,7 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
                         onOpenDraft={onOpenDraft}
                         setDeleteTarget={setDeleteTarget}
                         onRequestSign={(doc) => setSignTarget(doc)}
+                        onSignNow={handleSignNow}
                         onViewSigning={(doc) => setSigningViewDoc(doc)}
                         onToggleStatus={handleToggleStatus}
                       />
@@ -1703,6 +1754,8 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
         caseId={caseId}
         docId={signTarget?.id || ''}
         docName={signTarget?.name || ''}
+        currentUserEmail={session?.user?.email ?? undefined}
+        currentUserName={session?.user?.name ?? undefined}
         onSuccess={() => {
           const doc = signTarget
           setSignTarget(null)

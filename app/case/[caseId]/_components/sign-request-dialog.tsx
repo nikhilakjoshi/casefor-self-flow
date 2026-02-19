@@ -10,8 +10,15 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Loader2, Plus, Trash2 } from 'lucide-react'
+import { Loader2, Plus, Trash2, UserPlus } from 'lucide-react'
 
 interface SignerInput {
   email: string
@@ -19,13 +26,18 @@ interface SignerInput {
   role: string
 }
 
+const ROLE_OPTIONS = ['Applicant', 'Attorney', 'Paralegal', 'Recommender', 'Other']
+
 interface SignRequestDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   caseId: string
   docId: string
   docName: string
-  onSuccess?: () => void
+  currentUserEmail?: string
+  currentUserName?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSuccess?: (data?: any) => void
 }
 
 export function SignRequestDialog({
@@ -34,10 +46,12 @@ export function SignRequestDialog({
   caseId,
   docId,
   docName,
+  currentUserEmail,
+  currentUserName,
   onSuccess,
 }: SignRequestDialogProps) {
   const [signers, setSigners] = useState<SignerInput[]>([
-    { email: '', name: '', role: 'Signer' },
+    { email: '', name: '', role: 'Applicant' },
   ])
   const [sending, setSending] = useState(false)
 
@@ -48,7 +62,22 @@ export function SignRequestDialog({
   }
 
   const addSigner = () => {
-    setSigners((prev) => [...prev, { email: '', name: '', role: 'Signer' }])
+    setSigners((prev) => [...prev, { email: '', name: '', role: 'Applicant' }])
+  }
+
+  const addMyself = () => {
+    if (!currentUserEmail) return
+    const alreadyAdded = signers.some(
+      (s) => s.email.toLowerCase() === currentUserEmail.toLowerCase()
+    )
+    if (alreadyAdded) {
+      toast('You are already added as a signer')
+      return
+    }
+    setSigners((prev) => [
+      ...prev,
+      { email: currentUserEmail, name: currentUserName || '', role: 'Applicant' },
+    ])
   }
 
   const removeSigner = (idx: number) => {
@@ -57,6 +86,7 @@ export function SignRequestDialog({
   }
 
   const canSubmit = signers.every((s) => s.email.trim() && s.name.trim())
+  const validSignerCount = signers.filter((s) => s.email.trim() && s.name.trim()).length
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -71,10 +101,11 @@ export function SignRequestDialog({
         }
       )
       if (res.ok) {
+        const data = await res.json()
         toast.success('Signature request sent')
         onOpenChange(false)
-        setSigners([{ email: '', name: '', role: 'Signer' }])
-        onSuccess?.()
+        setSigners([{ email: '', name: '', role: 'Applicant' }])
+        onSuccess?.(data)
       } else {
         const data = await res.json().catch(() => ({}))
         toast.error(data.error || 'Failed to create signature request')
@@ -114,12 +145,21 @@ export function SignRequestDialog({
                     className="h-8 text-xs"
                   />
                 </div>
-                <Input
-                  placeholder="Role (e.g. Applicant, Attorney)"
+                <Select
                   value={signer.role}
-                  onChange={(e) => updateSigner(idx, 'role', e.target.value)}
-                  className="h-7 text-[11px]"
-                />
+                  onValueChange={(value) => updateSigner(idx, 'role', value)}
+                >
+                  <SelectTrigger className="h-7 text-[11px]">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLE_OPTIONS.map((role) => (
+                      <SelectItem key={role} value={role} className="text-xs">
+                        {role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               {signers.length > 1 && (
                 <Button
@@ -134,15 +174,34 @@ export function SignRequestDialog({
             </div>
           ))}
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs gap-1"
-            onClick={addSigner}
-          >
-            <Plus className="w-3 h-3" />
-            Add signer
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={addSigner}
+            >
+              <Plus className="w-3 h-3" />
+              Add signer
+            </Button>
+            {currentUserEmail && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={addMyself}
+              >
+                <UserPlus className="w-3 h-3" />
+                Add myself
+              </Button>
+            )}
+          </div>
+
+          {validSignerCount > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              {validSignerCount} signer{validSignerCount !== 1 ? 's' : ''} will receive email requests
+            </p>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">

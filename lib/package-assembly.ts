@@ -8,6 +8,7 @@ export interface PackageDocument {
   name: string
   source: 'SYSTEM_GENERATED' | 'USER_UPLOADED'
   category: string | null
+  isSigned?: boolean
 }
 
 export interface PackageExhibit {
@@ -68,6 +69,7 @@ export async function assemblePackage(caseId: string): Promise<PackageStructure>
         name: true,
         source: true,
         category: true,
+        createdAt: true,
       },
       orderBy: { createdAt: 'asc' },
     }),
@@ -83,6 +85,28 @@ export async function assemblePackage(caseId: string): Promise<PackageStructure>
     getCriteriaForCase(caseId),
   ])
 
+  // Build map of signed replacements: "DocName - Signed" -> base "DocName"
+  const signedByBase = new Map<string, typeof documents[0]>()
+  const signedDocIds = new Set<string>()
+  for (const doc of documents) {
+    if (doc.name.endsWith(' - Signed')) {
+      const baseName = doc.name.replace(/ - Signed$/, '')
+      const existing = signedByBase.get(baseName)
+      if (!existing || doc.createdAt > existing.createdAt) {
+        signedByBase.set(baseName, doc)
+      }
+      signedDocIds.add(doc.id)
+    }
+  }
+
+  // Substitute signed version when available
+  function resolveDoc(d: typeof documents[0]): typeof documents[0] & { _isSigned?: boolean } {
+    if (signedDocIds.has(d.id)) return { ...d, _isSigned: true }
+    const signed = signedByBase.get(d.name)
+    if (signed) return { ...signed, _isSigned: true }
+    return d
+  }
+
   const exhibits: PackageExhibit[] = []
   const usedDocIds = new Set<string>()
 
@@ -90,10 +114,12 @@ export async function assemblePackage(caseId: string): Promise<PackageStructure>
   for (const def of FIXED_EXHIBITS) {
     const catSet = new Set(def.categories)
     const docs = documents
-      .filter((d) => d.category && catSet.has(d.category))
+      .filter((d) => d.category && catSet.has(d.category) && !signedDocIds.has(d.id))
       .map((d) => {
+        const resolved = resolveDoc(d)
         usedDocIds.add(d.id)
-        return toPackageDoc(d)
+        usedDocIds.add(resolved.id)
+        return toPackageDoc(resolved)
       })
     if (docs.length === 0) continue
     exhibits.push({
@@ -129,7 +155,7 @@ export async function assemblePackage(caseId: string): Promise<PackageStructure>
     const docs = docIds
       .map((id) => docMap.get(id))
       .filter((d): d is NonNullable<typeof d> => !!d)
-      .map(toPackageDoc)
+      .map((d) => toPackageDoc(resolveDoc(d)))
 
     if (docs.length === 0) continue
 
@@ -159,11 +185,13 @@ function toPackageDoc(d: {
   name: string
   source: string
   category: string | null
+  _isSigned?: boolean
 }): PackageDocument {
   return {
     documentId: d.id,
     name: d.name,
     source: d.source as 'SYSTEM_GENERATED' | 'USER_UPLOADED',
     category: d.category,
+    isSigned: d._isSigned,
   }
 }

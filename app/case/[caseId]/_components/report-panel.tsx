@@ -12,6 +12,7 @@ import { RecommendersPanel } from "./recommenders-panel"
 import { ConsolidationTab } from "./consolidation-tab"
 import { LettersPanel } from "./letters-panel"
 import { DenialProbabilityPanel } from "./denial-probability-panel"
+import { PackagePanel } from "./package-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
 import { CRITERIA_METADATA, resolveCanonicalId } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
@@ -98,6 +99,8 @@ interface ReportPanelProps {
   initialDenialProbability?: DenialProbability | null
   initialIntentData?: SurveyIntent
   onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
+  onEvidenceChanged?: () => void
+  reAnalysisPhase?: 'idle' | 'strength-eval' | 'gap-analysis' | 'done'
 }
 
 function getStrengthConfig(strength: Strength) {
@@ -987,7 +990,7 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "planning" | "evidence" | "routing" | "recommenders" | "consolidation" | "letters" | "denial" | "raw"
+type ReportTab = "summary" | "planning" | "evidence" | "routing" | "recommenders" | "consolidation" | "letters" | "package" | "denial" | "raw"
 
 export function ReportPanel({
   caseId,
@@ -1004,12 +1007,14 @@ export function ReportPanel({
   initialDenialProbability,
   initialIntentData,
   onOpenDraft,
+  onEvidenceChanged,
+  reAnalysisPhase = 'idle',
 }: ReportPanelProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
 
-  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "planning", "evidence", "recommenders", "consolidation", "letters", "denial", "raw"]), [])
+  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "planning", "evidence", "recommenders", "consolidation", "letters", "package", "denial", "raw"]), [])
   const subtabParam = searchParams.get('subtab')
   const initialSubTab = subtabParam && validSubTabs.has(subtabParam as ReportTab)
     ? (subtabParam as ReportTab)
@@ -1185,6 +1190,14 @@ export function ReportPanel({
     autoRun()
   }, [analysis, strengthEval, initialGapAnalysis, caseId, refetchStrengthEval, refetchGapAnalysis])
 
+  // Refetch after re-analysis triggered by evidence changes
+  useEffect(() => {
+    if (reAnalysisPhase === 'done') {
+      refetchStrengthEval()
+      refetchGapAnalysis()
+    }
+  }, [reAnalysisPhase, refetchStrengthEval, refetchGapAnalysis])
+
   if (!analysis) {
     return (
       <div className="h-full flex items-center justify-center p-4">
@@ -1320,22 +1333,6 @@ export function ReportPanel({
                   </TooltipTrigger>
                   <TooltipContent side="bottom">Uploaded documents and evidence items</TooltipContent>
                 </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleSubTabChange("recommenders")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-medium transition-colors border-b-2",
-                        activeTab === "recommenders"
-                          ? "border-foreground text-foreground"
-                          : "border-transparent text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      Recommenders
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Manage recommender profiles and letter assignments</TooltipContent>
-                </Tooltip>
               </div>
             </div>
 
@@ -1363,6 +1360,22 @@ export function ReportPanel({
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">Draft recommendation letters and supporting documents</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSubTabChange("package")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        activeTab === "package"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      )}
+                    >
+                      Package
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Assemble and manage petition package</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1424,6 +1437,29 @@ export function ReportPanel({
                   {autoRunPhase === "strength-eval"
                     ? "Running strength evaluation..."
                     : "Running gap analysis..."}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Re-analysis banner (triggered by evidence changes) */}
+      {reAnalysisPhase !== "idle" && autoRunPhase === "idle" && (
+        <div className="shrink-0 px-4 py-2 border-b border-border bg-blue-50 dark:bg-blue-950/30">
+          <div className="flex items-center gap-2">
+            {reAnalysisPhase === "done" ? (
+              <>
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Re-analysis complete</span>
+              </>
+            ) : (
+              <>
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-blue-700 dark:text-blue-300">
+                  {reAnalysisPhase === "strength-eval"
+                    ? "Re-running strength evaluation..."
+                    : "Re-running gap analysis..."}
                 </span>
               </>
             )}
@@ -1497,6 +1533,7 @@ export function ReportPanel({
           onFileDropped={refetchDocCounts}
           onDocumentsRouted={onDocumentsRouted}
           onOpenDraft={onOpenDraft}
+          onEvidenceChanged={onEvidenceChanged}
         />
       ) : activeTab === "recommenders" ? (
         <RecommendersPanel caseId={caseId} />
@@ -1509,6 +1546,10 @@ export function ReportPanel({
       ) : activeTab === "letters" ? (
         <div className="flex-1 overflow-y-auto">
           <LettersPanel caseId={caseId} onOpenDraft={onOpenDraft ?? (() => {})} denialProbability={initialDenialProbability} initialIntentData={initialIntentData} />
+        </div>
+      ) : activeTab === "package" ? (
+        <div className="flex-1 overflow-hidden">
+          <PackagePanel caseId={caseId} />
         </div>
       ) : activeTab === "denial" ? (
         <DenialProbabilityPanel
