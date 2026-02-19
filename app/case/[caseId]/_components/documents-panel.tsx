@@ -3,10 +3,12 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useDropzone } from 'react-dropzone'
+import { Markdown } from 'markdown-to-jsx'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { TiptapEditor } from '@/components/ui/tiptap-editor'
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import {
   Dialog,
   DialogContent,
@@ -76,10 +78,19 @@ interface DocumentDetail extends DocumentItem {
   signedUrl?: string | null
 }
 
+interface PreviewDoc {
+  id: string
+  name: string
+  type: DocumentItem['type']
+  content?: string | null
+  signedUrl?: string | null
+}
+
 interface DocumentsPanelProps {
   caseId: string
   isChatActive?: boolean
   hideChecklists?: boolean
+  previewOnly?: boolean
   onOpenDraft?: (doc?: { id?: string; name?: string; content?: string; recommenderId?: string; category?: string }) => void
   onDocumentsRouted?: () => void
   onEvidenceChanged?: () => void
@@ -879,11 +890,13 @@ function PanelTabs({
   )
 }
 
-export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDraft, onDocumentsRouted, onEvidenceChanged }: DocumentsPanelProps) {
+export function DocumentsPanel({ caseId, isChatActive, hideChecklists, previewOnly, onOpenDraft, onDocumentsRouted, onEvidenceChanged }: DocumentsPanelProps) {
   const { data: session } = useSession()
   const [activeTab, setActiveTab] = useState<PanelTab>('documents')
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [selectedDoc, setSelectedDoc] = useState<DocumentDetail | null>(null)
+  const [previewDoc, setPreviewDoc] = useState<PreviewDoc | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const [isLoadingList, setIsLoadingList] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
   const [isUploadingResume, setIsUploadingResume] = useState(false)
@@ -892,6 +905,8 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
   const [isStreaming, setIsStreaming] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DocumentItem | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const panelGroupRef = useRef<HTMLDivElement>(null)
+  const [panelGroupWidth, setPanelGroupWidth] = useState<number | null>(null)
 
   // Signing state
   const [signTarget, setSignTarget] = useState<DocumentItem | null>(null)
@@ -936,6 +951,23 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
       console.error('Failed to update status:', err)
     }
   }, [caseId])
+
+  useEffect(() => {
+    const el = panelGroupRef.current
+    if (!el) return
+
+    const updateWidth = () => {
+      setPanelGroupWidth(el.getBoundingClientRect().width)
+    }
+
+    updateWidth()
+    const observer = new ResizeObserver(updateWidth)
+    observer.observe(el)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
 
   // Evidence verification state
   const [verifyingDocs, setVerifyingDocs] = useState<Map<string, VerifyProgress>>(new Map())
@@ -1200,14 +1232,35 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
 
   async function viewDocument(docId: string) {
     try {
+      if (previewOnly) {
+        const doc = documents.find((item) => item.id === docId)
+        if (doc) {
+          setPreviewDoc({ id: doc.id, name: doc.name, type: doc.type })
+        } else {
+          setPreviewDoc({ id: docId, name: 'Document', type: 'PDF' })
+        }
+        setPreviewLoading(true)
+      }
       const res = await fetch(`/api/case/${caseId}/documents/${docId}`)
       if (res.ok) {
         const data = await res.json()
         setSaveStatus('saved')
-        setSelectedDoc(data)
+        if (previewOnly) {
+          setPreviewDoc({
+            id: data.id,
+            name: data.name,
+            type: data.type,
+            content: data.content,
+            signedUrl: data.signedUrl,
+          })
+        } else {
+          setSelectedDoc(data)
+        }
       }
     } catch (err) {
       console.error('Failed to fetch document:', err)
+    } finally {
+      if (previewOnly) setPreviewLoading(false)
     }
   }
 
@@ -1303,6 +1356,12 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
   }
 
   const resumeDoc = documents.find((d) => d.category === 'RESUME_CV')
+  const previewMinSize = useMemo(() => {
+    if (!panelGroupWidth) return 35
+    const minSize = (520 / panelGroupWidth) * 100
+    return Math.min(50, minSize)
+  }, [panelGroupWidth])
+  const previewDefaultSize = previewMinSize
 
   const handleEditorUpdate = useCallback(
     (markdown: string) => {
@@ -1370,7 +1429,7 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
   }
 
   // Detail/editor view
-  if (selectedDoc) {
+  if (selectedDoc && !previewOnly) {
     const strength = getDocumentStrength(selectedDoc.name)
 
     return (
@@ -1380,7 +1439,7 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
             <h3 className="text-sm font-medium truncate">{selectedDoc.name}</h3>
             <TypeBadge type={selectedDoc.type} />
             {strength && <StrengthBadge strength={strength} />}
-            {isStreaming ? (
+            {!previewOnly && (isStreaming ? (
               <span className="text-[10px] ml-1 text-primary flex items-center gap-1">
                 <Loader2 className="w-3 h-3 animate-spin" />
                 Generating...
@@ -1397,43 +1456,45 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
                 {saveStatus === 'saving' && 'Saving...'}
                 {saveStatus === 'unsaved' && 'Unsaved'}
               </span>
-            )}
+            ))}
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant={selectedDoc.status === 'FINAL' ? 'outline' : 'ghost'}
-              size="sm"
-              className={cn(
-                'h-7 text-[11px] gap-1',
-                selectedDoc.status === 'FINAL'
-                  ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                  : 'text-muted-foreground'
-              )}
-              onClick={async () => {
-                const newStatus = selectedDoc.status === 'DRAFT' ? 'FINAL' : 'DRAFT'
-                try {
-                  const res = await fetch(`/api/case/${caseId}/documents/${selectedDoc.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: newStatus }),
-                  })
-                  if (res.ok) {
-                    setSelectedDoc({ ...selectedDoc, status: newStatus })
-                    setDocuments((prev) =>
-                      prev.map((d) => (d.id === selectedDoc.id ? { ...d, status: newStatus } : d))
-                    )
+            {!previewOnly && (
+              <Button
+                variant={selectedDoc.status === 'FINAL' ? 'outline' : 'ghost'}
+                size="sm"
+                className={cn(
+                  'h-7 text-[11px] gap-1',
+                  selectedDoc.status === 'FINAL'
+                    ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                    : 'text-muted-foreground'
+                )}
+                onClick={async () => {
+                  const newStatus = selectedDoc.status === 'DRAFT' ? 'FINAL' : 'DRAFT'
+                  try {
+                    const res = await fetch(`/api/case/${caseId}/documents/${selectedDoc.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ status: newStatus }),
+                    })
+                    if (res.ok) {
+                      setSelectedDoc({ ...selectedDoc, status: newStatus })
+                      setDocuments((prev) =>
+                        prev.map((d) => (d.id === selectedDoc.id ? { ...d, status: newStatus } : d))
+                      )
+                    }
+                  } catch (err) {
+                    console.error('Failed to update status:', err)
                   }
-                } catch (err) {
-                  console.error('Failed to update status:', err)
-                }
-              }}
-            >
-              {selectedDoc.status === 'DRAFT' ? (
-                <><CircleCheck className="w-3.5 h-3.5" /> Mark Final</>
-              ) : (
-                <><CheckCircle2 className="w-3.5 h-3.5" /> Final</>
-              )}
-            </Button>
+                }}
+              >
+                {selectedDoc.status === 'DRAFT' ? (
+                  <><CircleCheck className="w-3.5 h-3.5" /> Mark Final</>
+                ) : (
+                  <><CheckCircle2 className="w-3.5 h-3.5" /> Final</>
+                )}
+              </Button>
+            )}
             {selectedDoc.signedUrl && (
               <Button
                 variant="ghost"
@@ -1470,13 +1531,10 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
             <TiptapEditor
               content={selectedDoc.content}
               onUpdate={handleEditorUpdate}
-              editable={selectedDoc.type === 'MARKDOWN'}
+              editable={!previewOnly && selectedDoc.type === 'MARKDOWN'}
             />
           ) : selectedDoc.signedUrl ? (
-            <div className="text-center text-sm text-muted-foreground py-8">
-              <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              <p>Binary file -- use download to view</p>
-            </div>
+            <iframe src={selectedDoc.signedUrl} className="w-full h-full border-0" title={selectedDoc.name} />
           ) : (
             <div className="text-center text-sm text-muted-foreground py-8">
               <p>No preview available</p>
@@ -1506,8 +1564,15 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
   // List view (documents tab)
   return (
     <>
-      <div {...getRootProps()} className="h-full flex flex-col p-4 overflow-hidden relative">
-        <input {...getDropzoneInputProps()} />
+      <div ref={panelGroupRef} className="h-full flex overflow-hidden">
+        <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+          <ResizablePanel
+            defaultSize={previewOnly && previewDoc ? 100 - previewDefaultSize : 100}
+            minSize={previewOnly && previewDoc ? 50 : 100}
+            className="min-w-0"
+          >
+            <div {...getRootProps()} className="h-full flex flex-col p-4 overflow-hidden relative">
+              <input {...getDropzoneInputProps()} />
 
         {isDragOver && (
           <div className="absolute inset-0 z-50 bg-foreground/60 backdrop-blur-sm flex items-center justify-center">
@@ -1647,12 +1712,12 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
                         verifyingDocs={verifyingDocs}
                         viewDocument={viewDocument}
                         handleVerifyAsEvidence={handleVerifyAsEvidence}
-                        onOpenDraft={onOpenDraft}
+                        onOpenDraft={previewOnly ? undefined : onOpenDraft}
                         setDeleteTarget={setDeleteTarget}
                         onRequestSign={(doc) => setSignTarget(doc)}
                         onSignNow={handleSignNow}
                         onViewSigning={(doc) => setSigningViewDoc(doc)}
-                        onToggleStatus={handleToggleStatus}
+                        onToggleStatus={previewOnly ? undefined : handleToggleStatus}
                       />
                     ))}
                   </div>
@@ -1676,12 +1741,12 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
                         verifyingDocs={verifyingDocs}
                         viewDocument={viewDocument}
                         handleVerifyAsEvidence={handleVerifyAsEvidence}
-                        onOpenDraft={onOpenDraft}
+                        onOpenDraft={previewOnly ? undefined : onOpenDraft}
                         setDeleteTarget={setDeleteTarget}
                         onRequestSign={(doc) => setSignTarget(doc)}
                         onSignNow={handleSignNow}
                         onViewSigning={(doc) => setSigningViewDoc(doc)}
-                        onToggleStatus={handleToggleStatus}
+                        onToggleStatus={previewOnly ? undefined : handleToggleStatus}
                       />
                     ))}
                   </div>
@@ -1690,6 +1755,66 @@ export function DocumentsPanel({ caseId, isChatActive, hideChecklists, onOpenDra
             </div>
           )}
         </ScrollArea>
+            </div>
+          </ResizablePanel>
+
+          {previewOnly && previewDoc && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel
+                defaultSize={previewDefaultSize}
+                minSize={previewMinSize}
+                maxSize={50}
+                className="min-w-0"
+              >
+                <div className="h-full flex flex-col border-l border-border bg-background">
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-background sticky top-0 z-10">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[13px] font-semibold tracking-tight truncate">
+                        {previewDoc.name}
+                      </span>
+                      <TypeBadge type={previewDoc.type} />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setPreviewDoc(null)}
+                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex-1 min-h-0 overflow-auto">
+                    {previewLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : previewDoc.type !== 'MARKDOWN' && previewDoc.signedUrl ? (
+                      <iframe src={previewDoc.signedUrl} className="w-full h-full border-0" title={previewDoc.name} />
+                    ) : previewDoc.type === 'MARKDOWN' && previewDoc.content != null ? (
+                      <div className="max-w-3xl mx-auto px-6 py-8">
+                        <div className="prose prose-stone dark:prose-invert max-w-none">
+                          <Markdown>{previewDoc.content}</Markdown>
+                        </div>
+                      </div>
+                    ) : previewDoc.signedUrl ? (
+                      <iframe src={previewDoc.signedUrl} className="w-full h-full border-0" title={previewDoc.name} />
+                    ) : previewDoc.content != null ? (
+                      <div className="max-w-3xl mx-auto px-6 py-8">
+                        <pre className="whitespace-pre-wrap text-sm text-foreground/80">{previewDoc.content}</pre>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 space-y-2">
+                        <FileText className="w-8 h-8 mx-auto text-muted-foreground/40" />
+                        <p className="text-sm text-muted-foreground">No preview available</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
       </div>
 
       {/* Delete confirmation dialog */}

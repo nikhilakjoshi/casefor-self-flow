@@ -13,6 +13,7 @@ import { ConsolidationTab } from "./consolidation-tab"
 import { LettersPanel } from "./letters-panel"
 import { DenialProbabilityPanel } from "./denial-probability-panel"
 import { PackagePanel } from "./package-panel"
+import { DocumentsPanel } from "./documents-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
 import { CRITERIA_METADATA, resolveCanonicalId } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
@@ -990,7 +991,27 @@ function CriterionSection({
   )
 }
 
-type ReportTab = "summary" | "planning" | "evidence" | "routing" | "recommenders" | "consolidation" | "letters" | "package" | "denial" | "raw"
+function getRiskBadgeStyle(level: string) {
+  switch (level) {
+    case 'LOW': return 'bg-emerald-600 text-white'
+    case 'MEDIUM': return 'bg-amber-500 text-white'
+    case 'HIGH': return 'bg-orange-500 text-white'
+    case 'VERY_HIGH': return 'bg-red-600 text-white'
+    default: return 'bg-muted text-muted-foreground'
+  }
+}
+
+function getRiskLabel(level: string) {
+  switch (level) {
+    case 'LOW': return 'Low Risk'
+    case 'MEDIUM': return 'Medium Risk'
+    case 'HIGH': return 'High Risk'
+    case 'VERY_HIGH': return 'Very High Risk'
+    default: return level
+  }
+}
+
+type ReportTab = "summary" | "planning" | "evidence" | "routing" | "recommenders" | "consolidation" | "letters" | "package" | "denial" | "raw" | "vault"
 
 export function ReportPanel({
   caseId,
@@ -1014,7 +1035,7 @@ export function ReportPanel({
   const router = useRouter()
   const pathname = usePathname()
 
-  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "planning", "evidence", "recommenders", "consolidation", "letters", "package", "denial", "raw"]), [])
+  const validSubTabs = useMemo(() => new Set<ReportTab>(["summary", "planning", "evidence", "recommenders", "consolidation", "letters", "package", "denial", "raw", "vault"]), [])
   const subtabParam = searchParams.get('subtab')
   const initialSubTab = subtabParam && validSubTabs.has(subtabParam as ReportTab)
     ? (subtabParam as ReportTab)
@@ -1252,7 +1273,7 @@ export function ReportPanel({
               </span>
             )}
           </h3>
-          <div className="flex gap-3 text-xs text-stone-500">
+          <div className="flex items-center gap-3 text-xs text-stone-500">
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               {analysis.strongCount} strong
@@ -1261,6 +1282,21 @@ export function ReportPanel({
               <span className="w-2 h-2 rounded-full bg-amber-500" />
               {analysis.weakCount} weak
             </span>
+            {initialDenialProbability?.overall_assessment && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold cursor-default", getRiskBadgeStyle(initialDenialProbability.overall_assessment.risk_level))}>
+                      <ShieldAlert className="w-3 h-3" />
+                      {getRiskLabel(initialDenialProbability.overall_assessment.risk_level)}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>Denial probability: {initialDenialProbability.overall_assessment.denial_probability_pct}%</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
         </div>
 
@@ -1417,6 +1453,27 @@ export function ReportPanel({
               </TooltipTrigger>
               <TooltipContent side="bottom">Raw extraction JSON from resume parsing</TooltipContent>
             </Tooltip>
+
+            {/* Spacer to push Case Vault right */}
+            <div className="flex-1" />
+
+            {/* Case Vault */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleSubTabChange("vault")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium transition-colors border-b-2 mb-0",
+                    activeTab === "vault"
+                      ? "border-foreground text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Case Vault
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Browse all documents in preview-only mode</TooltipContent>
+            </Tooltip>
           </div>
         </TooltipProvider>
       </div>
@@ -1558,6 +1615,16 @@ export function ReportPanel({
           hasStrengthEval={!!strengthEval}
           hasGapAnalysis={!!initialGapAnalysis}
         />
+      ) : activeTab === "vault" ? (
+        <div className="flex-1 overflow-hidden">
+          <DocumentsPanel
+            caseId={caseId}
+            previewOnly
+            hideChecklists
+            onDocumentsRouted={onDocumentsRouted}
+            onEvidenceChanged={onEvidenceChanged}
+          />
+        </div>
       ) : (
         <ExtractionRawPanel extraction={analysis.extraction ?? null} />
       )}

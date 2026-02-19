@@ -467,7 +467,8 @@ export function DraftingPanel({
             <ChatInput
               onSend={sendInstruction}
               isLoading={isStreaming}
-              placeholder="Give instructions..."
+              placeholder={docStatus === 'FINAL' ? 'Document is finalized' : 'Give instructions...'}
+              disabled={docStatus === 'FINAL'}
             />
           </div>
         </div>
@@ -477,7 +478,7 @@ export function DraftingPanel({
           <TiptapEditor
             content={editorContent}
             onUpdate={handleEditorUpdate}
-            editable={true}
+            editable={docStatus !== 'FINAL'}
             streaming={isStreaming}
             onSave={(md) => handleSave(md)}
             onClose={onClose}

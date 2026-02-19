@@ -45,34 +45,6 @@ export default async function CasePage({ params }: Props) {
 
   const criteriaThreshold = caseRecord.criteriaThreshold ?? 3
 
-  // Fetch evidence-phase messages separately
-  const evidenceMessages = await db.chatMessage.findMany({
-    where: { caseId, phase: 'EVIDENCE' },
-    orderBy: { createdAt: 'asc' },
-    take: 50,
-  })
-
-  const initialEvidenceMessages = evidenceMessages.map((m: ChatMsg) => ({
-    id: m.id,
-    role: m.role.toLowerCase() as 'user' | 'assistant',
-    content: m.content,
-    metadata: m.metadata as Record<string, unknown> | null,
-  }))
-
-  // Fetch document-phase messages
-  const documentMessages = await db.chatMessage.findMany({
-    where: { caseId, phase: 'DOCUMENTS' },
-    orderBy: { createdAt: 'asc' },
-    take: 50,
-  })
-
-  const initialDocumentMessages = documentMessages.map((m: ChatMsg) => ({
-    id: m.id,
-    role: m.role.toLowerCase() as 'user' | 'assistant',
-    content: m.content,
-    metadata: m.metadata as Record<string, unknown> | null,
-  }))
-
   // Ensure profile exists
   if (!caseRecord.profile) {
     await db.caseProfile.create({
@@ -142,8 +114,6 @@ export default async function CasePage({ params }: Props) {
       hasExistingMessages={caseRecord.chatMessages.length > 0}
       initialAnalysisVersion={latestAnalysis?.version ?? 0}
       initialThreshold={criteriaThreshold}
-      initialEvidenceMessages={initialEvidenceMessages}
-      initialDocumentMessages={initialDocumentMessages}
       initialIntakeStatus={caseRecord.intakeStatus}
       initialProfileData={profileData}
       initialStrengthEvaluation={latestStrengthEval?.data as import('@/lib/strength-evaluation-schema').StrengthEvaluation | null ?? null}

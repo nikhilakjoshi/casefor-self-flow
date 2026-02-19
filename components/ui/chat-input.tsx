@@ -18,6 +18,7 @@ interface ChatInputProps {
   placeholder?: string;
   showEvidenceAction?: boolean;
   onStartEvidence?: () => void;
+  disabled?: boolean;
 }
 
 export function ChatInput({
@@ -27,6 +28,7 @@ export function ChatInput({
   placeholder = "Reply...",
   showEvidenceAction = false,
   onStartEvidence,
+  disabled = false,
 }: ChatInputProps) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -79,7 +81,7 @@ export function ChatInput({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              disabled={isLoading}
+              disabled={isLoading || disabled}
               rows={1}
               className="w-full bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none text-base resize-none min-h-[24px] overflow-hidden disabled:opacity-50"
             />
@@ -131,7 +133,7 @@ export function ChatInput({
           <Button
             size="icon"
             className="h-8 w-8 rounded-full"
-            disabled={!message.trim() || isLoading}
+            disabled={!message.trim() || isLoading || disabled}
             onClick={handleSend}
           >
             <ArrowUp className="h-4 w-4" />
