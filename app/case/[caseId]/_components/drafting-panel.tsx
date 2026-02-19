@@ -8,6 +8,11 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Save, Loader2, ChevronDown, CircleCheck, CheckCircle2, PenTool } from 'lucide-react'
 import { SignRequestDialog } from './sign-request-dialog'
+import { SigningView } from './signing-view'
+import {
+  Dialog,
+  DialogContent,
+} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
 interface DraftingDoc {
@@ -54,6 +59,7 @@ export function DraftingPanel({
   const [docStatus, setDocStatus] = useState<'DRAFT' | 'FINAL'>('DRAFT')
   const [docType, setDocType] = useState<string>('MARKDOWN')
   const [signDialogOpen, setSignDialogOpen] = useState(false)
+  const [signingViewOpen, setSigningViewOpen] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const editorContentRef = useRef(editorContent)
@@ -465,7 +471,25 @@ export function DraftingPanel({
           caseId={caseId}
           docId={docId}
           docName={docName}
+          onSuccess={() => {
+            setSignDialogOpen(false)
+            setSigningViewOpen(true)
+          }}
         />
+      )}
+
+      {signingViewOpen && docId && (
+        <Dialog open={signingViewOpen} onOpenChange={setSigningViewOpen}>
+          <DialogContent className="sm:max-w-lg max-h-[80vh] p-0 overflow-hidden">
+            <SigningView
+              caseId={caseId}
+              docId={docId}
+              docName={docName}
+              currentUserEmail={session?.user?.email ?? undefined}
+              onClose={() => setSigningViewOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )
