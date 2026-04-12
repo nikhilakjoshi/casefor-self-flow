@@ -262,35 +262,36 @@ function ItemSummary({ item, category }: { item: Record<string, unknown>; catego
   }
 }
 
+// casefor ink — restrained colors, no pastel washes. Same pattern as report-panel.
 function getStrengthConfig(strength: Strength) {
   switch (strength) {
     case "Strong":
       return {
-        bg: "bg-emerald-50 dark:bg-emerald-950/40",
-        border: "border-l-emerald-500",
-        headerBg: "bg-emerald-100/80 dark:bg-emerald-900/50",
-        badge: "bg-emerald-600 text-white",
-        badgeRing: "ring-1 ring-emerald-700/20",
+        bg: "bg-[var(--warm-white)]",
+        border: "border-l-[var(--green-ok)]",
+        headerBg: "bg-[var(--warm-white)]",
+        badge: "bg-[var(--green-bg)] text-[var(--green-ok)]",
+        badgeRing: "",
         label: "Strong",
-        idColor: "text-emerald-700 dark:text-emerald-400",
+        idColor: "text-[var(--green-ok)]",
       }
     case "Weak":
       return {
-        bg: "bg-amber-50 dark:bg-amber-950/30",
-        border: "border-l-amber-500",
-        headerBg: "bg-amber-100/70 dark:bg-amber-900/40",
-        badge: "bg-amber-500 text-white",
-        badgeRing: "ring-1 ring-amber-600/20",
+        bg: "bg-[var(--warm-white)]",
+        border: "border-l-[var(--amber-warn)]",
+        headerBg: "bg-[var(--warm-white)]",
+        badge: "bg-[var(--amber-bg)] text-[var(--amber-warn)]",
+        badgeRing: "",
         label: "Weak",
-        idColor: "text-amber-700 dark:text-amber-400",
+        idColor: "text-[var(--amber-warn)]",
       }
     default:
       return {
-        bg: "bg-muted/50",
-        border: "border-l-stone-300 dark:border-l-stone-600",
-        headerBg: "bg-stone-100 dark:bg-stone-800/60",
-        badge: "bg-stone-400 dark:bg-stone-600 text-white",
-        badgeRing: "ring-1 ring-stone-500/20",
+        bg: "bg-[var(--warm-white)]",
+        border: "border-l-[var(--stone)]",
+        headerBg: "bg-[var(--warm-white)]",
+        badge: "bg-[var(--cream)] text-[var(--ash)]",
+        badgeRing: "",
         label: "None",
         idColor: "text-stone-500 dark:text-stone-400",
       }
@@ -299,17 +300,17 @@ function getStrengthConfig(strength: Strength) {
 
 function getRecommendationColor(rec: string) {
   switch (rec) {
-    case "STRONG": return "bg-emerald-600 text-white"
-    case "INCLUDE_WITH_SUPPORT": return "bg-blue-600 text-white"
-    case "NEEDS_MORE_DOCS": return "bg-amber-500 text-white"
-    case "EXCLUDE": return "bg-red-600 text-white"
+    case "STRONG": return "bg-[var(--green-bg)] text-[var(--green-ok)]"
+    case "INCLUDE_WITH_SUPPORT": return "bg-[var(--blue-bg)] text-[var(--blue-info)]"
+    case "NEEDS_MORE_DOCS": return "bg-[var(--amber-bg)] text-[var(--amber-warn)]"
+    case "EXCLUDE": return "bg-[var(--red-bg)] text-[var(--red-urgent)]"
     default: return "bg-muted text-muted-foreground"
   }
 }
 
 function ScoreBar({ score }: { score: number }) {
   const pct = (score / 10) * 100
-  const color = score >= 7 ? "bg-emerald-500" : score >= 5 ? "bg-amber-500" : "bg-red-500"
+  const color = score >= 7 ? "bg-[var(--green-ok)]" : score >= 5 ? "bg-[var(--amber-warn)]" : "bg-[var(--red-urgent)]"
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
@@ -579,12 +580,12 @@ function EvidenceCriterionCard({
                         <div key={j} className="flex items-start gap-2 text-xs text-foreground/80 pl-5 py-1 rounded-md hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
                           <span className="flex-1 leading-relaxed"><ItemSummary item={item} category={category} /></span>
                           {itemDocCount > 0 ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 shrink-0 ring-1 ring-emerald-200 dark:ring-emerald-800">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[var(--green-bg)] text-[var(--green-ok)] shrink-0 ">
                               <CheckCircle2 className="w-2.5 h-2.5" />
                               In Vault
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200 shrink-0 ring-1 ring-orange-200 dark:ring-orange-800">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[var(--amber-bg)] text-[var(--amber-warn)] shrink-0 ">
                               <AlertCircle className="w-2.5 h-2.5" />
                               Required
                             </span>
@@ -633,12 +634,12 @@ function EvidenceCriterionCard({
                               <div key={j} className="flex items-center gap-1.5 text-[11px] text-foreground/50 pl-5 py-0.5">
                                 <span className="flex-1"><ItemSummary item={item} category={category} /></span>
                                 {itemDocCount > 0 ? (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-md text-[9px] font-semibold bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 shrink-0">
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-md text-[9px] font-semibold bg-[var(--green-bg)] text-[var(--green-ok)] shrink-0">
                                     <CheckCircle2 className="w-2 h-2" />
                                     In Vault
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-md text-[9px] font-semibold bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 shrink-0">
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-md text-[9px] font-semibold bg-[var(--amber-bg)] text-[var(--amber-warn)] shrink-0">
                                     Required
                                   </span>
                                 )}
@@ -860,7 +861,7 @@ function ImmigrationDocCard({
       className={cn(
         'rounded-md border overflow-hidden transition-all',
         hasUploads
-          ? 'border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-950/20'
+          ? 'border-[var(--green-ok)]/20 bg-[var(--warm-white)]'
           : 'border-border bg-card',
         dragOver && 'border-primary ring-1 ring-primary/30 bg-primary/5'
       )}
@@ -877,13 +878,13 @@ function ImmigrationDocCard({
         <div className={cn(
           "w-7 h-7 rounded-md flex items-center justify-center shrink-0",
           hasUploads
-            ? "bg-emerald-100 dark:bg-emerald-900/50"
+            ? "bg-[var(--green-bg)]"
             : "bg-stone-100 dark:bg-stone-800"
         )}>
           <Icon className={cn(
             "w-3.5 h-3.5",
             hasUploads
-              ? "text-emerald-600 dark:text-emerald-400"
+              ? "text-[var(--green-ok)]"
               : "text-foreground/50"
           )} />
         </div>
@@ -893,7 +894,7 @@ function ImmigrationDocCard({
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {docs.length > 0 && (
-            <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 rounded-full px-2 py-0.5">
+            <span className="text-[10px] font-bold text-[var(--green-ok)] bg-[var(--green-bg)] rounded-full px-2 py-0.5">
               {docs.length}
             </span>
           )}
@@ -1258,7 +1259,7 @@ export function EvidenceListPanel({
                       <ChevronDown className="w-3.5 h-3.5 text-foreground/40 transition-transform group-data-[state=closed]/imm:-rotate-90" />
                       <span className="text-[11px] font-bold uppercase tracking-wider text-foreground/60">{group.label}</span>
                       {groupUploadedCount > 0 && (
-                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 rounded-full px-2 py-0 ring-1 ring-emerald-200 dark:ring-emerald-800">
+                        <span className="text-[10px] font-bold text-[var(--green-ok)] bg-[var(--green-bg)] rounded-full px-2 py-0 ">
                           {groupUploadedCount}
                         </span>
                       )}

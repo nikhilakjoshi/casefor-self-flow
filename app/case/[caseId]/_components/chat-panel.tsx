@@ -59,9 +59,9 @@ export function ChatPanel({ messages, isLoading, onSend, onFileSelect, onClear, 
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-4 space-y-4">
           {messages.length === 0 && !isLoading ? (
-            <div className="h-full flex items-center justify-center text-stone-400 dark:text-stone-500">
+            <div className="h-full flex items-center justify-center">
               <div className="text-center">
-                <p className="text-lg font-medium">Starting your case...</p>
+                <p className="font-serif text-[1.05rem] font-medium text-[var(--charcoal)]">Starting your case...</p>
               </div>
             </div>
           ) : (
@@ -78,15 +78,15 @@ export function ChatPanel({ messages, isLoading, onSend, onFileSelect, onClear, 
           )}
           {showTypingIndicator && (
             <div className="flex justify-start">
-              <div className="bg-muted rounded-2xl px-4 py-3">
+              <div className="bg-[var(--cream)] rounded-[8px] px-4 py-3">
                 <div className="flex gap-1">
-                  <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--ash)] animate-bounce" />
                   <span
-                    className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce"
+                    className="w-1.5 h-1.5 rounded-full bg-[var(--ash)] animate-bounce"
                     style={{ animationDelay: '150ms' }}
                   />
                   <span
-                    className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce"
+                    className="w-1.5 h-1.5 rounded-full bg-[var(--ash)] animate-bounce"
                     style={{ animationDelay: '300ms' }}
                   />
                 </div>
@@ -98,7 +98,7 @@ export function ChatPanel({ messages, isLoading, onSend, onFileSelect, onClear, 
       </ScrollArea>
 
       {/* Input */}
-      <div className="shrink-0 border-t border-border p-4">
+      <div className="shrink-0 border-t border-[var(--cream)] p-4">
         <ChatInput
           onSend={onSend}
           onFileSelect={onFileSelect}

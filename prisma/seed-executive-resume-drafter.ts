@@ -22,32 +22,28 @@ async function main() {
     process.exit(1);
   }
 
-  const prompt = await prisma.agentPrompt.upsert({
-    where: { slug: seed.slug },
-    update: {
-      name: seed.name,
-      description: seed.description,
-      variables: seed.variables,
-      provider: seed.provider,
-      modelName: seed.modelName,
-      content: seed.content,
-      defaultContent: seed.content,
-      category: seed.category,
-      usageGroup: "category-drafters",
-    },
-    create: {
-      slug: seed.slug,
-      name: seed.name,
-      description: seed.description,
-      category: seed.category,
-      content: seed.content,
-      defaultContent: seed.content,
-      variables: seed.variables,
-      provider: seed.provider,
-      modelName: seed.modelName,
-      usageGroup: "category-drafters",
-    },
-  });
+  const existing = await prisma.agentPrompt.findFirst({
+    where: { slug: seed.slug, applicationTypeId: null },
+  })
+  const promptData = {
+    name: seed.name,
+    description: seed.description,
+    variables: seed.variables,
+    provider: seed.provider,
+    modelName: seed.modelName,
+    content: seed.content,
+    defaultContent: seed.content,
+    category: seed.category,
+    usageGroup: "category-drafters",
+  }
+  const prompt = existing
+    ? await prisma.agentPrompt.update({
+        where: { id: existing.id },
+        data: promptData,
+      })
+    : await prisma.agentPrompt.create({
+        data: { slug: seed.slug, ...promptData },
+      });
 
   // Create v1 version if none exists
   const versionCount = await prisma.agentPromptVersion.count({

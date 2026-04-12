@@ -207,7 +207,7 @@ model Case {
   applicationType ApplicationType? @relation(fields: [applicationTypeId], references: [id])
   profile         CaseProfile?
   resumeUploads   ResumeUpload[]
-  eb1aAnalyses    EB1AAnalysis[]
+  caseAnalyses    CaseAnalysis[]
   chatMessages    ChatMessage[]
   documents       Document[]
   signatureRequests SignatureRequest[]
@@ -263,19 +263,23 @@ model ResumeUpload {
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
 }
 
-model EB1AAnalysis {
-  id               String   @id @default(cuid())
-  caseId           String
-  version          Int      @default(1)
-  criteria         Json
-  extraction       Json?
-  mergedWithSurvey Boolean  @default(false)
-  surveyVersion    Int?
-  strongCount      Int
-  weakCount        Int
-  createdAt        DateTime @default(now())
+model CaseAnalysis {
+  id                String   @id @default(cuid())
+  caseId            String
+  version           Int      @default(1)
+  criteria          Json
+  extraction        Json?
+  mergedWithSurvey  Boolean  @default(false)
+  surveyVersion     Int?
+  strongCount       Int
+  weakCount         Int
+  applicationTypeId String?
+  createdAt         DateTime @default(now())
 
-  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  case            Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  applicationType ApplicationType? @relation(fields: [applicationTypeId], references: [id])
+
+  @@map("EB1AAnalysis")
 }
 
 model ApplicationType {
@@ -287,9 +291,15 @@ model ApplicationType {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  criteria  CriteriaMapping[]
-  templates Template[]
-  cases     Case[]
+  criteria               CriteriaMapping[]
+  templates              Template[]
+  cases                  Case[]
+  agentPrompts           AgentPrompt[]
+  evidenceTypeDefinitions EvidenceTypeDefinition[]
+  strengthRubric         StrengthRubric?
+  criterionPromptLinks   CriterionPromptLink[]
+  denialFramework        DenialFramework?
+  caseAnalyses           CaseAnalysis[]
 }
 
 model CriteriaMapping {
@@ -298,6 +308,8 @@ model CriteriaMapping {
   criterionKey      String
   name              String
   description       String
+  uscisText         String   @default("")
+  guidanceText      String   @default("")
   displayOrder      Int      @default(0)
   active            Boolean  @default(true)
 
@@ -521,24 +533,28 @@ model PackageVersion {
 }
 
 model AgentPrompt {
-  id             String   @id @default(cuid())
-  slug           String   @unique
-  name           String
-  description    String?
-  category       String   // "static" | "dynamic-system" | "dynamic-user"
-  content        String
-  defaultContent String   @default("")
-  variables      Json     @default("[]") // [{key, label, description}]
-  provider       String   @default("anthropic") // "anthropic" | "google"
-  modelName      String   @default("claude-sonnet-4-20250514")
-  temperature    Float?
-  maxTokens      Int?
-  active         Boolean  @default(true)
-  usageGroup     String   @default("uncategorized")
-  updatedAt      DateTime @updatedAt
-  createdAt      DateTime @default(now())
+  id                String   @id @default(cuid())
+  slug              String
+  name              String
+  description       String?
+  category          String   // "static" | "dynamic-system" | "dynamic-user"
+  content           String
+  defaultContent    String   @default("")
+  variables         Json     @default("[]") // [{key, label, description}]
+  provider          String   @default("anthropic") // "anthropic" | "google"
+  modelName         String   @default("claude-sonnet-4-20250514")
+  temperature       Float?
+  maxTokens         Int?
+  active            Boolean  @default(true)
+  usageGroup        String   @default("uncategorized")
+  applicationTypeId String?
+  updatedAt         DateTime @updatedAt
+  createdAt         DateTime @default(now())
 
-  versions AgentPromptVersion[]
+  applicationType ApplicationType? @relation(fields: [applicationTypeId], references: [id])
+  versions        AgentPromptVersion[]
+
+  @@unique([slug, applicationTypeId])
 }
 
 model AgentPromptVersion {
@@ -650,4 +666,52 @@ model Signer {
 
   @@index([signatureRequestId])
   @@index([email])
+}
+
+// ----- Multi-matter-type configuration models -----
+
+model EvidenceTypeDefinition {
+  id                String  @id @default(cuid())
+  applicationTypeId String
+  schemaKey         String  // e.g., "publications", "awards" -- matches extraction field names
+  name              String
+  description       String?
+  fieldsJson        Json    @default("{}") // JSON schema definition for evidence fields
+  displayOrder      Int     @default(0)
+  active            Boolean @default(true)
+
+  applicationType ApplicationType @relation(fields: [applicationTypeId], references: [id])
+
+  @@unique([applicationTypeId, schemaKey])
+}
+
+model StrengthRubric {
+  id                String   @id @default(cuid())
+  applicationTypeId String   @unique
+  content           String   // Full system prompt for strength evaluation
+  updatedAt         DateTime @updatedAt
+
+  applicationType ApplicationType @relation(fields: [applicationTypeId], references: [id])
+}
+
+model CriterionPromptLink {
+  id                String @id @default(cuid())
+  applicationTypeId String
+  criterionKey      String // e.g., "C1" or "awards"
+  purpose           String // "extraction" | "verification" | "evaluation"
+  promptSlug        String // references AgentPrompt.slug
+
+  applicationType ApplicationType @relation(fields: [applicationTypeId], references: [id])
+
+  @@unique([applicationTypeId, criterionKey, purpose])
+}
+
+model DenialFramework {
+  id                String   @id @default(cuid())
+  applicationTypeId String   @unique
+  frameworkName     String   // "Kazarian Two-Step", "Dhanasar Three-Prong", etc.
+  content           String   // Full system prompt for denial probability
+  updatedAt         DateTime @updatedAt
+
+  applicationType ApplicationType @relation(fields: [applicationTypeId], references: [id])
 }

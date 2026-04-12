@@ -3,8 +3,9 @@ import { z } from "zod"
 // Source tracking for merged data
 const SourceSchema = z.enum(["extracted", "survey"]).optional()
 
-// EB-1A criterion IDs
-export const CriterionIdSchema = z.enum([
+// EB-1A criterion IDs — kept as a named constant for backward compat.
+// New code should use string keys from CriteriaMapping, not this enum.
+export const EB1ACriterionIdSchema = z.enum([
   "C1", // Awards
   "C2", // Membership
   "C3", // Published material about the person
@@ -17,7 +18,11 @@ export const CriterionIdSchema = z.enum([
   "C10", // Commercial success
 ])
 
-export type CriterionId = z.infer<typeof CriterionIdSchema>
+/** @deprecated Use string — criterion keys are now dynamic per ApplicationType */
+export const CriterionIdSchema = z.string()
+
+/** @deprecated Use string — criterion keys are dynamic per ApplicationType */
+export type CriterionId = string
 
 // Publication schema
 export const PublicationSchema = z.object({
@@ -266,8 +271,11 @@ export type PersonalInfo = z.infer<typeof PersonalInfoSchema>
 export type Education = z.infer<typeof EducationSchema>
 export type WorkExperience = z.infer<typeof WorkExperienceSchema>
 
-// Helper: criterion metadata
-export const CRITERIA_METADATA: Record<CriterionId, { name: string; description: string; uscis: string; guidance: string }> = {
+/**
+ * @deprecated Use getCriteriaMetadata(applicationTypeId) from lib/criteria.ts instead.
+ * This static constant is EB-1A-specific. Kept for backward compat during migration.
+ */
+export const CRITERIA_METADATA: Record<string, { name: string; description: string; uscis: string; guidance: string }> = {
   C1: {
     name: "Awards",
     description: "Nationally/internationally recognized prizes",

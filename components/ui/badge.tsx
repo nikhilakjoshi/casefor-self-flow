@@ -4,8 +4,11 @@ import { Slot } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+// casefor ink — status pills use the 8%-bg pattern (e.g. bg green-bg / fg
+// green-ok). Practice tags use rounded-[4px] (square-ish) instead of full pill.
+// The distinction matters: pills = state markers, tags = categories.
 const badgeVariants = cva(
-  "inline-flex items-center justify-center rounded-full border border-transparent px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
+  "inline-flex items-center justify-center rounded-full border border-transparent px-2.5 py-0.5 text-[0.72rem] font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
   {
     variants: {
       variant: {
@@ -18,6 +21,27 @@ const badgeVariants = cva(
           "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         link: "text-primary underline-offset-4 [a&]:hover:underline",
+
+        // ---- casefor ink semantic status pills (8% bg / full fg) ----
+        strong:
+          "bg-[var(--green-bg)] text-[var(--green-ok)] [a&]:hover:brightness-95",
+        success:
+          "bg-[var(--green-bg)] text-[var(--green-ok)] [a&]:hover:brightness-95",
+        weak: "bg-[var(--amber-bg)] text-[var(--amber-warn)] [a&]:hover:brightness-95",
+        warning:
+          "bg-[var(--amber-bg)] text-[var(--amber-warn)] [a&]:hover:brightness-95",
+        info: "bg-[var(--blue-bg)] text-[var(--blue-info)] [a&]:hover:brightness-95",
+        danger:
+          "bg-[var(--red-bg)] text-[var(--red-urgent)] [a&]:hover:brightness-95",
+        // gold "review" pill
+        review:
+          "bg-[var(--accent-gold-muted)] text-[var(--accent-gold)] [a&]:hover:bg-[var(--accent-gold)]/20",
+        soft: "bg-[var(--accent-gold-muted)] text-[var(--accent-gold)] [a&]:hover:bg-[var(--accent-gold)]/20",
+        neutral:
+          "bg-[var(--cream)] text-[var(--ash)] [a&]:hover:bg-[var(--cream)]/80",
+
+        // ---- practice-area / category tag (square-ish, not pill) ----
+        tag: "rounded-[4px] bg-[var(--cream)] text-[var(--charcoal)] [a&]:hover:brightness-95",
       },
     },
     defaultVariants: {

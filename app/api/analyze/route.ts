@@ -152,7 +152,7 @@ export async function POST(request: Request) {
       }
 
       // Save EB1A analysis with full extraction
-      await db.eB1AAnalysis.create({
+      await db.caseAnalysis.create({
         data: {
           caseId: caseRecord.id,
           criteria: legacyFormat.criteria,

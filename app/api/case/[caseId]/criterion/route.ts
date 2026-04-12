@@ -9,9 +9,10 @@ import { extractPdfText } from "@/lib/pdf-extractor"
 import { chunkText } from "@/lib/chunker"
 import { upsertChunks } from "@/lib/pinecone"
 import { isS3Configured, uploadToS3, buildDocumentKey } from "@/lib/s3"
-import { CRITERIA_METADATA, type CriterionId, resolveCanonicalId } from "@/lib/eb1a-extraction-schema"
+import { CRITERIA_METADATA, resolveCanonicalId } from "@/lib/eb1a-extraction-schema"
 import { runSingleCriterionVerification } from "@/lib/evidence-verification"
-import { getPrompt, resolveModel } from "@/lib/agent-prompt"
+import { getPromptForType, resolveModel } from "@/lib/agent-prompt"
+import { getCriteriaMetadata } from "@/lib/criteria"
 
 const MODEL = "claude-sonnet-4-20250514"
 
@@ -46,9 +47,26 @@ Provide:
 
 Be thorough but realistic. Focus ONLY on evidence relevant to this specific criterion.`
 
-async function getCriterionPrompt(canonicalId: string, meta: { name: string; description: string }) {
-  const slug = ANALYSIS_SLUGS[canonicalId]
-  const dbPrompt = slug ? await getPrompt(slug) : null
+async function getCriterionPrompt(
+  canonicalId: string,
+  meta: { name: string; description: string },
+  applicationTypeId?: string | null,
+) {
+  // Try CriterionPromptLink first, then hardcoded slug fallback
+  let slug = ANALYSIS_SLUGS[canonicalId]
+  if (applicationTypeId) {
+    const link = await db.criterionPromptLink.findUnique({
+      where: {
+        applicationTypeId_criterionKey_purpose: {
+          applicationTypeId,
+          criterionKey: canonicalId,
+          purpose: "extraction",
+        },
+      },
+    })
+    if (link) slug = link.promptSlug
+  }
+  const dbPrompt = slug ? await getPromptForType(slug, applicationTypeId ?? null) : null
 
   if (dbPrompt) {
     return {
@@ -106,7 +124,7 @@ export async function POST(
   const caseRecord = await db.case.findUnique({
     where: { id: caseId },
     include: {
-      eb1aAnalyses: { orderBy: { createdAt: "desc" }, take: 1 },
+      caseAnalyses: { orderBy: { createdAt: "desc" }, take: 1 },
     },
   })
 
@@ -190,7 +208,10 @@ export async function POST(
       additionalContext = body.context ?? ""
     }
 
-    const canonicalId = criterionId ? resolveCanonicalId(criterionId) : null
+    // Resolve criterion: try canonical mapping first, then accept as-is for dynamic types
+    const canonicalId = criterionId
+      ? (resolveCanonicalId(criterionId) ?? criterionId)
+      : null
     if (!canonicalId) {
       return new Response(JSON.stringify({ error: "Invalid criterion ID", received: criterionId }), {
         status: 400,
@@ -198,8 +219,14 @@ export async function POST(
       })
     }
 
-    const meta = CRITERIA_METADATA[canonicalId]
-    const latestAnalysis = caseRecord.eb1aAnalyses[0]
+    // Load criteria metadata dynamically from DB
+    const appTypeId = caseRecord.applicationTypeId ?? null
+    const allMeta = await getCriteriaMetadata(appTypeId)
+    const meta = allMeta[canonicalId] ?? CRITERIA_METADATA[canonicalId] ?? {
+      name: canonicalId,
+      description: `Criterion ${canonicalId}`,
+    }
+    const latestAnalysis = caseRecord.caseAnalyses[0]
     const existingExtraction = latestAnalysis?.extraction as Record<string, unknown> | null
     const extractedText = existingExtraction?.extracted_text as string | undefined
 
@@ -232,7 +259,7 @@ export async function POST(
       contextParts.push("No evidence or context available. Evaluate as None.")
     }
 
-    const { system: baseSystem, model } = await getCriterionPrompt(canonicalId, meta)
+    const { system: baseSystem, model } = await getCriterionPrompt(canonicalId, meta, appTypeId)
     let systemPrompt = baseSystem + `\n\nIf the user indicates evidence is incorrect or irrelevant, exclude it from your evaluation.\nWhen evidence has been removed, re-evaluate strength based on remaining evidence only.`
 
     const c6Tools = canonicalId === "C6" ? getC6Tools() : undefined
@@ -334,7 +361,7 @@ Note unverifiable articles in your evidence. Do not fabricate verification resul
         }
       }
 
-      await db.eB1AAnalysis.update({
+      await db.caseAnalysis.update({
         where: { id: latestAnalysis.id },
         data: {
           criteria: updatedCriteria,
@@ -423,7 +450,7 @@ export async function DELETE(
   const caseRecord = await db.case.findUnique({
     where: { id: caseId },
     include: {
-      eb1aAnalyses: { orderBy: { createdAt: "desc" }, take: 1 },
+      caseAnalyses: { orderBy: { createdAt: "desc" }, take: 1 },
     },
   })
 
@@ -433,6 +460,8 @@ export async function DELETE(
       headers: { "Content-Type": "application/json" },
     })
   }
+
+  const appTypeId = caseRecord.applicationTypeId ?? null
 
   try {
     const { criterionId, evidenceIndex, evidenceSource, category } = await request.json()
@@ -445,7 +474,7 @@ export async function DELETE(
       })
     }
 
-    const latestAnalysis = caseRecord.eb1aAnalyses[0]
+    const latestAnalysis = caseRecord.caseAnalyses[0]
     if (!latestAnalysis) {
       return new Response(JSON.stringify({ error: "No analysis found" }), {
         status: 404,
@@ -519,7 +548,11 @@ export async function DELETE(
     }
 
     // Re-evaluate criterion with remaining evidence via Claude
-    const meta = CRITERIA_METADATA[canonicalDeleteId]
+    const allDeleteMeta = await getCriteriaMetadata(appTypeId)
+    const meta = allDeleteMeta[canonicalDeleteId] ?? CRITERIA_METADATA[canonicalDeleteId] ?? {
+      name: canonicalDeleteId,
+      description: `Criterion ${canonicalDeleteId}`,
+    }
     const extractedText = updatedExtraction?.extracted_text as string | undefined
 
     const contextParts: string[] = []
@@ -555,7 +588,7 @@ export async function DELETE(
 
     contextParts.push("NOTICE: Evidence was removed by the user. Re-evaluate based on remaining evidence only.")
 
-    const { system: baseSystem, model } = await getCriterionPrompt(canonicalDeleteId, meta)
+    const { system: baseSystem, model } = await getCriterionPrompt(canonicalDeleteId, meta, appTypeId)
     let systemPrompt = baseSystem + `\n\nIf the user indicates evidence is incorrect or irrelevant, exclude it from your evaluation.\nWhen evidence has been removed, re-evaluate strength based on remaining evidence only.`
 
     const c6Tools = canonicalDeleteId === "C6" ? getC6Tools() : undefined
@@ -628,7 +661,7 @@ Note unverifiable articles in your evidence. Do not fabricate verification resul
       updatedExtraction = { ...updatedExtraction, criteria_summary: criteriaSummary }
     }
 
-    await db.eB1AAnalysis.update({
+    await db.caseAnalysis.update({
       where: { id: latestAnalysis.id },
       data: {
         criteria: updatedCriteria,

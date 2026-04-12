@@ -293,7 +293,7 @@ function createEvidenceAgentTools(caseId: string) {
       inputSchema: z.object({}),
       execute: async () => {
         console.log(`${logPrefix} [getAnalysis] Called`);
-        const analysis = await db.eB1AAnalysis.findFirst({
+        const analysis = await db.caseAnalysis.findFirst({
           where: { caseId },
           orderBy: { createdAt: "desc" },
         });
@@ -658,7 +658,7 @@ function createEvidenceAgentTools(caseId: string) {
 
         const [profile, analysis] = await Promise.all([
           db.caseProfile.findUnique({ where: { caseId } }),
-          db.eB1AAnalysis.findFirst({
+          db.caseAnalysis.findFirst({
             where: { caseId },
             orderBy: { createdAt: "desc" },
           }),
@@ -803,7 +803,7 @@ Write in first person from the recommender's perspective. The recommender is vou
 
         const [profile, analysis] = await Promise.all([
           db.caseProfile.findUnique({ where: { caseId } }),
-          db.eB1AAnalysis.findFirst({
+          db.caseAnalysis.findFirst({
             where: { caseId },
             orderBy: { createdAt: "desc" },
           }),
@@ -939,7 +939,7 @@ Write in first person from the recommender's perspective. The recommender is vou
 
         const [profile, analysis] = await Promise.all([
           db.caseProfile.findUnique({ where: { caseId } }),
-          db.eB1AAnalysis.findFirst({
+          db.caseAnalysis.findFirst({
             where: { caseId },
             orderBy: { createdAt: "desc" },
           }),
@@ -1075,7 +1075,7 @@ export async function runEvidenceAgent(opts: {
         select: { criteriaThreshold: true },
       }),
       db.caseProfile.findUnique({ where: { caseId } }),
-      db.eB1AAnalysis.findFirst({
+      db.caseAnalysis.findFirst({
         where: { caseId },
         orderBy: { createdAt: "desc" },
       }),

@@ -28,9 +28,11 @@ export async function POST(
     include: {
       resumeUploads: { orderBy: { createdAt: "desc" }, take: 1 },
       profile: true,
-      eb1aAnalyses: { orderBy: { createdAt: "desc" }, take: 1 },
+      caseAnalyses: { orderBy: { createdAt: "desc" }, take: 1 },
     },
+    // Also select applicationTypeId for dynamic pipeline routing
   })
+  const applicationTypeId = caseRecord?.applicationTypeId ?? null
 
   if (!caseRecord) {
     return new Response(JSON.stringify({ error: "Not found" }), {
@@ -62,11 +64,11 @@ async function handleReanalysis(
   caseId: string,
   caseRecord: {
     profile: { data: unknown; version: number } | null
-    eb1aAnalyses: Array<{ id: string; extraction: unknown; version: number }>
+    caseAnalyses: Array<{ id: string; extraction: unknown; version: number }>
   }
 ) {
   try {
-    const latestAnalysis = caseRecord.eb1aAnalyses[0]
+    const latestAnalysis = caseRecord.caseAnalyses[0]
     if (!latestAnalysis?.extraction) {
       return new Response(
         JSON.stringify({ error: "No extraction found to merge" }),
@@ -86,7 +88,7 @@ async function handleReanalysis(
     const counts = countExtractionStrengths(mergedExtraction)
 
     // Save new analysis version
-    const newAnalysis = await db.eB1AAnalysis.create({
+    const newAnalysis = await db.caseAnalysis.create({
       data: {
         caseId,
         version: latestAnalysis.version + 1,
@@ -187,6 +189,7 @@ async function handleFileAnalysis(
                 encoder.encode(`data: ${JSON.stringify(merged)}\n\n`)
               )
             },
+            applicationTypeId,
           )
 
           // Final merged event
@@ -247,7 +250,7 @@ async function handleFileAnalysis(
       const legacyFormat = extractionToLegacyFormat(extraction)
       const counts = countExtractionStrengths(extraction)
 
-      await db.eB1AAnalysis.create({
+      await db.caseAnalysis.create({
         data: {
           caseId,
           criteria: legacyFormat.criteria,

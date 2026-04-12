@@ -296,6 +296,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 { title: "Criteria", href: "/admin/criteria", icon: ListChecks },
                 { title: "Templates", href: "/admin/templates", icon: FileStack },
                 { title: "Prompts", href: "/admin/prompts", icon: MessageSquare },
+                { title: "Matter Types", href: "/admin/application-types", icon: ListChecks },
               ].map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton

@@ -281,32 +281,40 @@ Tone: Independent, analytical. The expert evaluates from a position of authority
   })
   console.log(`Backfilled ${updated.count} cases with applicationTypeId`)
 
-  // 5. Upsert AgentPrompt records
+  // 5. Upsert AgentPrompt records (global, applicationTypeId=null)
   for (const seed of agentPromptSeeds) {
-    await prisma.agentPrompt.upsert({
-      where: { slug: seed.slug },
-      update: {
-        name: seed.name,
-        description: seed.description,
-        variables: seed.variables,
-        provider: seed.provider,
-        modelName: seed.modelName,
-        content: seed.content,
-        defaultContent: seed.content,
-        category: seed.category,
-      },
-      create: {
-        slug: seed.slug,
-        name: seed.name,
-        description: seed.description,
-        category: seed.category,
-        content: seed.content,
-        defaultContent: seed.content,
-        variables: seed.variables,
-        provider: seed.provider,
-        modelName: seed.modelName,
-      },
+    const existing = await prisma.agentPrompt.findFirst({
+      where: { slug: seed.slug, applicationTypeId: null },
     })
+    if (existing) {
+      await prisma.agentPrompt.update({
+        where: { id: existing.id },
+        data: {
+          name: seed.name,
+          description: seed.description,
+          variables: seed.variables,
+          provider: seed.provider,
+          modelName: seed.modelName,
+          content: seed.content,
+          defaultContent: seed.content,
+          category: seed.category,
+        },
+      })
+    } else {
+      await prisma.agentPrompt.create({
+        data: {
+          slug: seed.slug,
+          name: seed.name,
+          description: seed.description,
+          category: seed.category,
+          content: seed.content,
+          defaultContent: seed.content,
+          variables: seed.variables,
+          provider: seed.provider,
+          modelName: seed.modelName,
+        },
+      })
+    }
   }
   console.log(`Upserted ${agentPromptSeeds.length} AgentPrompt rows`)
 }

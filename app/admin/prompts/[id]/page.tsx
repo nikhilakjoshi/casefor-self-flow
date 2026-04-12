@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select"
 import { ArrowLeft, RotateCcw, History, X } from "lucide-react"
 import Link from "next/link"
+import { TiptapEditor } from "@/components/ui/tiptap-editor"
 
 interface Variable {
   key: string
@@ -107,7 +108,8 @@ export default function AdminPromptEditPage() {
   const [viewingVersion, setViewingVersion] = useState<VersionDetail | null>(null)
   const [loadingVersion, setLoadingVersion] = useState(false)
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  // TipTap editor key — bumped to force re-mount when content is reset externally
+  const [editorKey, setEditorKey] = useState(0)
 
   const didFetch = useRef(false)
   const fetchPrompt = useCallback(async () => {
@@ -141,25 +143,17 @@ export default function AdminPromptEditPage() {
   }, [fetchPrompt])
 
   const insertVariable = (varKey: string) => {
-    const textarea = textareaRef.current
-    if (!textarea) return
+    // Append the variable tag to the end of content.
+    // TipTap will re-render and the user can move it within the rich editor.
     const tag = `{{${varKey}}}`
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const before = content.slice(0, start)
-    const after = content.slice(end)
-    const newContent = before + tag + after
-    setContent(newContent)
-    requestAnimationFrame(() => {
-      textarea.focus()
-      const pos = start + tag.length
-      textarea.setSelectionRange(pos, pos)
-    })
+    setContent((prev) => prev + tag)
+    setEditorKey((k) => k + 1) // force TipTap remount with new content
   }
 
   const resetToDefault = () => {
     if (prompt?.defaultContent) {
       setContent(prompt.defaultContent)
+      setEditorKey((k) => k + 1)
     }
   }
 
@@ -219,7 +213,7 @@ export default function AdminPromptEditPage() {
     return (
       <div className="p-6">
         <p className="text-destructive text-sm">{error || "Prompt not found"}</p>
-        <Link href="/admin/prompts" className="text-sm text-blue-600 dark:text-blue-400 hover:underline mt-2 inline-block">
+        <Link href="/admin/prompts" className="text-sm text-[var(--accent-gold)] hover:text-[var(--accent-gold-light)] hover:underline mt-2 inline-block">
           Back to prompts
         </Link>
       </div>
@@ -230,237 +224,261 @@ export default function AdminPromptEditPage() {
   const latestVersion = prompt.versions?.[0]?.version ?? 0
 
   return (
-    <div className="p-6 max-w-4xl">
-      <div className="flex items-center gap-2 mb-6">
-        <Link href="/admin/prompts">
-          <Button variant="ghost" size="icon" className="h-7 w-7">
-            <ArrowLeft className="size-4" />
-          </Button>
-        </Link>
-        <h1 className="text-lg font-semibold">Edit Prompt</h1>
-        <Badge variant="secondary" className="text-xs font-mono">
-          {prompt.slug}
-        </Badge>
-        <Badge variant="outline" className="text-xs">
-          {GROUP_LABELS[prompt.usageGroup] || prompt.usageGroup}
-        </Badge>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-2 text-sm text-destructive bg-destructive/10 rounded">
-          {error}
-        </div>
-      )}
-
-      <div className="space-y-4">
-        <div>
-          <label className="text-sm font-medium mb-1.5 block">Name</label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} className="max-w-md" />
-        </div>
-
-        <div>
-          <label className="text-sm font-medium mb-1.5 block">Description</label>
-          <Input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Optional description"
-            className="max-w-md"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 max-w-md">
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Provider</label>
-            <Select
-              value={provider}
-              onValueChange={(val) => {
-                setProvider(val)
-                const models = MODELS[val]
-                if (models && !models.some((m) => m.value === modelName)) {
-                  setModelName(models[0].value)
-                }
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PROVIDERS.map((p) => (
-                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Model</label>
-            <Select value={modelName} onValueChange={setModelName}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(MODELS[provider] ?? []).map((m) => (
-                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 max-w-md">
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Temperature</label>
-            <Input
-              type="number"
-              step="0.1"
-              min="0"
-              max="2"
-              value={temperature}
-              onChange={(e) => setTemperature(e.target.value)}
-              placeholder="Default"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Max Tokens</label>
-            <Input
-              type="number"
-              min="1"
-              value={maxTokens}
-              onChange={(e) => setMaxTokens(e.target.value)}
-              placeholder="Default"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium">Active</label>
-          <button
-            type="button"
-            onClick={() => setActive(!active)}
-            className={`inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-              active ? "bg-emerald-500" : "bg-stone-300 dark:bg-stone-600"
-            }`}
-          >
-            <span
-              className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
-                active ? "translate-x-4" : "translate-x-0.5"
-              }`}
-            />
-          </button>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-sm font-medium">Content</label>
-            <div className="flex items-center gap-2">
-              {prompt.defaultContent && content !== prompt.defaultContent && (
-                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={resetToDefault}>
-                  <RotateCcw className="size-3" />
-                  Reset to Default
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs gap-1"
-                onClick={() => setShowHistory(!showHistory)}
-              >
-                <History className="size-3" />
-                History
-              </Button>
+    <div className="flex h-full overflow-hidden">
+      {/* ---- Left config panel (like Vercel's file tree) ---- */}
+      <div className="w-[300px] shrink-0 border-r border-[var(--cream)] bg-[var(--warm-white)] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="shrink-0 px-4 py-3 border-b border-[var(--cream)] flex items-center gap-2">
+          <Link href="/admin/prompts">
+            <Button variant="ghost" size="icon-xs">
+              <ArrowLeft className="size-3.5" />
+            </Button>
+          </Link>
+          <div className="min-w-0 flex-1">
+            <div className="font-serif text-[0.92rem] font-medium text-[var(--ink)] truncate">
+              {prompt.name}
+            </div>
+            <div className="font-mono text-[0.65rem] text-[var(--ash)] tabular-nums truncate">
+              {prompt.slug}
             </div>
           </div>
+        </div>
 
-          {variables.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {variables.map((v) => (
-                <button
-                  key={v.key}
-                  type="button"
-                  onClick={() => insertVariable(v.key)}
-                  className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-mono transition-colors hover:bg-muted cursor-pointer"
-                  title={v.description}
-                >
-                  {`{{${v.key}}}`}
-                </button>
-              ))}
+        {/* Config fields — scrollable */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+          {error && (
+            <div className="p-2 text-[0.75rem] text-[var(--red-urgent)] bg-[var(--red-bg)] rounded-[4px]">
+              {error}
             </div>
           )}
 
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={24}
-            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono leading-relaxed"
-          />
+          <div>
+            <label className="text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--ash)] mb-1 block">Name</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-sm" />
+          </div>
+
+          <div>
+            <label className="text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--ash)] mb-1 block">Description</label>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional"
+              className="h-8 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--ash)] mb-1 block">Group</label>
+            <div className="text-[0.78rem] text-[var(--charcoal)]">
+              {GROUP_LABELS[prompt.usageGroup] || prompt.usageGroup}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--ash)] mb-1 block">Provider</label>
+              <Select
+                value={provider}
+                onValueChange={(val) => {
+                  setProvider(val)
+                  const models = MODELS[val]
+                  if (models && !models.some((m) => m.value === modelName)) {
+                    setModelName(models[0].value)
+                  }
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROVIDERS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--ash)] mb-1 block">Model</label>
+              <Select value={modelName} onValueChange={setModelName}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(MODELS[provider] ?? []).map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--ash)] mb-1 block">Temperature</label>
+              <Input
+                type="number"
+                step="0.1"
+                min="0"
+                max="2"
+                value={temperature}
+                onChange={(e) => setTemperature(e.target.value)}
+                placeholder="Default"
+                className="h-8 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--ash)] mb-1 block">Max Tokens</label>
+              <Input
+                type="number"
+                min="1"
+                value={maxTokens}
+                onChange={(e) => setMaxTokens(e.target.value)}
+                placeholder="Default"
+                className="h-8 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <label className="text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--ash)]">Active</label>
+            <button
+              type="button"
+              onClick={() => setActive(!active)}
+              className={`inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                active ? "bg-[var(--green-ok)]" : "bg-[var(--stone)]"
+              }`}
+            >
+              <span
+                className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                  active ? "translate-x-4" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Variables */}
+          {variables.length > 0 && (
+            <div>
+              <label className="text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--ash)] mb-1.5 block">Variables</label>
+              <div className="flex flex-wrap gap-1">
+                {variables.map((v) => (
+                  <button
+                    key={v.key}
+                    type="button"
+                    onClick={() => insertVariable(v.key)}
+                    className="inline-flex items-center rounded-[4px] border border-[var(--cream)] bg-[var(--parchment)] px-2 py-0.5 text-[0.68rem] font-mono text-[var(--charcoal)] hover:bg-[var(--cream)] hover:border-[var(--accent-gold)] transition-colors cursor-pointer"
+                    title={v.description}
+                  >
+                    {`{{${v.key}}}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Version history */}
+          {prompt.versions && prompt.versions.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowHistory(!showHistory)}
+                className="flex items-center gap-1.5 text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--ash)] hover:text-[var(--ink)] transition-colors mb-1.5"
+              >
+                <History className="size-3" />
+                Versions ({prompt.versions.length})
+              </button>
+              {showHistory && (
+                <div className="space-y-0.5">
+                  {prompt.versions.map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => viewVersion(v)}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-[4px] text-[0.75rem] flex items-center justify-between hover:bg-[var(--accent-gold-subtle)] transition-colors ${
+                        viewingVersion?.id === v.id ? "bg-[var(--accent-gold-subtle)]" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-[0.65rem] text-[var(--ash)] tabular-nums">v{v.version}</span>
+                        {v.version === latestVersion && (
+                          <span className="text-[0.6rem] text-[var(--accent-gold)]">current</span>
+                        )}
+                      </div>
+                      <span className="font-mono text-[0.6rem] text-[var(--stone)] tabular-nums">
+                        {new Date(v.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="pt-2 border-t border-[var(--cream)] flex flex-col gap-2">
+            <Button onClick={handleSave} disabled={saving} className="w-full">
+              {saving ? "Saving..." : "Save"}
+            </Button>
+            <div className="flex items-center gap-2">
+              {prompt.defaultContent && content !== prompt.defaultContent && (
+                <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={resetToDefault}>
+                  <RotateCcw className="size-3" />
+                  Reset
+                </Button>
+              )}
+              <Link href="/admin/prompts" className="flex-1">
+                <Button variant="outline" size="sm" className="w-full h-7 text-xs">
+                  Cancel
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ---- Right editor panel (fills remaining width) ---- */}
+      <div className="flex-1 flex flex-col overflow-hidden bg-[var(--parchment)]">
+        {/* Editor toolbar header */}
+        <div className="shrink-0 px-4 py-2 border-b border-[var(--cream)] flex items-center justify-between bg-[var(--warm-white)]">
+          <div className="flex items-center gap-2">
+            <span className="text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--ash)]">Content</span>
+            {latestVersion > 0 && (
+              <span className="font-mono text-[0.65rem] text-[var(--stone)] tabular-nums">v{latestVersion}</span>
+            )}
+          </div>
+          <Badge
+            variant={prompt.category === "static" ? "info" : prompt.category === "dynamic-system" ? "review" : "weak"}
+            className="text-[0.65rem]"
+          >
+            {prompt.category}
+          </Badge>
         </div>
 
-        {/* Version history panel */}
-        {showHistory && prompt.versions && prompt.versions.length > 0 && (
-          <div className="rounded-lg border border-stone-200 dark:border-stone-800 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium">Version History</h3>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setShowHistory(false); setViewingVersion(null) }}>
-                <X className="size-3.5" />
+        {/* Version preview (if viewing a past version) */}
+        {viewingVersion && !loadingVersion && (
+          <div className="shrink-0 px-4 py-2 border-b border-[var(--cream)] bg-[var(--amber-bg)]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-[0.75rem] text-[var(--amber-warn)]">
+                <History className="size-3" />
+                Viewing v{viewingVersion.version} ({viewingVersion.provider}/{viewingVersion.modelName.replace("claude-", "").replace("-20250514", "")})
+              </div>
+              <Button variant="ghost" size="icon-xs" onClick={() => setViewingVersion(null)}>
+                <X className="size-3" />
               </Button>
             </div>
-            <div className="space-y-1">
-              {prompt.versions.map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => viewVersion(v)}
-                  className={`w-full text-left px-3 py-2 rounded text-sm flex items-center justify-between hover:bg-muted/60 transition-colors ${
-                    viewingVersion?.id === v.id ? "bg-muted" : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs font-mono">
-                      v{v.version}
-                    </Badge>
-                    {v.version === latestVersion && (
-                      <span className="text-xs text-muted-foreground">current</span>
-                    )}
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(v.createdAt).toLocaleDateString()} {new Date(v.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {loadingVersion && (
-              <p className="text-xs text-muted-foreground mt-3">Loading version...</p>
-            )}
-
-            {viewingVersion && !loadingVersion && (
-              <div className="mt-3 border-t border-stone-200 dark:border-stone-800 pt-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className="text-xs font-mono">v{viewingVersion.version}</Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {viewingVersion.provider} / {viewingVersion.modelName.replace("claude-", "").replace("-20250514", "")}
-                  </span>
-                </div>
-                <pre className="text-xs font-mono bg-muted/50 rounded p-3 max-h-64 overflow-auto whitespace-pre-wrap">
-                  {viewingVersion.content}
-                </pre>
-              </div>
-            )}
           </div>
         )}
 
-        <div className="flex items-center gap-2 pt-2">
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
-          </Button>
-          {latestVersion > 0 && (
-            <Badge variant="outline" className="text-xs font-mono">
-              v{latestVersion}
-            </Badge>
-          )}
-          <Link href="/admin/prompts">
-            <Button variant="outline">Cancel</Button>
-          </Link>
+        {/* TipTap editor fills remaining space */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <TiptapEditor
+            key={editorKey}
+            content={viewingVersion ? viewingVersion.content : content}
+            onUpdate={(md) => { if (!viewingVersion) setContent(md) }}
+            editable={!viewingVersion}
+            trackChangesDefault={false}
+            minimal
+          />
         </div>
       </div>
     </div>

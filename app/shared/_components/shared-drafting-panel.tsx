@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { TiptapEditor } from '@/components/ui/tiptap-editor'
+import { streamMarkdownToEditor } from '@/lib/stream-markdown'
 import { ChatInput } from '@/components/ui/chat-input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -103,18 +104,7 @@ export function SharedDraftingPanel({
 
         if (!res.ok) throw new Error('Draft chat failed')
 
-        const reader = res.body?.getReader()
-        if (!reader) throw new Error('No reader')
-
-        const decoder = new TextDecoder()
-        let accumulated = ''
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          accumulated += decoder.decode(value, { stream: true })
-          setEditorContent(accumulated)
-        }
+        await streamMarkdownToEditor(res, setEditorContent)
 
         setChatMessages((prev) => [
           ...prev,

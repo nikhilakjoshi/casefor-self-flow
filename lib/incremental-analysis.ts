@@ -27,7 +27,7 @@ export async function runIncrementalAnalysis(
   newDocumentText: string,
 ): Promise<void> {
   // Get current analysis
-  const currentAnalysis = await db.eB1AAnalysis.findFirst({
+  const currentAnalysis = await db.caseAnalysis.findFirst({
     where: { caseId },
     orderBy: { createdAt: "desc" },
   });
@@ -114,7 +114,7 @@ Be thorough - look for any evidence supporting each criterion.`,
   const counts = countCriteriaStrengths({ criteria: updatedCriteria });
 
   // Step 4: Save new analysis version
-  await db.eB1AAnalysis.create({
+  await db.caseAnalysis.create({
     data: {
       caseId,
       version: (currentAnalysis.version ?? 0) + 1,

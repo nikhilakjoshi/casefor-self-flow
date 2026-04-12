@@ -2,7 +2,7 @@ import { streamText, Output } from "ai"
 import { anthropic } from "@ai-sdk/anthropic"
 import { db } from "./db"
 import { StrengthEvaluationSchema } from "./strength-evaluation-schema"
-import { getPrompt, resolveModel } from "./agent-prompt"
+import { getPrompt, getPromptForType, resolveModel } from "./agent-prompt"
 
 const FALLBACK_MODEL = "claude-sonnet-4-20250514"
 
@@ -220,7 +220,7 @@ export async function buildEvaluationContext(caseId: string) {
       where: { id: caseId },
       include: {
         profile: true,
-        eb1aAnalyses: {
+        caseAnalyses: {
           orderBy: { createdAt: "desc" },
           take: 1,
         },
@@ -251,7 +251,7 @@ export async function buildEvaluationContext(caseId: string) {
   }
 
   // Latest extraction/analysis
-  const analysis = caseData.eb1aAnalyses[0]
+  const analysis = caseData.caseAnalyses[0]
   if (analysis) {
     // User-provided context goes FIRST (before extraction) so the evaluator sees it early
     if (analysis.criteria) {
@@ -305,12 +305,30 @@ export async function buildEvaluationContext(caseId: string) {
 
 export async function streamStrengthEvaluation(caseId: string) {
   const context = await buildEvaluationContext(caseId)
-  const p = await getPrompt("strength-evaluator")
+
+  // Resolve application type for type-scoped config
+  const caseRecord = await db.case.findUnique({
+    where: { id: caseId },
+    select: { applicationTypeId: true },
+  })
+  const appTypeId = caseRecord?.applicationTypeId ?? null
+
+  // Try type-specific rubric from DB
+  let rubricContent: string | null = null
+  if (appTypeId) {
+    const rubric = await db.strengthRubric.findUnique({
+      where: { applicationTypeId: appTypeId },
+    })
+    if (rubric) rubricContent = rubric.content
+  }
+
+  // Prompt resolution: type-scoped DB prompt → global DB prompt → hardcoded fallback
+  const p = await getPromptForType("strength-evaluator", appTypeId)
 
   return streamText({
     model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     output: Output.object({ schema: StrengthEvaluationSchema }),
-    system: p?.content ?? FALLBACK_PROMPT,
+    system: rubricContent ?? p?.content ?? FALLBACK_PROMPT,
     prompt: `Evaluate the following applicant data:\n\n${context}`,
   })
 }

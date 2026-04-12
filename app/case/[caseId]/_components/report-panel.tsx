@@ -14,6 +14,7 @@ import { LettersPanel } from "./letters-panel"
 import { DenialProbabilityPanel } from "./denial-probability-panel"
 import { PackagePanel } from "./package-panel"
 import { DocumentsPanel } from "./documents-panel"
+import { TrackerPanel } from "./tracker-panel"
 import type { DetailedExtraction, CriteriaSummaryItem } from "@/lib/eb1a-extraction-schema"
 import { CRITERIA_METADATA, resolveCanonicalId } from "@/lib/eb1a-extraction-schema"
 import type { StrengthEvaluation } from "@/lib/strength-evaluation-schema"
@@ -87,6 +88,7 @@ interface Analysis {
 
 interface ReportPanelProps {
   caseId: string
+  criteriaMetadata?: Record<string, { key: string; name: string; description: string }>
   initialAnalysis?: Analysis | null
   version?: number
   threshold?: number
@@ -104,14 +106,19 @@ interface ReportPanelProps {
   reAnalysisPhase?: 'idle' | 'strength-eval' | 'gap-analysis' | 'done'
 }
 
+// casefor ink — criteria cards sit on warm-white with hairline borders. Status
+// is signalled via a small 8%-bg pill + a thin coloured left border, NOT a
+// full header tint. The spec calls this out explicitly: state markers are
+// pills, not washes. Previous emerald-100 / amber-100 headers read as loud
+// SaaS-y; the new treatment reads as editorial.
 function getStrengthConfig(strength: Strength) {
   switch (strength) {
     case "Strong":
       return {
-        bg: "bg-emerald-50 dark:bg-emerald-950",
-        border: "border-l-emerald-500",
-        headerBg: "bg-emerald-100 dark:bg-emerald-900",
-        badge: "bg-emerald-600 text-white",
+        bg: "bg-[var(--warm-white)]",
+        border: "border-l-[var(--green-ok)]",
+        headerBg: "bg-[var(--warm-white)]",
+        badge: "bg-[var(--green-bg)] text-[var(--green-ok)]",
         icon: (
           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
             <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
@@ -120,10 +127,10 @@ function getStrengthConfig(strength: Strength) {
       }
     case "Weak":
       return {
-        bg: "bg-amber-50 dark:bg-amber-950",
-        border: "border-l-amber-500",
-        headerBg: "bg-amber-100 dark:bg-amber-900",
-        badge: "bg-amber-500 text-white",
+        bg: "bg-[var(--warm-white)]",
+        border: "border-l-[var(--amber-warn)]",
+        headerBg: "bg-[var(--warm-white)]",
+        badge: "bg-[var(--amber-bg)] text-[var(--amber-warn)]",
         icon: (
           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
             <path d="M5 12h14" strokeLinecap="round" />
@@ -132,10 +139,10 @@ function getStrengthConfig(strength: Strength) {
       }
     default:
       return {
-        bg: "bg-stone-50 dark:bg-stone-900",
-        border: "border-l-muted-foreground/30",
-        headerBg: "bg-stone-100 dark:bg-stone-800",
-        badge: "bg-muted-foreground/70 text-background",
+        bg: "bg-[var(--warm-white)]",
+        border: "border-l-[var(--stone)]",
+        headerBg: "bg-[var(--warm-white)]",
+        badge: "bg-[var(--cream)] text-[var(--ash)]",
         icon: (
           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
             <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
@@ -837,13 +844,13 @@ function CriterionSection({
                             tabIndex={0}
                             onClick={(e) => { e.stopPropagation(); onNavigateToRouting() }}
                             onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onNavigateToRouting() } }}
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 transition-colors shrink-0 cursor-pointer"
+                            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--green-bg)] text-[var(--green-ok)] hover:brightness-95 transition-all shrink-0 cursor-pointer"
                           >
                             <FileText className="w-2.5 h-2.5" />
                             Evidence in Vault
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[11px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
+                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--amber-bg)] text-[var(--amber-warn)] shrink-0">
                             Evidence Required
                           </span>
                         )}
@@ -913,13 +920,13 @@ function CriterionSection({
                                     tabIndex={0}
                                     onClick={(e) => { e.stopPropagation(); onNavigateToRouting() }}
                                     onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onNavigateToRouting() } }}
-                                    className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[11px] font-medium bg-emerald-100/60 text-emerald-600/70 dark:bg-emerald-900/20 dark:text-emerald-400/60 hover:bg-emerald-200/60 transition-colors shrink-0 cursor-pointer"
+                                    className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--green-bg)]/60 text-[var(--green-ok)]/70 hover:brightness-95 transition-all shrink-0 cursor-pointer"
                                   >
                                     <FileText className="w-2.5 h-2.5" />
                                     Evidence in Vault
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[11px] font-medium bg-orange-100/60 text-orange-600/70 dark:bg-orange-900/20 dark:text-orange-400/60 shrink-0">
+                                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--amber-bg)]/60 text-[var(--amber-warn)]/70 shrink-0">
                                     Evidence Required
                                   </span>
                                 )}
@@ -1011,10 +1018,11 @@ function getRiskLabel(level: string) {
   }
 }
 
-type ReportTab = "summary" | "planning" | "evidence" | "routing" | "recommenders" | "consolidation" | "letters" | "package" | "denial" | "raw" | "vault"
+type ReportTab = "summary" | "planning" | "evidence" | "routing" | "recommenders" | "consolidation" | "letters" | "package" | "denial" | "raw" | "vault" | "tracker"
 
 export function ReportPanel({
   caseId,
+  criteriaMetadata: criteriaMetadataProp,
   initialAnalysis,
   version = 0,
   threshold = 3,
@@ -1263,24 +1271,31 @@ export function ReportPanel({
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 p-4 border-b border-border">
+      <div className="shrink-0 p-4 border-b border-[var(--cream)]">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-            EB-1A Analysis{analysis.version ? ` v${analysis.version}` : ""}
+          <h3 className="font-serif text-[1.3rem] font-medium tracking-[-0.01em] text-[var(--ink)] flex items-center gap-2">
+            EB-1A Analysis
+            {analysis.version ? (
+              <span className="font-mono text-[0.7rem] font-normal tabular-nums text-[var(--ash)]">
+                v{analysis.version}
+              </span>
+            ) : null}
             {analysis.mergedWithSurvey && (
-              <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+              <span className="ml-1 text-[0.65rem] font-medium uppercase tracking-[0.08em] px-2 py-0.5 rounded-full bg-[var(--blue-bg)] text-[var(--blue-info)]">
                 Updated
               </span>
             )}
           </h3>
-          <div className="flex items-center gap-3 text-xs text-stone-500">
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              {analysis.strongCount} strong
+          <div className="flex items-center gap-3 text-[0.75rem] text-[var(--ash)]">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--green-ok)]" />
+              <span className="font-mono tabular-nums text-[var(--charcoal)]">{analysis.strongCount}</span>
+              <span>strong</span>
             </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-amber-500" />
-              {analysis.weakCount} weak
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--amber-warn)]" />
+              <span className="font-mono tabular-nums text-[var(--charcoal)]">{analysis.weakCount}</span>
+              <span>weak</span>
             </span>
             {initialDenialProbability?.overall_assessment && (
               <TooltipProvider>
@@ -1316,8 +1331,8 @@ export function ReportPanel({
                       className={cn(
                         "px-3 py-1.5 text-xs font-medium transition-colors border-b-2",
                         activeTab === "summary"
-                          ? "border-foreground text-foreground"
-                          : "border-transparent text-muted-foreground hover:text-foreground"
+                          ? "border-[var(--accent-gold)] text-[var(--ink)]"
+                          : "border-transparent text-[var(--ash)] hover:text-[var(--ink)]"
                       )}
                     >
                       Criteria
@@ -1332,8 +1347,8 @@ export function ReportPanel({
                       className={cn(
                         "px-3 py-1.5 text-xs font-medium transition-colors border-b-2",
                         activeTab === "planning"
-                          ? "border-foreground text-foreground"
-                          : "border-transparent text-muted-foreground hover:text-foreground"
+                          ? "border-[var(--accent-gold)] text-[var(--ink)]"
+                          : "border-transparent text-[var(--ash)] hover:text-[var(--ink)]"
                       )}
                     >
                       Gap Analysis
@@ -1360,8 +1375,8 @@ export function ReportPanel({
                       className={cn(
                         "px-3 py-1.5 text-xs font-medium transition-colors border-b-2",
                         activeTab === "evidence"
-                          ? "border-foreground text-foreground"
-                          : "border-transparent text-muted-foreground hover:text-foreground"
+                          ? "border-[var(--accent-gold)] text-[var(--ink)]"
+                          : "border-transparent text-[var(--ash)] hover:text-[var(--ink)]"
                       )}
                     >
                       Evidence List
@@ -1388,8 +1403,8 @@ export function ReportPanel({
                       className={cn(
                         "px-3 py-1.5 text-xs font-medium transition-colors border-b-2",
                         activeTab === "letters"
-                          ? "border-foreground text-foreground"
-                          : "border-transparent text-muted-foreground hover:text-foreground"
+                          ? "border-[var(--accent-gold)] text-[var(--ink)]"
+                          : "border-transparent text-[var(--ash)] hover:text-[var(--ink)]"
                       )}
                     >
                       Document Drafting
@@ -1402,10 +1417,10 @@ export function ReportPanel({
                     <button
                       onClick={() => handleSubTabChange("package")}
                       className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        "px-3 py-1.5 text-xs font-medium transition-colors border-b-2",
                         activeTab === "package"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                          ? "border-[var(--accent-gold)] text-[var(--ink)]"
+                          : "border-transparent text-[var(--ash)] hover:text-[var(--ink)]"
                       )}
                     >
                       Package
@@ -1420,8 +1435,8 @@ export function ReportPanel({
                       className={cn(
                         "px-3 py-1.5 text-xs font-medium transition-colors border-b-2 flex items-center gap-1",
                         activeTab === "denial"
-                          ? "border-foreground text-foreground"
-                          : "border-transparent text-muted-foreground hover:text-foreground"
+                          ? "border-[var(--accent-gold)] text-[var(--ink)]"
+                          : "border-transparent text-[var(--ash)] hover:text-[var(--ink)]"
                       )}
                     >
                       <ShieldAlert className="w-3 h-3" />
@@ -1444,8 +1459,8 @@ export function ReportPanel({
                   className={cn(
                     "px-3 py-1.5 text-xs font-medium transition-colors border-b-2 mb-0",
                     activeTab === "raw"
-                      ? "border-foreground text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
+                      ? "border-[var(--accent-gold)] text-[var(--ink)]"
+                      : "border-transparent text-[var(--ash)] hover:text-[var(--ink)]"
                   )}
                 >
                   Raw Data
@@ -1457,6 +1472,24 @@ export function ReportPanel({
             {/* Spacer to push Case Vault right */}
             <div className="flex-1" />
 
+            {/* Tracker */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleSubTabChange("tracker")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium transition-colors border-b-2 mb-0",
+                    activeTab === "tracker"
+                      ? "border-[var(--accent-gold)] text-[var(--ink)]"
+                      : "border-transparent text-[var(--ash)] hover:text-[var(--ink)]"
+                  )}
+                >
+                  Tracker
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Evidence coverage matrix, document status, and gap cross-reference</TooltipContent>
+            </Tooltip>
+
             {/* Case Vault */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1465,8 +1498,8 @@ export function ReportPanel({
                   className={cn(
                     "px-3 py-1.5 text-xs font-medium transition-colors border-b-2 mb-0",
                     activeTab === "vault"
-                      ? "border-foreground text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
+                      ? "border-[var(--accent-gold)] text-[var(--ink)]"
+                      : "border-transparent text-[var(--ash)] hover:text-[var(--ink)]"
                   )}
                 >
                   Case Vault
@@ -1480,17 +1513,17 @@ export function ReportPanel({
 
       {/* Auto-run loader banner */}
       {autoRunPhase !== "idle" && (
-        <div className="shrink-0 px-4 py-2 border-b border-border bg-muted/50">
+        <div className="shrink-0 px-4 py-2 border-b border-[var(--cream)] bg-[var(--parchment)]">
           <div className="flex items-center gap-2">
             {autoRunPhase === "done" ? (
               <>
-                <Check className="w-4 h-4 text-emerald-600" />
-                <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Analysis complete</span>
+                <Check className="w-4 h-4 text-[var(--green-ok)]" />
+                <span className="text-xs text-[var(--green-ok)] font-medium">Analysis complete</span>
               </>
             ) : (
               <>
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs text-muted-foreground">
+                <div className="w-4 h-4 border-2 border-[var(--accent-gold)] border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-[var(--ash)]">
                   {autoRunPhase === "strength-eval"
                     ? "Running strength evaluation..."
                     : "Running gap analysis..."}
@@ -1503,17 +1536,17 @@ export function ReportPanel({
 
       {/* Re-analysis banner (triggered by evidence changes) */}
       {reAnalysisPhase !== "idle" && autoRunPhase === "idle" && (
-        <div className="shrink-0 px-4 py-2 border-b border-border bg-blue-50 dark:bg-blue-950/30">
+        <div className="shrink-0 px-4 py-2 border-b border-[var(--cream)] bg-[var(--blue-bg)]">
           <div className="flex items-center gap-2">
             {reAnalysisPhase === "done" ? (
               <>
-                <Check className="w-4 h-4 text-emerald-600" />
-                <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Re-analysis complete</span>
+                <Check className="w-4 h-4 text-[var(--green-ok)]" />
+                <span className="text-xs text-[var(--green-ok)] font-medium">Re-analysis complete</span>
               </>
             ) : (
               <>
-                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs text-blue-700 dark:text-blue-300">
+                <div className="w-4 h-4 border-2 border-[var(--blue-info)] border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-[var(--blue-info)]">
                   {reAnalysisPhase === "strength-eval"
                     ? "Re-running strength evaluation..."
                     : "Re-running gap analysis..."}
@@ -1615,6 +1648,8 @@ export function ReportPanel({
           hasStrengthEval={!!strengthEval}
           hasGapAnalysis={!!initialGapAnalysis}
         />
+      ) : activeTab === "tracker" ? (
+        <TrackerPanel caseId={caseId} />
       ) : activeTab === "vault" ? (
         <div className="flex-1 overflow-hidden">
           <DocumentsPanel

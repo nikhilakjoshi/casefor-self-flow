@@ -101,3 +101,15 @@ export const TIER_LABELS: Record<number, string> = {
   4: "Weak",
   5: "Disqualifying",
 }
+
+/**
+ * Get tier guide for an application type. Falls back to static EB-1A guide.
+ * Future: load from StrengthRubric or a dedicated TierGuide field in DB.
+ */
+export function getTierGuide(
+  _applicationTypeId?: string | null,
+): Record<string, TierDefinition[]> {
+  // For now, all types use the EB-1A tier guide. When O-1B rubric is seeded,
+  // this will query the DB for type-specific tiers.
+  return TIER_EVIDENCE_GUIDE
+}

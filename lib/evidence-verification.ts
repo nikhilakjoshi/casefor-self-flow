@@ -1,7 +1,8 @@
 import { generateObject } from "ai"
 import { db } from "./db"
 import { buildEvaluationContext } from "./strength-evaluation"
-import { getPrompt, resolveModel } from "./agent-prompt"
+import { getPrompt, getPromptForType, resolveModel } from "./agent-prompt"
+import { getCriteriaForCase, getApplicationTypeId } from "./criteria"
 import type { DetailedExtraction } from "./eb1a-extraction-schema"
 import { ensureItemIds } from "./extraction-item-id"
 import {
@@ -432,12 +433,26 @@ async function verifyCriterion(
   documentText: string,
   context: string,
   criterionItems: { id: string; label: string }[],
+  applicationTypeId?: string | null,
 ) {
-  const schema = SCHEMAS[criterion]
-  const slug = CRITERION_SLUGS[criterion]
-  if (!schema || !slug) throw new Error(`Unknown criterion: ${criterion}`)
+  const schema = SCHEMAS[criterion] ?? SCHEMAS.C1 // fallback to generic verification schema
+  // Dynamic slug: CriterionPromptLink → hardcoded fallback
+  let slug = CRITERION_SLUGS[criterion]
+  if (applicationTypeId) {
+    const link = await db.criterionPromptLink.findUnique({
+      where: {
+        applicationTypeId_criterionKey_purpose: {
+          applicationTypeId,
+          criterionKey: criterion,
+          purpose: "verification",
+        },
+      },
+    })
+    if (link) slug = link.promptSlug
+  }
+  if (!slug) throw new Error(`No verification slug for criterion: ${criterion}`)
 
-  const row = await getPrompt(slug)
+  const row = await getPromptForType(slug, applicationTypeId ?? null)
   if (!row) throw new Error(`DB prompt not found or deactivated: ${slug}`)
 
   let itemBlock = ""
@@ -481,7 +496,7 @@ export async function runSingleCriterionVerification(
   const context = await buildVerificationContext(caseId)
 
   // Load extraction and ensure item IDs
-  const analysis = await db.eB1AAnalysis.findFirst({
+  const analysis = await db.caseAnalysis.findFirst({
     where: { caseId },
     orderBy: { createdAt: "desc" },
     select: { id: true, extraction: true },
@@ -490,15 +505,16 @@ export async function runSingleCriterionVerification(
   if (analysis?.extraction) {
     extraction = analysis.extraction as DetailedExtraction
     if (ensureItemIds(extraction)) {
-      await db.eB1AAnalysis.update({
+      await db.caseAnalysis.update({
         where: { id: analysis.id },
         data: { extraction: JSON.parse(JSON.stringify(extraction)) },
       })
     }
   }
 
+  const appTypeId = await getApplicationTypeId(caseId)
   const criterionItems = extraction ? getItemsForCriterion(extraction, criterion) : []
-  const data = await verifyCriterion(criterion, documentText, context, criterionItems)
+  const data = await verifyCriterion(criterion, documentText, context, criterionItems, appTypeId)
 
   // Get next version
   const latest = await db.evidenceVerification.findFirst({
@@ -539,10 +555,12 @@ export async function runDocumentVerification(
   onCriterionComplete?: (criterion: string, result: unknown) => void,
 ): Promise<DocumentVerificationResults> {
   const context = await buildVerificationContext(caseId)
-  const criteria = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]
+  // Dynamic criteria from case's application type
+  const caseCriteria = await getCriteriaForCase(caseId)
+  const criteria = caseCriteria.map((c) => c.key)
 
   // Load extraction and ensure item IDs
-  const analysis = await db.eB1AAnalysis.findFirst({
+  const analysis = await db.caseAnalysis.findFirst({
     where: { caseId },
     orderBy: { createdAt: "desc" },
     select: { id: true, extraction: true },
@@ -551,7 +569,7 @@ export async function runDocumentVerification(
   if (analysis?.extraction) {
     extraction = analysis.extraction as DetailedExtraction
     if (ensureItemIds(extraction)) {
-      await db.eB1AAnalysis.update({
+      await db.caseAnalysis.update({
         where: { id: analysis.id },
         data: { extraction: JSON.parse(JSON.stringify(extraction)) },
       })
@@ -566,12 +584,13 @@ export async function runDocumentVerification(
   })
   const version = (latest?.version ?? 0) + 1
 
+  const appTypeId = await getApplicationTypeId(caseId)
   const results: Record<string, { success: boolean; data?: unknown; error?: string }> = {}
 
   const settled = await Promise.allSettled(
     criteria.map(async (criterion) => {
       const criterionItems = extraction ? getItemsForCriterion(extraction, criterion) : []
-      const data = await verifyCriterion(criterion, documentText, context, criterionItems)
+      const data = await verifyCriterion(criterion, documentText, context, criterionItems, appTypeId)
 
       // Save to DB
       await db.evidenceVerification.create({

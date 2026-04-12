@@ -1,17 +1,30 @@
 import type { Metadata } from "next";
-import { Rubik, JetBrains_Mono } from "next/font/google";
+import { Cormorant_Garamond, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const rubik = Rubik({
-  variable: "--font-rubik",
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+  weight: ["300", "400", "500"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -25,16 +38,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${rubik.variable} ${jetbrainsMono.variable} antialiased font-sans`}
-        style={
-          {
-            fontFamily: "var(--font-rubik)",
-            "--font-mono": "var(--font-jetbrains-mono)",
-          } as React.CSSProperties
-        }
-      >
+    <html
+      lang="en"
+      className={`${cormorant.variable} ${dmSans.variable} ${jetbrainsMono.variable}`}
+    >
+      <body className="antialiased font-sans">
+        {/* casefor ink — paper grain overlay. Pointer-events none; sits above all content. */}
+        <div aria-hidden className="grain" />
         <Providers>{children}</Providers>
         <Toaster position="bottom-right" />
       </body>

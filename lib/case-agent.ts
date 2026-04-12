@@ -169,7 +169,7 @@ export function createCaseAgentTools(caseId: string, criteria: Criterion[]) {
       execute: async () => {
         console.log(`${logPrefix} [getLatestAnalysis] Called`);
 
-        const analysis = await db.eB1AAnalysis.findFirst({
+        const analysis = await db.caseAnalysis.findFirst({
           where: { caseId },
           orderBy: { createdAt: "desc" },
         });
@@ -241,7 +241,7 @@ export function createCaseAgentTools(caseId: string, criteria: Criterion[]) {
           updates.map((u) => `${u.criterionId}: ${u.strength}`),
         );
 
-        const current = await db.eB1AAnalysis.findFirst({
+        const current = await db.caseAnalysis.findFirst({
           where: { caseId },
           orderBy: { createdAt: "desc" },
         });
@@ -302,7 +302,7 @@ export function createCaseAgentTools(caseId: string, criteria: Criterion[]) {
           `${logPrefix} [updateAnalysis] Creating v${newVersion}, strong: ${counts.strong}, weak: ${counts.weak}`,
         );
 
-        await db.eB1AAnalysis.create({
+        await db.caseAnalysis.create({
           data: {
             caseId,
             version: newVersion,
@@ -381,7 +381,7 @@ export async function runCaseAgent(opts: {
       select: { criteriaThreshold: true, skippedSections: true },
     }),
     db.caseProfile.findUnique({ where: { caseId } }),
-    db.eB1AAnalysis.findFirst({
+    db.caseAnalysis.findFirst({
       where: { caseId },
       orderBy: { createdAt: "desc" },
     }),

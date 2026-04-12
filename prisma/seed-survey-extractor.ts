@@ -11,24 +11,29 @@ async function main() {
   const seed = agentPromptSeeds.find((s) => s.slug === 'survey-extractor')
   if (!seed) throw new Error('survey-extractor seed not found')
 
-  await prisma.agentPrompt.upsert({
-    where: { slug: seed.slug },
-    update: {
-      content: seed.content,
-      defaultContent: seed.content,
-    },
-    create: {
-      slug: seed.slug,
-      name: seed.name,
-      description: seed.description,
-      category: seed.category,
-      content: seed.content,
-      defaultContent: seed.content,
-      variables: seed.variables,
-      provider: seed.provider,
-      modelName: seed.modelName,
-    },
+  const existing = await prisma.agentPrompt.findFirst({
+    where: { slug: seed.slug, applicationTypeId: null },
   })
+  if (existing) {
+    await prisma.agentPrompt.update({
+      where: { id: existing.id },
+      data: { content: seed.content, defaultContent: seed.content },
+    })
+  } else {
+    await prisma.agentPrompt.create({
+      data: {
+        slug: seed.slug,
+        name: seed.name,
+        description: seed.description,
+        category: seed.category,
+        content: seed.content,
+        defaultContent: seed.content,
+        variables: seed.variables,
+        provider: seed.provider,
+        modelName: seed.modelName,
+      },
+    })
+  }
   console.log('Upserted survey-extractor prompt')
 }
 

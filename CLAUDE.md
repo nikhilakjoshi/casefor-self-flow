@@ -19,6 +19,17 @@
 - Always ask clarifying questions, even when instructions don't explicitly request them.
 - Be extremely concise. Sacrifice grammar for concision.
 
+## Multi-Matter-Type Architecture
+
+- Pipeline is dynamic: criteria, prompts, rubrics, denial frameworks resolve per ApplicationType
+- DB models: `CaseAnalysis` (renamed from EB1AAnalysis via `@@map`), `EvidenceTypeDefinition`, `StrengthRubric`, `CriterionPromptLink`, `DenialFramework`
+- `AgentPrompt` scoped per type via `applicationTypeId` FK. Lookup: type-specific -> global -> hardcoded fallback
+- `getCriteriaForCase(caseId)` / `getCriteriaMetadata(appTypeId)` in `lib/criteria.ts` are the single source of truth
+- `getPromptForType(slug, appTypeId)` in `lib/agent-prompt.ts` for type-scoped prompt resolution
+- `CriterionId` is now `string` (was `z.enum`). `CRITERIA_METADATA` is deprecated, use DB
+- Admin: `/admin/application-types` manages types, criteria, rubrics, frameworks. Clone flow duplicates everything
+- O-1B seeded with 8 criteria, prompt links reuse EB-1A prompts where criteria overlap
+
 ## Skill routing
 
 When the user's request matches an available skill, ALWAYS invoke it using the Skill

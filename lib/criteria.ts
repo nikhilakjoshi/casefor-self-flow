@@ -47,6 +47,67 @@ export async function getCriteriaForType(code: string): Promise<Criterion[]> {
   return appType.criteria.map(toFlatCriterion);
 }
 
+/** Full criterion metadata including USCIS text and guidance. */
+export interface CriterionMetadata {
+  key: string;
+  name: string;
+  description: string;
+  uscis: string;
+  guidance: string;
+  displayOrder: number;
+}
+
+/**
+ * Fetch full criteria metadata for an application type.
+ * Returns a Record keyed by criterionKey.
+ * Used by front-end components that need names/descriptions, replacing
+ * the static CRITERIA_METADATA constant from eb1a-extraction-schema.ts.
+ */
+export async function getCriteriaMetadata(
+  applicationTypeId: string | null,
+): Promise<Record<string, CriterionMetadata>> {
+  let mappings;
+  if (applicationTypeId) {
+    mappings = await db.criteriaMapping.findMany({
+      where: { applicationTypeId, active: true },
+      orderBy: { displayOrder: "asc" },
+    });
+  } else {
+    // Fallback: load EB1A
+    const eb1a = await db.applicationType.findUnique({ where: { code: "EB1A" } });
+    if (!eb1a) return {};
+    mappings = await db.criteriaMapping.findMany({
+      where: { applicationTypeId: eb1a.id, active: true },
+      orderBy: { displayOrder: "asc" },
+    });
+  }
+
+  const result: Record<string, CriterionMetadata> = {};
+  for (const m of mappings) {
+    result[m.criterionKey] = {
+      key: m.criterionKey,
+      name: m.name,
+      description: m.description,
+      uscis: m.uscisText || m.description,
+      guidance: m.guidanceText || "",
+      displayOrder: m.displayOrder,
+    };
+  }
+  return result;
+}
+
+/**
+ * Get the applicationTypeId for a case. Utility for pipeline functions
+ * that take caseId and need to resolve the type.
+ */
+export async function getApplicationTypeId(caseId: string): Promise<string | null> {
+  const c = await db.case.findUnique({
+    where: { id: caseId },
+    select: { applicationTypeId: true },
+  });
+  return c?.applicationTypeId ?? null;
+}
+
 function toFlatCriterion(m: {
   id: string;
   criterionKey: string;

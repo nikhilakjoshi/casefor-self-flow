@@ -3,7 +3,8 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { db } from "./db"
 import { buildEvaluationContext } from "./strength-evaluation"
 import { GapAnalysisSchema } from "./gap-analysis-schema"
-import { getPrompt, resolveModel } from "./agent-prompt"
+import { getPromptForType, resolveModel } from "./agent-prompt"
+import { getApplicationTypeId } from "./criteria"
 
 const FALLBACK_MODEL = "claude-sonnet-4-20250514"
 
@@ -216,7 +217,8 @@ export async function buildGapAnalysisContext(caseId: string) {
 
 export async function streamGapAnalysis(caseId: string) {
   const context = await buildGapAnalysisContext(caseId)
-  const p = await getPrompt("gap-analysis")
+  const appTypeId = await getApplicationTypeId(caseId)
+  const p = await getPromptForType("gap-analysis", appTypeId)
 
   return streamText({
     model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),

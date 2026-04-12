@@ -45,7 +45,7 @@ export async function GET(
   // Get criteria and analysis
   const [criteria, analysis, documents, verification] = await Promise.all([
     getCriteriaForCase(caseId),
-    db.eB1AAnalysis.findFirst({
+    db.caseAnalysis.findFirst({
       where: { caseId },
       orderBy: { createdAt: "desc" },
     }),

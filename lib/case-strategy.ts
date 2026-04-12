@@ -3,7 +3,8 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { db } from "./db"
 import { buildGapAnalysisContext } from "./gap-analysis"
 import { CaseStrategySchema } from "./case-strategy-schema"
-import { getPrompt, resolveModel } from "./agent-prompt"
+import { getPromptForType, resolveModel } from "./agent-prompt"
+import { getApplicationTypeId } from "./criteria"
 
 const FALLBACK_MODEL = "claude-sonnet-4-20250514"
 
@@ -166,7 +167,8 @@ export async function buildCaseStrategyContext(caseId: string) {
 
 export async function streamCaseStrategy(caseId: string) {
   const context = await buildCaseStrategyContext(caseId)
-  const p = await getPrompt("case-strategy")
+  const appTypeId = await getApplicationTypeId(caseId)
+  const p = await getPromptForType("case-strategy", appTypeId)
 
   return streamText({
     model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),

@@ -24,7 +24,7 @@ export async function GET(
     return new Response("Not found", { status: 404 })
   }
 
-  const analysis = await db.eB1AAnalysis.findFirst({
+  const analysis = await db.caseAnalysis.findFirst({
     where: { caseId },
     orderBy: { createdAt: "desc" },
   })
@@ -59,7 +59,7 @@ export async function GET(
 
   // Lazy backfill: assign item IDs if missing
   if (extraction && ensureItemIds(extraction)) {
-    await db.eB1AAnalysis.update({
+    await db.caseAnalysis.update({
       where: { id: analysis.id },
       data: { extraction: JSON.parse(JSON.stringify(extraction)) },
     })

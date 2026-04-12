@@ -22,9 +22,9 @@ interface AgentPrompt {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  static: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-  "dynamic-system": "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
-  "dynamic-user": "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+  static: "bg-[var(--blue-bg)] text-[var(--blue-info)]",
+  "dynamic-system": "bg-[var(--purple-bg)] text-[var(--purple-ip)]",
+  "dynamic-user": "bg-[var(--amber-bg)] text-[var(--amber-warn)]",
 }
 
 const GROUP_LABELS: Record<string, string> = {
@@ -118,7 +118,7 @@ export default function AdminPromptsPage() {
           {groups.map(([group, items]) => (
             <div
               key={group}
-              className="rounded-lg border border-stone-200 dark:border-stone-800 overflow-hidden"
+              className="rounded-lg border border-[var(--cream)] overflow-hidden"
             >
               <button
                 type="button"
@@ -141,7 +141,7 @@ export default function AdminPromptsPage() {
               {!collapsed[group] && (
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-t border-stone-200 dark:border-stone-800 bg-muted/30">
+                    <tr className="border-t border-[var(--cream)] bg-muted/30">
                       <th className="text-left px-3 py-1.5 font-medium text-muted-foreground text-xs">Name</th>
                       <th className="text-left px-3 py-1.5 font-medium text-muted-foreground text-xs">Category</th>
                       <th className="text-left px-3 py-1.5 font-medium text-muted-foreground text-xs">Model</th>
@@ -154,12 +154,12 @@ export default function AdminPromptsPage() {
                     {items.map((p) => (
                       <tr
                         key={p.id}
-                        className="border-t last:border-b-0 border-stone-200 dark:border-stone-800"
+                        className="border-t last:border-b-0 border-[var(--cream)]"
                       >
                         <td className="px-3 py-2">
                           <Link
                             href={`/admin/prompts/${p.id}`}
-                            className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5"
+                            className="text-[var(--accent-gold)] hover:text-[var(--accent-gold-light)] hover:underline flex items-center gap-1.5"
                           >
                             <MessageSquare className="size-3.5 shrink-0" />
                             {p.name}
@@ -192,7 +192,7 @@ export default function AdminPromptsPage() {
                             onClick={() => toggleActive(p)}
                             className={`inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                               p.active
-                                ? "bg-emerald-500"
+                                ? "bg-[var(--green-ok)]"
                                 : "bg-stone-300 dark:bg-stone-600"
                             }`}
                           >
