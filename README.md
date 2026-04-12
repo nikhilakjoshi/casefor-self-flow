@@ -224,4 +224,11 @@ prisma/
   seed.ts                     # EB-1A seed data
   seed-o1b.ts                 # O-1B seed data
   backfill-case-analysis.ts   # Migration: backfill applicationTypeId on CaseAnalysis rows
+
+plans/
+  designs/
+    multi-matter-type-design.md   # Office-hours design doc (problem, premises, approaches, gaps)
+    multi-matter-type-plan.md     # 8-phase implementation plan (file-by-file refactor details)
+  prd.json                        # Product requirements
+  prd.md                          # PRD narrative
 ```
