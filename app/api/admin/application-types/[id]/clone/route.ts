@@ -95,7 +95,7 @@ export async function POST(
           schemaKey: e.schemaKey,
           name: e.name,
           description: e.description,
-          fieldsJson: e.fieldsJson,
+          fieldsJson: e.fieldsJson === null ? undefined : e.fieldsJson,
           displayOrder: e.displayOrder,
           active: e.active,
         })),

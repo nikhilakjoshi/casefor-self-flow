@@ -24,6 +24,7 @@ export default async function CasePage({ params }: Props) {
     select: {
       id: true,
       userId: true,
+      applicationTypeId: true,
       intakeStatus: true,
       skippedSections: true,
       criteriaThreshold: true,

@@ -56,7 +56,7 @@ export async function POST(
   }
 
   // FormData = file upload for new analysis
-  return handleFileAnalysis(request, caseId, caseRecord, !session?.user?.id)
+  return handleFileAnalysis(request, caseId, caseRecord, !session?.user?.id, applicationTypeId)
 }
 
 // Handle reanalysis - merge existing extraction with survey data
@@ -128,7 +128,8 @@ async function handleFileAnalysis(
   request: Request,
   caseId: string,
   caseRecord: { profile: { data: unknown } | null },
-  isAnonymous: boolean
+  isAnonymous: boolean,
+  applicationTypeId?: string | null,
 ) {
   try {
     const formData = await request.formData()

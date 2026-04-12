@@ -9,6 +9,7 @@ export interface SlashTriggerProps {
   query: string
   editor: Editor
   range: Range
+  items: SlashCommand[]
   clientRect?: (() => DOMRect | null) | null
   command: (item: SlashMenuSelection) => void
 }
@@ -63,7 +64,8 @@ export const SlashCommandExtension = Extension.create<SlashCommandExtensionOptio
         )
       },
       render: () => {
-        let renderer: ReactRenderer<SlashMenuHandle, SlashTriggerProps> | null = null
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let renderer: ReactRenderer<SlashMenuHandle, any> | null = null
         let popup: HTMLDivElement | null = null
 
         const position = (clientRect?: (() => DOMRect | null) | null) => {
