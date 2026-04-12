@@ -90,10 +90,10 @@ export default function AdminTemplatesPage() {
       <h1 className="text-lg font-semibold mb-6">Templates</h1>
 
       {templates.length > 0 ? (
-        <div className="rounded-lg border border-stone-200 dark:border-stone-800 overflow-hidden">
+        <div className="rounded-lg border border-[var(--cream)] overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-stone-200 dark:border-stone-800 bg-muted/50">
+              <tr className="border-b border-[var(--cream)] bg-muted/50">
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground">Name</th>
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground">Type</th>
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground">Application Type</th>
@@ -107,12 +107,12 @@ export default function AdminTemplatesPage() {
               {templates.map((t) => (
                 <tr
                   key={t.id}
-                  className="border-b last:border-b-0 border-stone-200 dark:border-stone-800"
+                  className="border-b last:border-b-0 border-[var(--cream)]"
                 >
                   <td className="px-3 py-2">
                     <Link
                       href={`/admin/templates/${t.id}`}
-                      className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5"
+                      className="text-[var(--accent-gold)] hover:text-[var(--accent-gold-light)] hover:underline flex items-center gap-1.5"
                     >
                       <FileText className="size-3.5 shrink-0" />
                       {t.name}
@@ -143,7 +143,7 @@ export default function AdminTemplatesPage() {
                       onClick={() => toggleActive(t)}
                       className={`inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                         t.active
-                          ? "bg-emerald-500"
+                          ? "bg-[var(--green-ok)]"
                           : "bg-stone-300 dark:bg-stone-600"
                       }`}
                     >

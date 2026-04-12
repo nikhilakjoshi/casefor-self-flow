@@ -6,6 +6,7 @@ import {
 } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { db } from '@/lib/db'
+import { AnimatedContent } from '@/components/ui/animated-content'
 
 export default async function CaseLayout({
   children,
@@ -29,8 +30,8 @@ export default async function CaseLayout({
   return (
     <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar />
-      <SidebarInset className="overflow-hidden">
-        <header className="flex h-12 shrink-0 items-center border-b border-stone-200 dark:border-stone-800">
+      <SidebarInset className="flex flex-col overflow-hidden">
+        <header className="flex h-12 shrink-0 items-center border-b border-[var(--cream)]">
           <div className="flex flex-1 items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator
@@ -38,16 +39,20 @@ export default async function CaseLayout({
               className="mr-2 data-[orientation=vertical]:h-4"
             />
             <div className="grid text-left leading-tight">
-              <span className="text-sm font-medium text-stone-600 dark:text-stone-400">
+              <span className="font-serif text-[1.05rem] font-medium tracking-[-0.01em] text-[var(--ink)]">
                 {displayName}
               </span>
               {dateStr && (
-                <span className="text-xs text-muted-foreground">{dateStr}</span>
+                <span className="font-mono text-[0.65rem] tabular-nums text-[var(--ash)]">
+                  {dateStr}
+                </span>
               )}
             </div>
           </div>
         </header>
-        {children}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <AnimatedContent>{children}</AnimatedContent>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )

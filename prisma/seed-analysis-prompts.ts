@@ -387,26 +387,34 @@ async function main() {
   console.log('Seeding 10 analysis prompts (ax-c1 .. ax-c10)...')
 
   for (const seed of seeds) {
-    await prisma.agentPrompt.upsert({
-      where: { slug: seed.slug },
-      update: {
-        name: seed.name,
-        description: seed.description,
-        content: seed.content,
-        defaultContent: seed.content,
-      },
-      create: {
-        slug: seed.slug,
-        name: seed.name,
-        description: seed.description,
-        category: 'static',
-        content: seed.content,
-        defaultContent: seed.content,
-        variables: [],
-        provider: 'anthropic',
-        modelName: 'claude-sonnet-4-20250514',
-      },
+    const existing = await prisma.agentPrompt.findFirst({
+      where: { slug: seed.slug, applicationTypeId: null },
     })
+    if (existing) {
+      await prisma.agentPrompt.update({
+        where: { id: existing.id },
+        data: {
+          name: seed.name,
+          description: seed.description,
+          content: seed.content,
+          defaultContent: seed.content,
+        },
+      })
+    } else {
+      await prisma.agentPrompt.create({
+        data: {
+          slug: seed.slug,
+          name: seed.name,
+          description: seed.description,
+          category: 'static',
+          content: seed.content,
+          defaultContent: seed.content,
+          variables: [],
+          provider: 'anthropic',
+          modelName: 'claude-sonnet-4-20250514',
+        },
+      })
+    }
     console.log(`  upserted ${seed.slug}`)
   }
 

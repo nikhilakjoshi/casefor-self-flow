@@ -71,7 +71,7 @@ export function ChatInput({
 
   return (
     <div className="w-full">
-      <div className="rounded-2xl bg-muted p-4">
+      <div className="rounded-[8px] bg-[var(--parchment)] border border-[var(--cream)] p-4">
         {/* Input area */}
         <div className="mb-3">
           <ScrollArea className="max-h-[320px]">
@@ -83,7 +83,7 @@ export function ChatInput({
               onKeyDown={handleKeyDown}
               disabled={isLoading || disabled}
               rows={1}
-              className="w-full bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none text-base resize-none min-h-[24px] overflow-hidden disabled:opacity-50"
+              className="w-full bg-transparent text-[var(--charcoal)] placeholder:text-[var(--stone)] focus:outline-none text-[0.87rem] resize-none min-h-[24px] overflow-hidden disabled:opacity-50"
             />
           </ScrollArea>
         </div>
@@ -98,19 +98,19 @@ export function ChatInput({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:bg-accent rounded-lg"
+                    className="h-8 w-8 text-[var(--ash)] hover:bg-[var(--cream)] rounded-[4px]"
                     disabled={isLoading}
                   >
                     <Plus className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56 rounded-xl">
+                <DropdownMenuContent align="start" className="w-56 rounded-[8px]">
                   <DropdownMenuItem
                     onClick={handleFileClick}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-[4px] cursor-pointer"
                   >
                     <Paperclip className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Attach file</span>
+                    <span className="text-[0.82rem]">Attach file</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -121,7 +121,7 @@ export function ChatInput({
               <Button
                 variant="ghost"
                 onClick={onStartEvidence}
-                className="h-8 px-3 gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg"
+                className="h-8 px-3 gap-1.5 text-xs font-medium text-[var(--ash)] hover:text-[var(--ink)] hover:bg-[var(--cream)] rounded-[4px]"
               >
                 <FileSearch className="h-3.5 w-3.5" />
                 Evidence List
@@ -130,14 +130,14 @@ export function ChatInput({
           </div>
 
           {/* Right side - send */}
-          <Button
-            size="icon"
-            className="h-8 w-8 rounded-full"
+          <button
+            type="button"
+            className="h-8 w-8 rounded-full bg-[var(--ink)] text-[var(--parchment)] flex items-center justify-center hover:bg-[var(--deep-brown)] transition-colors disabled:opacity-30 disabled:pointer-events-none"
             disabled={!message.trim() || isLoading || disabled}
             onClick={handleSend}
           >
             <ArrowUp className="h-4 w-4" />
-          </Button>
+          </button>
         </div>
       </div>
 

@@ -155,13 +155,18 @@ const PdfExtractionSchema = z.object({
   ...DetailedExtractionSchema.omit({ extracted_text: true }).shape,
 })
 
-// Multipass extraction — 10 parallel per-criterion calls
+// Multipass extraction — N parallel per-criterion calls
 export async function extractAndEvaluate(
   resumeText: string,
   surveyData?: Record<string, unknown>,
   onCriterionComplete?: (criterion: string, partialAssembly: DetailedExtraction) => void,
+  applicationTypeId?: string | null,
 ): Promise<DetailedExtraction> {
-  return multipassExtract(resumeText, surveyData, onCriterionComplete)
+  return multipassExtract(resumeText, {
+    applicationTypeId,
+    surveyData,
+    onCriterionComplete,
+  })
 }
 
 export async function extractAndEvaluateFromPdf(
@@ -249,17 +254,19 @@ export async function streamExtractAndEvaluateFromPdf(
 }
 
 // Convert detailed extraction to legacy format
-export function extractionToLegacyFormat(extraction: DetailedExtraction): EB1AEvaluation {
+export function extractionToLegacyFormat(
+  extraction: DetailedExtraction,
+  criteriaMetadata?: Record<string, { name: string }>,
+): EB1AEvaluation {
   const criteriaMap: Record<string, CriterionResult> = {}
+  const meta = criteriaMetadata ?? CRITERIA_METADATA
+  const allCriteria = Object.keys(meta)
 
-  // Initialize all criteria
-  const allCriteria = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]
   for (const id of allCriteria) {
-    const meta = CRITERIA_METADATA[id as keyof typeof CRITERIA_METADATA]
     criteriaMap[id] = {
       criterionId: id,
       strength: "None",
-      reason: `No evidence found for ${meta.name.toLowerCase()}`,
+      reason: `No evidence found for ${meta[id]?.name?.toLowerCase() ?? id}`,
       evidence: [],
     }
   }
@@ -339,28 +346,30 @@ export function countCriteriaStrengths(evaluation: EB1AEvaluation): {
 }
 
 // Count from detailed extraction
-export function countExtractionStrengths(extraction: DetailedExtraction): {
+export function countExtractionStrengths(
+  extraction: DetailedExtraction,
+  totalCriteria?: number,
+): {
   strong: number
   weak: number
   none: number
 } {
+  const total = totalCriteria ?? 10
+
   if (!extraction.criteria_summary || extraction.criteria_summary.length === 0) {
-    return { strong: 0, weak: 0, none: 10 }
+    return { strong: 0, weak: 0, none: total }
   }
 
   const counts = { strong: 0, weak: 0, none: 0 }
-  const foundCriteria = new Set<string>()
-
   for (const summary of extraction.criteria_summary) {
-    foundCriteria.add(summary.criterion_id)
     if (summary.strength === "Strong") counts.strong++
     else if (summary.strength === "Weak") counts.weak++
     else counts.none++
   }
 
-  // Count criteria not in summary as None
-  const allCriteria = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10"]
-  counts.none += allCriteria.filter((c) => !foundCriteria.has(c)).length
+  // Count missing criteria as None
+  const missing = total - extraction.criteria_summary.length
+  if (missing > 0) counts.none += missing
 
   return counts
 }

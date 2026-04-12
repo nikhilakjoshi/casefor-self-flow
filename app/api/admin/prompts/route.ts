@@ -64,8 +64,8 @@ export async function POST(request: Request) {
     )
   }
 
-  const existing = await db.agentPrompt.findUnique({
-    where: { slug: parsed.data.slug },
+  const existing = await db.agentPrompt.findFirst({
+    where: { slug: parsed.data.slug, applicationTypeId: null },
   })
   if (existing) {
     return NextResponse.json({ error: 'Slug already exists' }, { status: 409 })

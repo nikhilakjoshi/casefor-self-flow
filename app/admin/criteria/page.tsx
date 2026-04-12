@@ -146,10 +146,10 @@ export default function AdminCriteriaPage() {
             </Badge>
           </div>
 
-          <div className="rounded-lg border border-stone-200 dark:border-stone-800 overflow-hidden">
+          <div className="rounded-lg border border-[var(--cream)] overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-stone-200 dark:border-stone-800 bg-muted/50">
+                <tr className="border-b border-[var(--cream)] bg-muted/50">
                   <th className="text-left px-3 py-2 font-medium text-muted-foreground">Key</th>
                   <th className="text-left px-3 py-2 font-medium text-muted-foreground">Name</th>
                   <th className="text-left px-3 py-2 font-medium text-muted-foreground">Description</th>
@@ -164,7 +164,7 @@ export default function AdminCriteriaPage() {
                   return (
                     <tr
                       key={c.id}
-                      className="border-b last:border-b-0 border-stone-200 dark:border-stone-800"
+                      className="border-b last:border-b-0 border-[var(--cream)]"
                     >
                       <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                         {c.criterionKey}
@@ -224,7 +224,7 @@ export default function AdminCriteriaPage() {
                             }
                             className={`inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                               editing.active
-                                ? "bg-emerald-500"
+                                ? "bg-[var(--green-ok)]"
                                 : "bg-stone-300 dark:bg-stone-600"
                             }`}
                           >
@@ -240,7 +240,7 @@ export default function AdminCriteriaPage() {
                             onClick={() => toggleActive(c)}
                             className={`inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                               c.active
-                                ? "bg-emerald-500"
+                                ? "bg-[var(--green-ok)]"
                                 : "bg-stone-300 dark:bg-stone-600"
                             }`}
                           >

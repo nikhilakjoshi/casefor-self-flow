@@ -66,7 +66,7 @@ export async function processResume(formData: FormData): Promise<ProcessResumeRe
     const counts = countCriteriaStrengths(evaluation)
 
     // 7. Create EB1AAnalysis record
-    await db.eB1AAnalysis.create({
+    await db.caseAnalysis.create({
       data: {
         caseId: caseRecord.id,
         criteria: evaluation.criteria,

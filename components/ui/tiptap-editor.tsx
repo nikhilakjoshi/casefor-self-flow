@@ -14,6 +14,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { TrackChangeExtension, MARK_INSERTION, MARK_DELETION, EXTENSION_NAME } from "@/lib/tiptap-track-change";
 import { toast } from "sonner";
+import { SlashCommandExtension, type SlashMenuSelection } from "./slash-command-extension";
+import type { SlashCommand } from "@/lib/slash-commands";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -94,6 +96,14 @@ interface TiptapEditorProps {
   trackChangesDefault?: boolean;
   userId?: string;
   userNickname?: string;
+  /** Document category — enables category-aware slash commands when set with caseId. */
+  category?: string;
+  /**
+   * When true, renders as an inline form field (casefor-ink admin style)
+   * instead of the full paper-page document editor. No gray bg, no page
+   * shadow, no centered max-width. Fits inside admin forms.
+   */
+  minimal?: boolean;
 }
 
 export function TiptapEditor({
@@ -104,19 +114,27 @@ export function TiptapEditor({
   onSave,
   onClose,
   caseId,
+  documentId,
   documentName,
   inlineEditUrl,
   trackChangesDefault = false,
   userId,
   userNickname,
+  category,
+  minimal = false,
 }: TiptapEditorProps) {
-  const isEditable = editable && !streaming;
+  const [slashBusy, setSlashBusy] = useState(false);
+  const isEditable = editable && !streaming && !slashBusy;
   const lastContentRef = useRef(content);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
   const [blockMenuOpen, setBlockMenuOpen] = useState(false);
   const blockMenuRef = useRef<HTMLDivElement>(null);
   const [, setTick] = useState(0);
   const [trackChangesOn, setTrackChangesOn] = useState(trackChangesDefault);
+  const [slashCommandList, setSlashCommandList] = useState<SlashCommand[]>([]);
+  const slashCommandListRef = useRef<SlashCommand[]>([]);
+  slashCommandListRef.current = slashCommandList;
+  const slashSelectRef = useRef<(sel: SlashMenuSelection) => void>(() => {});
 
   const editor = useEditor({
     extensions: [
@@ -137,6 +155,12 @@ export function TiptapEditor({
       TrackChangeExtension.configure({
         enabled: trackChangesDefault,
         onStatusChange: (enabled: boolean) => setTrackChangesOn(enabled),
+      }),
+      SlashCommandExtension.configure({
+        getCommands: () => slashCommandListRef.current,
+        onSelect: (selection) => {
+          slashSelectRef.current(selection);
+        },
       }),
     ],
     content,
@@ -199,6 +223,118 @@ export function TiptapEditor({
     }
     wasStreamingRef.current = streaming;
   }, [editor, streaming, trackChangesOn]);
+
+  // Fetch slash commands whenever case/category changes
+  const slashEnabled = Boolean(caseId && category);
+  useEffect(() => {
+    if (!slashEnabled) {
+      setSlashCommandList([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/case/${caseId}/slash?category=${encodeURIComponent(category!)}`,
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as { commands: SlashCommand[] };
+        if (!cancelled) setSlashCommandList(data.commands ?? []);
+      } catch (err) {
+        console.error("slash fetch error:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slashEnabled, caseId, category]);
+
+  // Slash command execution — captures cursor via a placeholder token so we
+  // can splice AI-generated markdown back in at the right spot without
+  // needing PM-pos ↔ markdown-offset conversion.
+  const runSlashCommand = useCallback(
+    async (selection: SlashMenuSelection) => {
+      if (!editor || !caseId) return;
+      const { command: cmd, argValue } = selection;
+
+      // Insert a unique placeholder token at the current cursor, serialize,
+      // and stash the template so we can reassemble the doc per flush.
+      const token = `__slash_${Date.now()}_${Math.random().toString(36).slice(2, 8)}__`;
+      editor.chain().focus().insertContent(token).run();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const templateMd = (editor.storage as any).markdown.getMarkdown() as string;
+
+      const replaceToken = (replacement: string) => {
+        const updated = templateMd.replace(token, replacement);
+        const ext = editor.extensionManager.extensions.find(
+          (e) => e.name === EXTENSION_NAME,
+        );
+        if (ext) ext.options._skipTracking = true;
+        editor.commands.setContent(updated);
+        if (ext) ext.options._skipTracking = false;
+        lastContentRef.current = updated;
+      };
+
+      // Clear the token immediately so the editor doesn't show "__slash_..." literal
+      replaceToken("");
+
+      setSlashBusy(true);
+      if (cmd.needsLLM) toast.info(`${cmd.label}: generating...`);
+
+      try {
+        const res = await fetch(`/api/case/${caseId}/slash`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            commandId: cmd.id,
+            argValue,
+            category,
+            documentId,
+            documentName,
+          }),
+        });
+        if (!res.ok) throw new Error(`slash ${cmd.id} failed`);
+
+        if (!cmd.needsLLM) {
+          const text = await res.text();
+          replaceToken(text);
+          return;
+        }
+
+        // Streaming path: paragraph-boundary flushing.
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("no body reader");
+        const decoder = new TextDecoder();
+        let accumulated = "";
+        let lastFlushed = "";
+        const flush = () => {
+          if (accumulated === lastFlushed) return;
+          lastFlushed = accumulated;
+          replaceToken(accumulated);
+        };
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          accumulated += decoder.decode(value, { stream: true });
+          if (accumulated.includes("\n\n") && accumulated !== lastFlushed) {
+            flush();
+          }
+        }
+        flush();
+      } catch (err) {
+        console.error("slash command error:", err);
+        toast.error("Command failed");
+        // Token was already cleared; nothing more to clean up.
+      } finally {
+        setSlashBusy(false);
+      }
+    },
+    [editor, caseId, category, documentId, documentName],
+  );
+
+  useEffect(() => {
+    slashSelectRef.current = runSlashCommand;
+  }, [runSlashCommand]);
 
   const hasUnresolvedChanges = useCallback(() => {
     if (!editor) return false;
@@ -743,17 +879,31 @@ export function TiptapEditor({
         </div>
       )}
 
-      {/* Editor body - paper page on gray background */}
-      <div className="flex-1 min-h-0 overflow-auto bg-[#f1f3f4] dark:bg-neutral-900 relative">
+      {/* Editor body */}
+      <div className={cn(
+        "flex-1 min-h-0 overflow-auto relative",
+        minimal
+          ? "bg-[var(--parchment)]"
+          : "bg-[#f1f3f4] dark:bg-neutral-900"
+      )}>
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div
-              className="max-w-[816px] mx-auto my-8 bg-white dark:bg-card shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_8px_rgba(0,0,0,0.08)]"
+              className={cn(
+                minimal
+                  ? "" // No paper-page wrapper in minimal mode
+                  : "max-w-[816px] mx-auto my-8 bg-white dark:bg-card shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_8px_rgba(0,0,0,0.08)]"
+              )}
               onContextMenu={captureSelection}
             >
               <EditorContent
                 editor={editor}
-                className="prose prose-stone dark:prose-invert max-w-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[800px] [&_.ProseMirror]:px-24 [&_.ProseMirror]:py-16 markdown-body"
+                className={cn(
+                  "prose prose-stone dark:prose-invert max-w-none [&_.ProseMirror]:outline-none markdown-body",
+                  minimal
+                    ? "[&_.ProseMirror]:min-h-[300px] [&_.ProseMirror]:px-4 [&_.ProseMirror]:py-3 [&_.ProseMirror]:text-[0.84rem] [&_.ProseMirror]:text-[var(--charcoal)] [&_.ProseMirror]:font-[var(--font-body)]"
+                    : "[&_.ProseMirror]:min-h-[800px] [&_.ProseMirror]:px-24 [&_.ProseMirror]:py-16"
+                )}
               />
             </div>
           </ContextMenuTrigger>

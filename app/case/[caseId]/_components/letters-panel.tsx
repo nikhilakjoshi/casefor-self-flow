@@ -109,8 +109,8 @@ export const LETTER_TYPES: LetterType[] = [
     description: 'AI-drafted resume tailored for your EB-1A petition',
     category: 'EXECUTIVE_RESUME',
     icon: FileText,
-    gradient: 'from-indigo-500/15 to-violet-500/15',
-    iconColor: 'text-indigo-600 dark:text-indigo-400',
+    gradient: 'from-[var(--accent-gold-subtle)] to-[var(--cream)]',
+    iconColor: 'text-[var(--accent-gold)]',
     isDraftable: true,
   },
   {
@@ -119,8 +119,8 @@ export const LETTER_TYPES: LetterType[] = [
     description: 'Letters from experts supporting your case',
     category: 'RECOMMENDATION_LETTER',
     icon: Users,
-    gradient: 'from-blue-500/15 to-indigo-500/15',
-    iconColor: 'text-blue-600 dark:text-blue-400',
+    gradient: 'from-[var(--accent-gold-subtle)] to-[var(--cream)]',
+    iconColor: 'text-[var(--accent-gold)]',
     isPerRecommender: true,
     isDraftable: true,
   },
@@ -130,8 +130,8 @@ export const LETTER_TYPES: LetterType[] = [
     description: 'Introduction letter for your petition package',
     category: 'COVER_LETTER',
     icon: BookOpen,
-    gradient: 'from-cyan-500/15 to-sky-500/15',
-    iconColor: 'text-cyan-600 dark:text-cyan-400',
+    gradient: 'from-[var(--accent-gold-subtle)] to-[var(--cream)]',
+    iconColor: 'text-[var(--accent-gold)]',
     isDraftable: true,
   },
   {
@@ -140,8 +140,8 @@ export const LETTER_TYPES: LetterType[] = [
     description: 'Your narrative of extraordinary ability',
     category: 'PERSONAL_STATEMENT',
     icon: PenLine,
-    gradient: 'from-violet-500/15 to-fuchsia-500/15',
-    iconColor: 'text-violet-600 dark:text-violet-400',
+    gradient: 'from-[var(--accent-gold-subtle)] to-[var(--cream)]',
+    iconColor: 'text-[var(--accent-gold)]',
     isDraftable: true,
   },
   {
@@ -150,8 +150,8 @@ export const LETTER_TYPES: LetterType[] = [
     description: 'Legal argument for your case',
     category: 'PETITION_LETTER',
     icon: Scale,
-    gradient: 'from-amber-500/15 to-orange-500/15',
-    iconColor: 'text-amber-600 dark:text-amber-400',
+    gradient: 'from-[var(--accent-gold-subtle)] to-[var(--cream)]',
+    iconColor: 'text-[var(--accent-gold)]',
     isDraftable: true,
   },
   {
@@ -160,8 +160,8 @@ export const LETTER_TYPES: LetterType[] = [
     description: 'Expert opinion letter for USCIS review',
     category: 'USCIS_ADVISORY_LETTER',
     icon: Shield,
-    gradient: 'from-rose-500/15 to-pink-500/15',
-    iconColor: 'text-rose-600 dark:text-rose-400',
+    gradient: 'from-[var(--accent-gold-subtle)] to-[var(--cream)]',
+    iconColor: 'text-[var(--accent-gold)]',
     isDraftable: true,
   },
   {
@@ -170,8 +170,8 @@ export const LETTER_TYPES: LetterType[] = [
     description: 'Immigrant Petition for Alien Workers',
     category: 'I140',
     icon: ClipboardList,
-    gradient: 'from-emerald-500/15 to-teal-500/15',
-    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    gradient: 'from-[var(--blue-bg)] to-[var(--cream)]',
+    iconColor: 'text-[var(--blue-info)]',
     isDraftable: false,
     uscisUrl: 'https://www.uscis.gov/i-140',
   },
@@ -181,8 +181,8 @@ export const LETTER_TYPES: LetterType[] = [
     description: 'Request for Premium Processing Service',
     category: 'I907',
     icon: FileCheck,
-    gradient: 'from-emerald-500/15 to-teal-500/15',
-    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    gradient: 'from-[var(--blue-bg)] to-[var(--cream)]',
+    iconColor: 'text-[var(--blue-info)]',
     isDraftable: false,
     uscisUrl: 'https://www.uscis.gov/i-907',
   },
@@ -192,8 +192,8 @@ export const LETTER_TYPES: LetterType[] = [
     description: 'Notice of Entry of Appearance as Attorney',
     category: 'G28',
     icon: ClipboardList,
-    gradient: 'from-emerald-500/15 to-teal-500/15',
-    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    gradient: 'from-[var(--blue-bg)] to-[var(--cream)]',
+    iconColor: 'text-[var(--blue-info)]',
     isDraftable: false,
     uscisUrl: 'https://www.uscis.gov/g-28',
   },
@@ -203,8 +203,8 @@ export const LETTER_TYPES: LetterType[] = [
     description: 'Authorization for Credit Card - Premium Processing',
     category: 'G1450PPU',
     icon: FileSpreadsheet,
-    gradient: 'from-stone-500/15 to-zinc-500/15',
-    iconColor: 'text-stone-600 dark:text-stone-400',
+    gradient: 'from-[var(--cream)] to-[var(--parchment)]',
+    iconColor: 'text-[var(--ash)]',
     isDraftable: false,
     uscisUrl: 'https://www.uscis.gov/g-1450',
   },
@@ -214,8 +214,8 @@ export const LETTER_TYPES: LetterType[] = [
     description: 'Authorization for Credit Card - I-140 Filing Fee',
     category: 'G1450300',
     icon: FileSpreadsheet,
-    gradient: 'from-stone-500/15 to-zinc-500/15',
-    iconColor: 'text-stone-600 dark:text-stone-400',
+    gradient: 'from-[var(--cream)] to-[var(--parchment)]',
+    iconColor: 'text-[var(--ash)]',
     isDraftable: false,
     uscisUrl: 'https://www.uscis.gov/g-1450',
   },
@@ -225,8 +225,8 @@ export const LETTER_TYPES: LetterType[] = [
     description: 'Authorization for Credit Card - I-40',
     category: 'G1450I40',
     icon: FileSpreadsheet,
-    gradient: 'from-stone-500/15 to-zinc-500/15',
-    iconColor: 'text-stone-600 dark:text-stone-400',
+    gradient: 'from-[var(--cream)] to-[var(--parchment)]',
+    iconColor: 'text-[var(--ash)]',
     isDraftable: false,
     uscisUrl: 'https://www.uscis.gov/g-1450',
   },
@@ -253,7 +253,7 @@ export function StatusDot({ status }: { status: string }) {
     <span
       className={cn(
         'w-1.5 h-1.5 rounded-full shrink-0',
-        status === 'DRAFT' ? 'bg-amber-500' : 'bg-emerald-500'
+        status === 'DRAFT' ? 'bg-[var(--amber-warn)]' : 'bg-[var(--green-ok)]'
       )}
       title={status === 'DRAFT' ? 'Draft' : 'Final'}
     />
@@ -341,10 +341,10 @@ export const RELATIONSHIP_LABELS: Record<string, string> = {
 
 function getRiskBannerStyle(level: string) {
   switch (level) {
-    case 'LOW': return { bg: 'bg-emerald-500/10 border-emerald-500/30', text: 'text-emerald-700 dark:text-emerald-300', icon: 'text-emerald-600' }
-    case 'MEDIUM': return { bg: 'bg-amber-500/10 border-amber-500/30', text: 'text-amber-700 dark:text-amber-300', icon: 'text-amber-600' }
-    case 'HIGH': return { bg: 'bg-orange-500/10 border-orange-500/30', text: 'text-orange-700 dark:text-orange-300', icon: 'text-orange-600' }
-    case 'VERY_HIGH': return { bg: 'bg-red-500/10 border-red-500/30', text: 'text-red-700 dark:text-red-300', icon: 'text-red-600' }
+    case 'LOW': return { bg: 'bg-[var(--green-bg)] border-[var(--green-ok)]/30', text: 'text-[var(--green-ok)]', icon: 'text-[var(--green-ok)]' }
+    case 'MEDIUM': return { bg: 'bg-[var(--amber-bg)] border-[var(--amber-warn)]/30', text: 'text-[var(--amber-warn)]', icon: 'text-amber-600' }
+    case 'HIGH': return { bg: 'bg-[var(--amber-bg)] border-[var(--amber-warn)]/30', text: 'text-[var(--amber-warn)]', icon: 'text-[var(--amber-warn)]' }
+    case 'VERY_HIGH': return { bg: 'bg-[var(--red-bg)] border-[var(--red-urgent)]/30', text: 'text-[var(--red-urgent)]', icon: 'text-[var(--red-urgent)]' }
     default: return { bg: 'bg-muted/60 border-border', text: 'text-muted-foreground', icon: 'text-muted-foreground' }
   }
 }
@@ -383,7 +383,7 @@ function DenialRiskBanner({ data }: { data: DenialProbability }) {
                 <div key={i} className="flex items-start gap-1.5">
                   <span className={cn(
                     'w-1.5 h-1.5 rounded-full mt-1 shrink-0',
-                    flag.level === 'HIGH' ? 'bg-red-500' : flag.level === 'MEDIUM' ? 'bg-amber-500' : 'bg-stone-400'
+                    flag.level === 'HIGH' ? 'bg-[var(--red-urgent)]' : flag.level === 'MEDIUM' ? 'bg-[var(--amber-warn)]' : 'bg-[var(--stone)]'
                   )} />
                   <span className="text-[11px] text-muted-foreground">{flag.description}</span>
                 </div>
@@ -986,8 +986,8 @@ export function RecommenderCard({
                           <div className="relative p-3">
                             <div className="flex items-center justify-between mb-1.5">
                               <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <div className="w-6 h-6 rounded-md bg-blue-500/10 flex items-center justify-center shrink-0">
-                                  <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400">
+                                <div className="w-6 h-6 rounded-md bg-[var(--blue-bg)] flex items-center justify-center shrink-0">
+                                  <span className="text-[9px] font-bold text-[var(--accent-gold)]">
                                     {rec.name
                                       .split(' ')
                                       .slice(0, 2)
@@ -1009,7 +1009,7 @@ export function RecommenderCard({
                                       {rec.criteriaKeys.slice(0, 3).map((key) => (
                                         <span
                                           key={key}
-                                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-[var(--blue-bg)] text-[var(--accent-gold)]"
                                           title={CRITERIA_LABELS[key] ?? key}
                                         >
                                           {key}
@@ -1083,29 +1083,29 @@ export function RecommenderCard({
                                       className={cn(
                                         'rounded-md px-2.5 py-1.5 text-[11px] border',
                                         isAppend
-                                          ? 'bg-amber-500/[0.06] border-amber-500/15 dark:bg-amber-500/[0.08]'
-                                          : 'bg-emerald-500/[0.06] border-emerald-500/15 dark:bg-emerald-500/[0.08]'
+                                          ? 'bg-[var(--amber-bg)] border-[var(--amber-warn)]/15'
+                                          : 'bg-[var(--green-bg)] border-[var(--green-ok)]/15'
                                       )}
                                     >
                                       <div className="flex items-center gap-1.5 mb-0.5">
                                         {isAppend ? (
-                                          <ArrowRight className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                                          <ArrowRight className="w-3 h-3 text-[var(--accent-gold)] shrink-0" />
                                         ) : (
-                                          <Plus className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                          <Plus className="w-3 h-3 text-[var(--blue-info)] shrink-0" />
                                         )}
                                         <span className={cn(
                                           'font-semibold',
                                           isAppend
-                                            ? 'text-amber-700 dark:text-amber-300'
-                                            : 'text-emerald-700 dark:text-emerald-300'
+                                            ? 'text-[var(--amber-warn)]'
+                                            : 'text-[var(--green-ok)]'
                                         )}>
                                           {FIELD_LABELS[field] || field}
                                         </span>
                                         <span className={cn(
                                           'ml-auto text-[10px]',
                                           isAppend
-                                            ? 'text-amber-600/60 dark:text-amber-400/60'
-                                            : 'text-emerald-600/60 dark:text-emerald-400/60'
+                                            ? 'text-[var(--amber-warn)]/60'
+                                            : 'text-[var(--green-ok)]/60 dark:text-emerald-400/60'
                                         )}>
                                           {isAppend ? 'append' : 'new'}
                                         </span>
@@ -1507,15 +1507,15 @@ function UsIntentCard({ caseId, initialData }: { caseId: string; initialData?: S
     <div
       className={cn(
         'rounded-xl border overflow-hidden transition-colors',
-        isComplete ? 'border-border/50 bg-card/50' : 'border-amber-500/50 bg-amber-500/5'
+        isComplete ? 'border-border/50 bg-card/50' : 'border-[var(--amber-warn)]/50 bg-[var(--amber-bg)]'
       )}
     >
       <div
         className="flex items-center gap-3 px-4 py-3 cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-sky-500/15 to-blue-500/15">
-          <MapPin className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-[var(--blue-bg)] to-[var(--cream)]">
+          <MapPin className="w-4 h-4 text-[var(--blue-info)]" />
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-semibold">U.S. Intent</h3>
@@ -1525,12 +1525,12 @@ function UsIntentCard({ caseId, initialData }: { caseId: string; initialData?: S
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {isComplete ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--green-bg)] text-[var(--green-ok)]">
               <Check className="w-3 h-3" />
               Completed
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--amber-bg)] text-[var(--amber-warn)]">
               <AlertTriangle className="w-3 h-3" />
               Incomplete
             </span>

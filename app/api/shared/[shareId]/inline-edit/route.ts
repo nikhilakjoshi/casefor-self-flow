@@ -30,7 +30,7 @@ export async function POST(request: Request, { params }: Params) {
 
   const [profile, analysis, denialProb] = await Promise.all([
     db.caseProfile.findUnique({ where: { caseId } }),
-    db.eB1AAnalysis.findFirst({
+    db.caseAnalysis.findFirst({
       where: { caseId },
       orderBy: { createdAt: 'desc' },
     }),

@@ -43,8 +43,10 @@ export function MessageItem({
     >
       <div
         className={cn(
-          "max-w-[80%] rounded-lg px-4 py-3 text-sm",
-          isUser ? "bg-muted text-foreground" : "text-foreground",
+          "max-w-[80%] rounded-[8px] px-4 py-3 text-[0.84rem]",
+          isUser
+            ? "bg-[var(--cream)] text-[var(--ink)]"
+            : "text-[var(--charcoal)]",
         )}
       >
         {isFileUpload ? (

@@ -6,7 +6,8 @@ import {
   DenialProbabilityPass1Schema,
   DenialProbabilityPass2Schema,
 } from "./denial-probability-schema"
-import { getPrompt, resolveModel } from "./agent-prompt"
+import { getPrompt, getPromptForType, resolveModel } from "./agent-prompt"
+import { getApplicationTypeId } from "./criteria"
 import { z } from "zod"
 
 const FALLBACK_MODEL = "claude-sonnet-4-20250514"
@@ -133,7 +134,7 @@ export async function buildDenialProbabilityContext(caseId: string) {
     db.document.count({ where: { caseId } }),
     db.recommender.count({ where: { caseId } }),
     db.caseProfile.findUnique({ where: { caseId }, select: { data: true } }),
-    db.eB1AAnalysis.findFirst({ where: { caseId }, select: { id: true } }),
+    db.caseAnalysis.findFirst({ where: { caseId }, select: { id: true } }),
   ])
 
   if (!strengthEval) {
@@ -159,12 +160,23 @@ EB-1A Analysis: ${eb1aAnalysis ? "present" : "none"}`
 
 export async function streamDenialProbabilityPass1(caseId: string) {
   const { context, inventory } = await buildDenialProbabilityContext(caseId)
-  const p = await getPrompt("denial-probability")
+  const appTypeId = await getApplicationTypeId(caseId)
+
+  // Try type-specific denial framework from DB
+  let frameworkContent: string | null = null
+  if (appTypeId) {
+    const framework = await db.denialFramework.findUnique({
+      where: { applicationTypeId: appTypeId },
+    })
+    if (framework) frameworkContent = framework.content
+  }
+
+  const p = await getPromptForType("denial-probability", appTypeId)
 
   const stream = streamText({
     model: p ? resolveModel(p.provider, p.modelName) : anthropic(FALLBACK_MODEL),
     output: Output.object({ schema: DenialProbabilityPass1Schema }),
-    system: p?.content ?? FALLBACK_PROMPT,
+    system: frameworkContent ?? p?.content ?? FALLBACK_PROMPT,
     prompt: `Perform a qualitative denial probability assessment on the following case data, strength evaluation, and gap analysis:\n\n${context}`,
   })
 

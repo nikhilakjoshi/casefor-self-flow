@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { CasePageClient } from './client'
+import { getCriteriaMetadata, type CriterionMetadata } from '@/lib/criteria'
 import type { DetailedExtraction } from '@/lib/eb1a-extraction-schema'
 
 interface Props {
@@ -27,7 +28,7 @@ export default async function CasePage({ params }: Props) {
       skippedSections: true,
       criteriaThreshold: true,
       profile: true,
-      eb1aAnalyses: {
+      caseAnalyses: {
         orderBy: { createdAt: 'desc' },
         take: 1,
       },
@@ -51,6 +52,9 @@ export default async function CasePage({ params }: Props) {
       data: { caseId, data: {} },
     })
   }
+
+  // Fetch criteria metadata for dynamic rendering (replaces static CRITERIA_METADATA import)
+  const criteriaMetadata = await getCriteriaMetadata(caseRecord.applicationTypeId ?? null)
 
   const [latestStrengthEval, latestGapAnalysis, latestCaseStrategy, latestCaseConsolidation, latestDenialProbability] = await Promise.all([
     db.strengthEvaluation.findFirst({
@@ -80,7 +84,7 @@ export default async function CasePage({ params }: Props) {
     }),
   ])
 
-  const latestAnalysis = caseRecord.eb1aAnalyses[0] ?? null
+  const latestAnalysis = caseRecord.caseAnalyses[0] ?? null
 
   const initialMessages = caseRecord.chatMessages.map((m: ChatMsg) => ({
     id: m.id,
@@ -109,6 +113,7 @@ export default async function CasePage({ params }: Props) {
   return (
     <CasePageClient
       caseId={caseId}
+      criteriaMetadata={criteriaMetadata}
       initialMessages={initialMessages}
       initialAnalysis={analysisData}
       hasExistingMessages={caseRecord.chatMessages.length > 0}

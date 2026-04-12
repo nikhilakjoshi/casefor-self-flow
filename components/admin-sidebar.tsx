@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  LayoutDashboard,
   ListChecks,
   FileStack,
   MessageSquare,
@@ -25,11 +24,10 @@ import {
 } from "@/components/ui/sidebar"
 
 const navItems = [
-  { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { title: "Matter Types", href: "/admin/application-types", icon: Settings },
   { title: "Criteria", href: "/admin/criteria", icon: ListChecks },
   { title: "Templates", href: "/admin/templates", icon: FileStack },
   { title: "Prompts", href: "/admin/prompts", icon: MessageSquare },
-  { title: "Application Types", href: "/admin/application-types", icon: Settings },
 ]
 
 export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -64,11 +62,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
-                    isActive={
-                      item.href === "/admin"
-                        ? pathname === "/admin"
-                        : pathname.startsWith(item.href)
-                    }
+                    isActive={pathname.startsWith(item.href)}
                   >
                     <Link href={item.href}>
                       <item.icon className="size-4" />

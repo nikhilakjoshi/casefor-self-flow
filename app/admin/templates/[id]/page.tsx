@@ -185,7 +185,7 @@ export default function AdminTemplateEditPage() {
     return (
       <div className="p-6">
         <p className="text-destructive text-sm">{error || "Template not found"}</p>
-        <Link href="/admin/templates" className="text-sm text-blue-600 dark:text-blue-400 hover:underline mt-2 inline-block">
+        <Link href="/admin/templates" className="text-sm text-[var(--accent-gold)] hover:text-[var(--accent-gold-light)] hover:underline mt-2 inline-block">
           Back to templates
         </Link>
       </div>
@@ -260,7 +260,7 @@ export default function AdminTemplateEditPage() {
             type="button"
             onClick={() => setActive(!active)}
             className={`inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-              active ? "bg-emerald-500" : "bg-stone-300 dark:bg-stone-600"
+              active ? "bg-[var(--green-ok)]" : "bg-[var(--stone)]"
             }`}
           >
             <span

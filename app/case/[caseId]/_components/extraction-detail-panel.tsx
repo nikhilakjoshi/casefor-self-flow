@@ -13,6 +13,7 @@ import { ChevronDown, ChevronRight, FileText, Award, ScrollText, Users, Newspape
 interface ExtractionDetailPanelProps {
   extraction: DetailedExtraction | null
   criteriaSummary: CriteriaSummaryItem[]
+  criteriaMetadata?: Record<string, { name: string; description: string }>
 }
 
 function SourceBadge({ source }: { source?: "extracted" | "survey" }) {
@@ -130,8 +131,11 @@ function ItemCard({
 export function ExtractionDetailPanel({
   extraction,
   criteriaSummary,
+  criteriaMetadata: criteriaMetadataProp,
 }: ExtractionDetailPanelProps) {
-  const [selectedCriterion, setSelectedCriterion] = useState<CriterionId | "all">("all")
+  // Use dynamic metadata if provided, fall back to static CRITERIA_METADATA
+  const effectiveMetadata = criteriaMetadataProp ?? CRITERIA_METADATA
+  const [selectedCriterion, setSelectedCriterion] = useState<string>("all")
 
   if (!extraction) {
     return (
@@ -162,7 +166,7 @@ export function ExtractionDetailPanel({
             className="text-xs border border-border rounded px-2 py-1 bg-background"
           >
             <option value="all">All Criteria</option>
-            {Object.entries(CRITERIA_METADATA).map(([id, meta]) => (
+            {Object.entries(effectiveMetadata).map(([id, meta]) => (
               <option key={id} value={id}>
                 {id}: {meta.name}
               </option>

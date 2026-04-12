@@ -50,7 +50,7 @@ export async function verifyDocuments(caseId: string): Promise<{
   // Fetch all required data
   const [criteria, analysis, documents, profile] = await Promise.all([
     getCriteriaForCase(caseId),
-    db.eB1AAnalysis.findFirst({
+    db.caseAnalysis.findFirst({
       where: { caseId },
       orderBy: { createdAt: "desc" },
     }),

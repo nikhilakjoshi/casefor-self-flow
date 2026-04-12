@@ -136,7 +136,7 @@ function createDraftingAgentTools(caseId: string, documentId?: string) {
       inputSchema: z.object({}),
       execute: async () => {
         console.log(`${logPrefix} [getAnalysis] Called`);
-        const analysis = await db.eB1AAnalysis.findFirst({
+        const analysis = await db.caseAnalysis.findFirst({
           where: { caseId },
           orderBy: { createdAt: "desc" },
         });
@@ -263,7 +263,7 @@ export async function runDraftingAgent(opts: {
       select: { criteriaThreshold: true, applicationTypeId: true },
     }),
     db.caseProfile.findUnique({ where: { caseId } }),
-    db.eB1AAnalysis.findFirst({
+    db.caseAnalysis.findFirst({
       where: { caseId },
       orderBy: { createdAt: "desc" },
     }),

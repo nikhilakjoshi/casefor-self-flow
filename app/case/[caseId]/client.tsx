@@ -25,6 +25,7 @@ interface Message {
 
 interface CasePageClientProps {
   caseId: string
+  criteriaMetadata?: Record<string, { key: string; name: string; description: string }>
   initialMessages: Message[]
   initialAnalysis: {
     criteria: Array<{
@@ -51,6 +52,7 @@ interface CasePageClientProps {
 
 export function CasePageClient({
   caseId,
+  criteriaMetadata,
   initialMessages,
   initialAnalysis,
   hasExistingMessages,
@@ -395,6 +397,7 @@ export function CasePageClient({
           <div className="flex-1 bg-muted/50 overflow-hidden">
             <ReportPanel
               caseId={caseId}
+              criteriaMetadata={criteriaMetadata}
               initialAnalysis={initialAnalysis}
               version={analysisVersion}
               threshold={threshold}
@@ -417,14 +420,14 @@ export function CasePageClient({
 
       {/* Floating chat popup */}
       {chatOpen ? (
-        <div className="fixed bottom-5 right-5 z-50 w-[420px] h-[70vh] max-h-[700px] rounded-xl border border-border bg-background shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-200">
-          <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-border">
-            <span className="text-sm font-medium">Chat</span>
+        <div className="fixed bottom-5 right-5 z-50 w-[420px] h-[70vh] max-h-[700px] rounded-[8px] border border-[var(--cream)] bg-[var(--warm-white)] shadow-[0_8px_32px_rgba(12,11,10,0.08)] flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-200">
+          <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-[var(--cream)]">
+            <span className="font-serif text-[0.92rem] font-medium text-[var(--ink)]">Chat</span>
             <button
               onClick={() => setChatOpen(false)}
-              className="p-1 rounded hover:bg-muted transition-colors"
+              className="p-1.5 rounded-[4px] border border-[var(--cream)] bg-[var(--warm-white)] hover:bg-[var(--cream)] transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5 text-[var(--charcoal)]" />
             </button>
           </div>
           <div className="flex-1 overflow-hidden flex flex-col">
@@ -443,7 +446,7 @@ export function CasePageClient({
       ) : (
         <button
           onClick={() => setChatOpen(true)}
-          className="fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-border bg-background shadow-lg hover:shadow-xl text-sm font-medium text-foreground transition-all hover:bg-muted/50"
+          className="fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 px-4 py-2.5 rounded-[4px] border border-[var(--cream)] bg-[var(--ink)] text-[var(--parchment)] shadow-[0_4px_12px_rgba(12,11,10,0.06)] hover:bg-[var(--deep-brown)] hover:shadow-[0_8px_32px_rgba(12,11,10,0.08)] text-[0.82rem] font-medium transition-all"
         >
           <MessageSquare className="w-4 h-4" />
           Chat

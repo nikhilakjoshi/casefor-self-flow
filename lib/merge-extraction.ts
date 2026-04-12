@@ -108,25 +108,30 @@ function mergeAwards(extracted: Award[], survey: Award[]): Award[] {
   return result
 }
 
-// Recalculate criteria summary based on merged data
+// Recalculate criteria summary based on merged data.
+// Uses dynamic criteria keys from criteria_summary if available,
+// falling back to CRITERIA_METADATA keys.
 function recalculateCriteriaSummary(extraction: DetailedExtraction): CriteriaSummaryItem[] {
-  const criteriaMap: Record<CriterionId, { items: string[]; strength: "Strong" | "Weak" | "None" }> = {
-    C1: { items: [], strength: "None" },
-    C2: { items: [], strength: "None" },
-    C3: { items: [], strength: "None" },
-    C4: { items: [], strength: "None" },
-    C5: { items: [], strength: "None" },
-    C6: { items: [], strength: "None" },
-    C7: { items: [], strength: "None" },
-    C8: { items: [], strength: "None" },
-    C9: { items: [], strength: "None" },
-    C10: { items: [], strength: "None" },
+  // Discover all criteria from existing summaries + CRITERIA_METADATA
+  const criteriaKeys = new Set<string>()
+  for (const s of extraction.criteria_summary ?? []) {
+    criteriaKeys.add(s.criterion_id)
+  }
+  // Add hardcoded EB-1A keys as fallback
+  for (const k of Object.keys(CRITERIA_METADATA)) {
+    criteriaKeys.add(k)
+  }
+
+  const criteriaMap: Record<string, { items: string[]; strength: "Strong" | "Weak" | "None" }> = {}
+  for (const k of criteriaKeys) {
+    criteriaMap[k] = { items: [], strength: "None" }
   }
 
   // Aggregate evidence from all categories
-  const addEvidence = (items: Array<{ mapped_criteria: CriterionId[] }>, descFn: (item: unknown) => string) => {
+  const addEvidence = (items: Array<{ mapped_criteria: string[] }>, descFn: (item: unknown) => string) => {
     for (const item of items) {
-      for (const crit of item.mapped_criteria) {
+      for (const crit of item.mapped_criteria ?? []) {
+        if (!criteriaMap[crit]) criteriaMap[crit] = { items: [], strength: "None" }
         criteriaMap[crit].items.push(descFn(item))
       }
     }
@@ -146,18 +151,12 @@ function recalculateCriteriaSummary(extraction: DetailedExtraction): CriteriaSum
   addEvidence(extraction.commercial_success, (c) => (c as { description: string }).description)
   addEvidence(extraction.original_contributions, (o) => (o as { description: string }).description)
 
-  // Determine strength based on evidence count
-  for (const [crit, data] of Object.entries(criteriaMap) as [CriterionId, typeof criteriaMap.C1][]) {
-    const count = data.items.length
-    if (count >= 3) {
-      data.strength = "Strong"
-    } else if (count >= 1) {
-      data.strength = "Weak"
-    }
+  for (const data of Object.values(criteriaMap)) {
+    if (data.items.length >= 3) data.strength = "Strong"
+    else if (data.items.length >= 1) data.strength = "Weak"
   }
 
-  // Build summary
-  return (Object.entries(criteriaMap) as [CriterionId, typeof criteriaMap.C1][]).map(([crit, data]) => {
+  return Object.entries(criteriaMap).map(([crit, data]) => {
     const meta = CRITERIA_METADATA[crit]
     return {
       criterion_id: crit,
@@ -165,9 +164,9 @@ function recalculateCriteriaSummary(extraction: DetailedExtraction): CriteriaSum
       strength: data.strength,
       summary:
         data.strength === "None"
-          ? `No evidence found for ${meta.name.toLowerCase()}`
-          : `${data.items.length} piece(s) of evidence for ${meta.name.toLowerCase()}`,
-      key_evidence: data.items.slice(0, 5), // Top 5
+          ? `No evidence found for ${meta?.name?.toLowerCase() ?? crit}`
+          : `${data.items.length} piece(s) of evidence for ${meta?.name?.toLowerCase() ?? crit}`,
+      key_evidence: data.items.slice(0, 5),
     }
   })
 }
